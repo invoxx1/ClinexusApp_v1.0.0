@@ -1,0 +1,6 @@
+- [x] Implement Profile Picture options in `ProfileScreen.kt`
+    - [x] Add state variables for BottomSheet and Image Dialog
+    - [x] Add `ModalBottomSheet` for "View Profile" and "Edit Profile"
+    - [x] Add `Dialog` for viewing full profile picture
+    - [x] Make profile picture clickable
+- [x] Verify build and functionality

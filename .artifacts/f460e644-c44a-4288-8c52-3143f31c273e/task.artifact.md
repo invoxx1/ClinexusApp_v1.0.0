@@ -1,0 +1,5 @@
+- `[x]` Fix alignment: remove `fillMaxWidth` and `weight(1f)` from `AttachmentBox`
+- `[x]` Fix blinking: use `rememberAsyncImagePainter` for stable image rendering
+- `[x]` Refine image scaling: use `heightIn` and `widthIn` for natural fit
+- `[x]` Refine input area: improve horizontal padding and button separation
+- `[x]` Verify changes and build project

@@ -1,0 +1,11 @@
+- [x] Fix "Change Password" flow by resetting `otpState` to `Idle` in `OTPViewModel.kt`
+- [x] Fix Dentist list path in `AppointmentApiService.kt` (Path: `api/appointments/dentists`)
+- [x] Fix filename typo for `MarkReadRequest.kt`
+- [x] Global Warning Sweep:
+    - [x] Fix commas in data models and interfaces
+    - [x] Fix parentheses in complex logic
+    - [x] Remove unused imports/parameters
+    - [x] Upgrade deprecated Compose methods
+- [x] Verification
+    - [x] Static analysis clean
+    - [x] Build and test functional flows
