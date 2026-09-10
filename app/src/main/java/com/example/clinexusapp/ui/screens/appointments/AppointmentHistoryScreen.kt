@@ -7,6 +7,10 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -41,6 +45,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 private val AppointmentCardShape = RoundedCornerShape(18.dp)
 
@@ -52,6 +57,7 @@ private fun statusStyle(status: AppointmentStatus): StatusStyle = when (status) 
     AppointmentStatus.COMPLETED -> StatusStyle("Completed", Icons.Default.TaskAlt, Color(0xFF2563EB), Color(0xFFEFF6FF), "This appointment has been completed.")
     AppointmentStatus.CANCELLED -> StatusStyle("Cancelled", Icons.Default.Cancel, Color(0xFFDC2626), Color(0xFFFFF2F2), "This appointment was cancelled.")
     AppointmentStatus.RESCHEDULE_REQUESTED -> StatusStyle("Reschedule requested", Icons.Default.EventRepeat, Color(0xFF7C3AED), Color(0xFFF5F3FF), "Your reschedule request is waiting for clinic approval.")
+    AppointmentStatus.CANCELLATION_REQUESTED -> StatusStyle("Cancellation requested", Icons.Default.HourglassTop, Color(0xFFC2415A), Color(0xFFFFEFF2), "Your cancellation request is waiting for clinic approval.")
     AppointmentStatus.UNKNOWN -> StatusStyle("Status unavailable", Icons.AutoMirrored.Filled.HelpOutline, SlateGray, Color(0xFFF1F5F9), "This appointment has an unrecognized status.")
 }
 
@@ -64,20 +70,24 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
     var rescheduleTarget by remember { mutableStateOf<AppointmentDTO?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var completionMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(state.operation) {
-        when (val operation = state.operation) {
-            is Resource.Success -> {
-                snackbar.showSnackbar(operation.data)
-                if (cancelTarget != null || rescheduleTarget != null) {
-                    cancelTarget = null
-                    rescheduleTarget = null
-                }
-                viewModel.clearOperation()
-            }
-            is Resource.Error -> snackbar.showSnackbar(operation.message ?: "Request failed. Please try again.")
-            else -> Unit
+        val operation = state.operation
+        if (operation is Resource.Error) {
+            snackbar.showSnackbar(operation.message ?: "Request failed. Please try again.")
         }
+    }
+
+    LaunchedEffect(state.completedRequest) {
+        val message = state.completedRequest ?: return@LaunchedEffect
+        completionMessage = message
+        cancelTarget = null
+        rescheduleTarget = null
+        snackbar.showSnackbar(message)
+        viewModel.clearCompletedRequest()
+        delay(4500)
+        completionMessage = null
     }
 
     if (cancelTarget != null) {
@@ -95,6 +105,15 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
             }
             item { AppointmentTabs(state, viewModel) }
             item {
+                AnimatedVisibility(
+                    visible = completionMessage != null,
+                    enter = fadeIn() + scaleIn(initialScale = 0.94f),
+                    exit = fadeOut(),
+                ) {
+                    completionMessage?.let { AppointmentSuccessBanner(it) }
+                }
+            }
+            item {
                 Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("${tabLabel(state.selectedTab)} Appointments", color = RoyalNavy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     TextButton(onClick = { viewModel.selectTab(state.selectedTab) }) { Text("See All", color = DeepTeal, fontSize = 15.sp) }
@@ -110,6 +129,28 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
                         AppointmentCard(appointment, onClick = { selected = appointment }, onCancel = { cancelTarget = appointment }, onReschedule = { rescheduleTarget = appointment }, onBook = onNavigateToBooking)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppointmentSuccessBanner(message: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFFE9FAF3),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, Color(0xFF9ADFC3)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(Icons.Default.CheckCircle, contentDescription = "Request completed", tint = Color(0xFF078A5B), modifier = Modifier.size(26.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Request submitted", color = Color(0xFF05603A), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(message, color = Color(0xFF28745A), fontSize = 13.sp)
             }
         }
     }
@@ -199,7 +240,7 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                             OutlinedButton(onClick = onReschedule, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = DeepTeal)) { Icon(Icons.Default.EventRepeat, "Request reschedule"); Spacer(Modifier.width(4.dp)); Text("Reschedule") }
                         }
                         AppointmentStatus.CANCELLED -> OutlinedButton(onClick = onBook, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = DeepTeal)) { Text("Book again") }
-                        AppointmentStatus.COMPLETED, AppointmentStatus.RESCHEDULE_REQUESTED, AppointmentStatus.UNKNOWN -> Unit
+                        AppointmentStatus.COMPLETED, AppointmentStatus.RESCHEDULE_REQUESTED, AppointmentStatus.CANCELLATION_REQUESTED, AppointmentStatus.UNKNOWN -> Unit
                     }
                 }
             } else {
@@ -214,7 +255,7 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                             OutlinedButton(onClick = onReschedule, modifier = Modifier.weight(1f), colors = ButtonDefaults.outlinedButtonColors(contentColor = DeepTeal)) { Icon(Icons.Default.EventRepeat, "Request reschedule"); Spacer(Modifier.width(4.dp)); Text("Reschedule") }
                         }
                         AppointmentStatus.CANCELLED -> OutlinedButton(onClick = onBook, modifier = Modifier.weight(1f), colors = ButtonDefaults.outlinedButtonColors(contentColor = DeepTeal)) { Text("Book again") }
-                        AppointmentStatus.COMPLETED, AppointmentStatus.RESCHEDULE_REQUESTED, AppointmentStatus.UNKNOWN -> Unit
+                        AppointmentStatus.COMPLETED, AppointmentStatus.RESCHEDULE_REQUESTED, AppointmentStatus.CANCELLATION_REQUESTED, AppointmentStatus.UNKNOWN -> Unit
                     }
                 }
             }
@@ -320,19 +361,19 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                     is Resource.Success -> if (slots.data.isEmpty()) Text("No available times for this date.", color = SlateGray) else LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(slots.data) { slot -> FilterChip(selected = selectedSlot?.startTime == slot.startTime, onClick = { selectedSlot = slot }, label = { Text(slot.label ?: slot.startTime ?: "Time") }) } }
                     Resource.Idle -> Text("Choose a date first.", color = SlateGray)
                 }
-                OutlinedTextField(value = note, onValueChange = { if (it.length <= 200) note = it }, label = { Text("Add note (optional)") }, supportingText = { Text("${note.length}/200") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), minLines = 3)
+                OutlinedTextField(value = note, onValueChange = { if (it.length <= 200) note = it }, label = { Text("Reason for reschedule") }, supportingText = { Text("Required · ${note.length}/200") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), minLines = 3, isError = note.isBlank())
             }
             Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)) {
                 val isLargeFont = androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
                 if (isLargeFont) {
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), enabled = !state.rescheduleSubmitting, shape = RoundedCornerShape(16.dp), border = BorderStroke(2.dp, Color(0xFF1689E8)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1689E8))) { Text("Back", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
-                        Button(onClick = { selectedSlot?.let { viewModel.requestReschedule(appointment, date, it, note) } }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), enabled = date.isNotBlank() && selectedSlot != null && !state.rescheduleSubmitting, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal)) { if (state.rescheduleSubmitting) CircularProgressIndicator(Modifier.size(18.dp), color = White) else Text("Send Request", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                        Button(onClick = { selectedSlot?.let { viewModel.requestReschedule(appointment, date, it, note) } }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), enabled = date.isNotBlank() && selectedSlot != null && note.isNotBlank() && !state.rescheduleSubmitting, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal)) { if (state.rescheduleSubmitting) CircularProgressIndicator(Modifier.size(18.dp), color = White) else Text("Send Request", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
                     }
                 } else {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 56.dp), enabled = !state.rescheduleSubmitting, shape = RoundedCornerShape(16.dp), border = BorderStroke(2.dp, Color(0xFF1689E8)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1689E8))) { Text("Back", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
-                        Button(onClick = { selectedSlot?.let { viewModel.requestReschedule(appointment, date, it, note) } }, modifier = Modifier.weight(1f).heightIn(min = 56.dp), enabled = date.isNotBlank() && selectedSlot != null && !state.rescheduleSubmitting, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal)) { if (state.rescheduleSubmitting) CircularProgressIndicator(Modifier.size(18.dp), color = White) else Text("Send Request", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                        Button(onClick = { selectedSlot?.let { viewModel.requestReschedule(appointment, date, it, note) } }, modifier = Modifier.weight(1f).heightIn(min = 56.dp), enabled = date.isNotBlank() && selectedSlot != null && note.isNotBlank() && !state.rescheduleSubmitting, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal)) { if (state.rescheduleSubmitting) CircularProgressIndicator(Modifier.size(18.dp), color = White) else Text("Send Request", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
                     }
                 }
             }

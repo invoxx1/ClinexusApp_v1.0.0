@@ -206,7 +206,7 @@ internal fun DashboardContent(
                     Column(Modifier.padding(horizontal = 22.dp)) {
                         DashboardSectionHeader("Health Insights", Icons.Default.Lightbulb)
                         Spacer(Modifier.height(4.dp))
-                        InsightCard(insight.title, insight.description) { selectedInsight = insight }
+                        InsightCard(insight.title, insight.description, insight.category) { selectedInsight = insight }
                     }
                 }
             }
@@ -216,7 +216,7 @@ internal fun DashboardContent(
                     Column(Modifier.padding(horizontal = 22.dp)) {
                         DashboardSectionHeader("Clinic News", Icons.Default.Campaign)
                         Spacer(Modifier.height(4.dp))
-                        NewsCard(news.title, news.description)
+                        NewsCard(news.title, news.description, news.date)
                     }
                 }
             }

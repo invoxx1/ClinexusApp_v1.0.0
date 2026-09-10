@@ -24,6 +24,7 @@ data class HistoryUiState(
     val appointments: Resource<List<AppointmentDTO>> = Resource.Loading,
     val selectedTab: AppointmentTab = AppointmentTab.PENDING,
     val operation: Resource<String>? = null,
+    val completedRequest: String? = null,
     val cancellationSubmitting: Boolean = false,
     val rescheduleSubmitting: Boolean = false,
     val rescheduleSlots: Resource<List<AvailableSlotDTO>> = Resource.Success(emptyList())
@@ -54,7 +55,11 @@ class HistoryViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(cancellationSubmitting = true, operation = Resource.Loading)
             val result = appointmentRepository.cancelAppointment(id, CancelAppointmentRequest(reason))
             if (result is Resource.Success) {
-                _uiState.value = _uiState.value.copy(cancellationSubmitting = false, operation = Resource.Success("Cancellation request sent."))
+                _uiState.value = _uiState.value.copy(
+                    cancellationSubmitting = false,
+                    operation = Resource.Success("Cancellation request submitted. Waiting for clinic approval."),
+                    completedRequest = "Cancellation request submitted. Waiting for clinic approval."
+                )
                 fetchHistory(clearOperation = false)
             } else {
                 _uiState.value = _uiState.value.copy(cancellationSubmitting = false, operation = Resource.Error((result as Resource.Error).message))
@@ -71,6 +76,10 @@ class HistoryViewModel @Inject constructor(
 
     fun requestReschedule(appointment: AppointmentDTO, date: String, slot: AvailableSlotDTO, note: String) {
         if (_uiState.value.rescheduleSubmitting) return
+        if (note.isBlank()) {
+            _uiState.value = _uiState.value.copy(operation = Resource.Error("Please provide a reason for your reschedule request."))
+            return
+        }
         if (isUnchangedReschedule(appointment, date, slot)) {
             _uiState.value = _uiState.value.copy(operation = Resource.Error("Choose a different date or time."))
             return
@@ -81,10 +90,14 @@ class HistoryViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(rescheduleSubmitting = true, operation = Resource.Loading)
             val result = appointmentRepository.rescheduleAppointment(
                 appointment.appointmentId,
-                RescheduleAppointmentRequest(date, start, end, note, appointment.dentistId)
+                RescheduleAppointmentRequest(date, start, end, note.trim(), appointment.dentistId)
             )
             if (result is Resource.Success) {
-                _uiState.value = _uiState.value.copy(rescheduleSubmitting = false, operation = Resource.Success("Reschedule request sent."))
+                _uiState.value = _uiState.value.copy(
+                    rescheduleSubmitting = false,
+                    operation = Resource.Success("Reschedule request submitted. Waiting for clinic approval."),
+                    completedRequest = "Reschedule request submitted. Waiting for clinic approval."
+                )
                 fetchHistory(clearOperation = false)
             } else {
                 _uiState.value = _uiState.value.copy(rescheduleSubmitting = false, operation = Resource.Error((result as Resource.Error).message))
@@ -93,6 +106,8 @@ class HistoryViewModel @Inject constructor(
     }
 
     fun clearOperation() { _uiState.value = _uiState.value.copy(operation = null) }
+
+    fun clearCompletedRequest() { _uiState.value = _uiState.value.copy(completedRequest = null) }
 
     fun filteredAppointments(tab: AppointmentTab, source: List<AppointmentDTO>): List<AppointmentDTO> {
         return filterAppointmentsForTab(tab, source)
@@ -115,7 +130,7 @@ fun isUnchangedReschedule(appointment: AppointmentDTO, date: String, slot: Avail
     date == appointment.appointmentDate.substringBefore("T") && slot.startTime == appointment.startTime
 
 fun AppointmentStatus.toTab(): AppointmentTab = when (this) {
-    AppointmentStatus.PENDING, AppointmentStatus.RESCHEDULE_REQUESTED -> AppointmentTab.PENDING
+    AppointmentStatus.PENDING, AppointmentStatus.RESCHEDULE_REQUESTED, AppointmentStatus.CANCELLATION_REQUESTED -> AppointmentTab.PENDING
     AppointmentStatus.CONFIRMED -> AppointmentTab.CONFIRMED
     AppointmentStatus.COMPLETED -> AppointmentTab.COMPLETED
     AppointmentStatus.CANCELLED -> AppointmentTab.CANCELLED
