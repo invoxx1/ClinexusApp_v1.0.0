@@ -8,8 +8,8 @@ object BookingRules {
         val value = rawStatus?.trim()?.lowercase().orEmpty()
         return when {
             value.isBlank() || value.contains("pending") || value.contains("request") || value.contains("await") || value.contains("approval") -> "Awaiting clinic approval"
-            value.contains("confirm") || value.contains("scheduled") || value.contains("approved") -> "Confirmed"
             value.contains("cancel") -> "Cancelled"
+            value.contains("confirm") || value.contains("scheduled") || value.contains("approved") -> "Confirmed"
             value.contains("reject") || value.contains("declin") || value.contains("den") -> "Rejected"
             else -> "Awaiting clinic approval"
         }
@@ -35,6 +35,7 @@ fun mapAppointmentStatus(raw: String?): AppointmentStatus {
     return when {
         value == "reschedule_requested" || value == "needs_reschedule" || value.contains("reschedule") -> AppointmentStatus.RESCHEDULE_REQUESTED
         value == "needs_cancellation" -> AppointmentStatus.CANCELLATION_REQUESTED
+        value == "cancellation_approved" || value == "cancel_approved" -> AppointmentStatus.CANCELLED
         value == "pending" || value == "requested" || value == "request" || value.contains("await") -> AppointmentStatus.PENDING
         value == "approved" || value == "confirmed" || value == "scheduled" || value == "upcoming" -> AppointmentStatus.CONFIRMED
         value == "completed" || value == "done" || value == "no_show" -> AppointmentStatus.COMPLETED

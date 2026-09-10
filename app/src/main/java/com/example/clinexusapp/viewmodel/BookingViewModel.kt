@@ -110,11 +110,11 @@ class BookingViewModel @Inject constructor(
     }
 
     fun selectDate(date: String) {
-        if (_uiState.value.selectedDate == date) return
+        if (_uiState.value.selectedDate == date && _uiState.value.timeslots is Resource.Loading) return
         update { it.copy(selectedDate = date, selectedSlot = null, timeslots = Resource.Loading, confirmationChecked = false) }
         val dentist = _uiState.value.selectedDentist ?: return
         viewModelScope.launch {
-            val slots = appointmentRepository.getAvailableTimeslots(dentist.dentistId, date)
+            val slots = getBookableSlots(dentist.dentistId, date)
             update {
                 it.copy(
                     timeslots = slots,
@@ -142,19 +142,6 @@ class BookingViewModel @Inject constructor(
         }
         update { it.copy(isSubmitting = true, submission = Resource.Loading) }
         viewModelScope.launch {
-            val latestSlots = appointmentRepository.getAvailableTimeslots(dentist.dentistId, date)
-            val slotStillAvailable = latestSlots is Resource.Success && latestSlots.data.any { it.startTime == slot.startTime }
-            if (!slotStillAvailable) {
-                update {
-                    it.copy(
-                        step = BookingStep.DATE_TIME,
-                        selectedSlot = null,
-                        isSubmitting = false,
-                        submission = Resource.Error("That time is no longer available. Please choose another time.")
-                    )
-                }
-                return@launch
-            }
             val result = appointmentRepository.createAppointment(
                 CreateAppointmentRequest(
                     patientId = patientId,
@@ -166,8 +153,37 @@ class BookingViewModel @Inject constructor(
                     selectedServices = listOf(service.serviceId)
                 )
             )
-            update { it.copy(submission = result, isSubmitting = false) }
+            if (result is Resource.Error && result.message.isSlotConflictMessage()) {
+                val refreshedSlots = getBookableSlots(dentist.dentistId, date)
+                update {
+                    it.copy(
+                        step = BookingStep.DATE_TIME,
+                        timeslots = refreshedSlots,
+                        selectedSlot = null,
+                        confirmationChecked = false,
+                        submission = result,
+                        isSubmitting = false
+                    )
+                }
+            } else {
+                update {
+                    val remainingSlots = if (result is Resource.Success && it.timeslots is Resource.Success) {
+                        Resource.Success(it.timeslots.data.filterNot { available ->
+                            available.startTime?.take(5) == slot.startTime?.take(5)
+                        })
+                    } else {
+                        it.timeslots
+                    }
+                    it.copy(timeslots = remainingSlots, submission = result, isSubmitting = false)
+                }
+            }
         }
+    }
+
+    private suspend fun getBookableSlots(dentistId: Int, date: String): Resource<List<AvailableSlotDTO>> {
+        val availableSlots = appointmentRepository.getAvailableTimeslots(dentistId, date)
+        if (availableSlots !is Resource.Success) return availableSlots
+        return Resource.Success(availableSlots.data.distinctBy { it.startTime?.take(5) })
     }
 
     fun clearSubmission() { update { it.copy(submission = null) } }
@@ -189,4 +205,9 @@ class BookingViewModel @Inject constructor(
             patient = listOfNotNull(patient?.firstName, patient?.lastName).joinToString(" ").ifBlank { patient?.email.orEmpty() }
         )
     }
+}
+
+private fun String?.isSlotConflictMessage(): Boolean {
+    val value = this?.lowercase().orEmpty()
+    return value.contains("already booked") || value.contains("no longer available") || value.contains("just booked")
 }

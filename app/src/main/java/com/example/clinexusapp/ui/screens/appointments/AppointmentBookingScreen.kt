@@ -124,7 +124,13 @@ private fun previousStep(step: BookingStep) = when (step) {
 
 @Composable
 private fun BookingTopBar(onBack: (() -> Unit)?) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
         else Spacer(Modifier.size(48.dp))
         Text("Schedule visit", Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = RoyalNavy)

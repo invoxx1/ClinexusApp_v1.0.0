@@ -38,11 +38,12 @@ class HistoryViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
     val historyState = _uiState.map { it.appointments }
 
-    init { fetchHistory() }
-
-    fun fetchHistory(clearOperation: Boolean = true) {
+    fun fetchHistory(clearOperation: Boolean = true, showLoading: Boolean = true) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(appointments = Resource.Loading, operation = if (clearOperation) null else _uiState.value.operation)
+            _uiState.value = _uiState.value.copy(
+                appointments = if (showLoading) Resource.Loading else _uiState.value.appointments,
+                operation = if (clearOperation) null else _uiState.value.operation
+            )
             _uiState.value = _uiState.value.copy(appointments = appointmentRepository.getPatientAppointments())
         }
     }
@@ -76,7 +77,7 @@ class HistoryViewModel @Inject constructor(
 
     fun requestReschedule(appointment: AppointmentDTO, date: String, slot: AvailableSlotDTO, note: String) {
         if (_uiState.value.rescheduleSubmitting) return
-        if (note.isBlank()) {
+        if (note.isBlank() && !appointment.needsPatientScheduleChoice) {
             _uiState.value = _uiState.value.copy(operation = Resource.Error("Please provide a reason for your reschedule request."))
             return
         }
@@ -90,13 +91,24 @@ class HistoryViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(rescheduleSubmitting = true, operation = Resource.Loading)
             val result = appointmentRepository.rescheduleAppointment(
                 appointment.appointmentId,
-                RescheduleAppointmentRequest(date, start, end, note.trim(), appointment.dentistId)
+                RescheduleAppointmentRequest(
+                    date,
+                    start,
+                    end,
+                    note.trim().ifBlank { "New schedule selected after the clinic requested rescheduling." },
+                    appointment.dentistId
+                )
             )
             if (result is Resource.Success) {
+                val successMessage = if (appointment.needsPatientScheduleChoice) {
+                    "Your new schedule was submitted. Waiting for clinic approval."
+                } else {
+                    "Reschedule request submitted. Waiting for clinic approval."
+                }
                 _uiState.value = _uiState.value.copy(
                     rescheduleSubmitting = false,
-                    operation = Resource.Success("Reschedule request submitted. Waiting for clinic approval."),
-                    completedRequest = "Reschedule request submitted. Waiting for clinic approval."
+                    operation = Resource.Success(successMessage),
+                    completedRequest = successMessage
                 )
                 fetchHistory(clearOperation = false)
             } else {

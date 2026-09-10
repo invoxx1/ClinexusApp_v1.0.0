@@ -45,7 +45,7 @@ interface AppointmentApiService {
     ): Response<AvailableTimeslotsResponse>
 
     // Create appointment
-    @POST("api/appointments")
+    @POST("api/appointment-request")
     suspend fun createAppointment(
         @Header("Authorization") token: String,
         @Body request: CreateAppointmentRequest

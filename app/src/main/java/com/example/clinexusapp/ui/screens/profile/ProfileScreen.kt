@@ -1,349 +1,312 @@
 package com.example.clinexusapp.ui.screens.profile
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.window.Dialog
-import com.example.clinexusapp.ui.components.*
-import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.ProfileViewModel
-import com.example.clinexusapp.util.Resource
 import kotlinx.coroutines.launch
+
+private val ProfileBackground = Color(0xFFF1FAF9)
+private val ProfileTeal = Color(0xFF009E97)
+private val ProfileNavy = Color(0xFF07143C)
+private val ProfileMuted = Color(0xFF737C9A)
+private val ProfileMint = Color(0xFFE8F7F5)
+private val ProfileDivider = Color(0xFFE4E8EF)
+private val ProfileRed = Color(0xFFB90829)
+private val PanelShape = RoundedCornerShape(20.dp)
+
+private data class ProfileMenuEntry(
+    val title: String,
+    val subtitle: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val destructive: Boolean = false,
+    val onClick: () -> Unit,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
     onBack: () -> Unit,
-    onNavigateToSettings: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onNavigateToSettings: () -> Unit,
     onNavigateToPersonalInformation: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
     viewModel: ProfileViewModel,
 ) {
     val user by SessionManager.currentUser.collectAsState()
-    val updateState by viewModel.updateState.collectAsState()
-
-    // Options Dialog State
-    var showOptions by remember { mutableStateOf(false) }
-    var showFullImage by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
-
-    // Auto-fetch if names are missing
-    LaunchedEffect(user) {
-        if ((user != null) && (user?.firstName == null)) {
-            viewModel.fetchProfile()
-        }
-    }
-
-    val displayFirstName = if (!user?.firstName.isNullOrBlank()) user!!.firstName!! else "Patient"
-    val displayLastName = user?.lastName ?: ""
-    val defaultEmail = user?.email ?: "Not available"
-
-    var isEditing by remember { mutableStateOf(value = false) }
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-
-    LaunchedEffect(user) {
-        if (!isEditing) {
-            firstName = user?.firstName ?: ""
-            lastName = user?.lastName ?: ""
-            email = user?.email ?: ""
-        }
-    }
-
-    LaunchedEffect(updateState) {
-        if (updateState is Resource.Success) {
-            isEditing = false
-            viewModel.resetState()
-        }
-    }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showPhotoOptions by remember { mutableStateOf(false) }
+
+    LaunchedEffect(user) {
+        if (user != null && user?.firstName.isNullOrBlank()) viewModel.fetchProfile()
+    }
+    ProfileSystemBars()
+
+    if (showPhotoOptions) {
+        ModalBottomSheet(
+            onDismissRequest = { showPhotoOptions = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Profile photo", color = ProfileNavy, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                Text("Manage your photo from Personal Information.", color = ProfileMuted, fontSize = 14.sp)
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    onClick = { showPhotoOptions = false; onNavigateToPersonalInformation() },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ProfileTeal),
+                ) {
+                    Icon(Icons.Outlined.Edit, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Edit profile photo", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = ProfileBackground,
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = padding.calculateBottomPadding())
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding()),
+            contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-            WavyTealHeader(
-                title = "Profile",
-                onBack = onBack,
-                onSettingsClick = onNavigateToSettings,
-            )
+            item {
+                ProfileHero(
+                    firstName = user?.firstName.orEmpty(),
+                    lastName = user?.lastName.orEmpty(),
+                    email = user?.email.orEmpty(),
+                    photoUrl = user?.profilePicture,
+                    onBack = onBack,
+                    onPhotoClick = { showPhotoOptions = true },
+                )
+            }
+            item {
+                ProfileSection(
+                    title = "Account",
+                    entries = listOf(
+                        ProfileMenuEntry("Personal Information", "View and manage your details", Icons.Outlined.Person, onClick = onNavigateToPersonalInformation),
+                        ProfileMenuEntry("My Appointments", "View and manage your appointments", Icons.Outlined.CalendarMonth, onClick = onNavigateToHistory),
+                        ProfileMenuEntry("Medical Records", "View your health records", Icons.Outlined.Description) {
+                            scope.launch { snackbarHostState.showSnackbar("Medical records are not available yet.") }
+                        },
+                    ),
+                )
+            }
+            item {
+                Spacer(Modifier.height(16.dp))
+                ProfileSection(
+                    title = "Security and Session",
+                    entries = listOf(
+                        ProfileMenuEntry("Change Password", "Update your account password", Icons.Outlined.Lock, onClick = onNavigateToChangePassword),
+                        ProfileMenuEntry("Switch Account", "Log in to another account", Icons.Outlined.SwapHoriz, onClick = onLogout),
+                        ProfileMenuEntry("Log Out", "Sign out from this account", Icons.AutoMirrored.Outlined.Logout, destructive = true, onClick = onLogout),
+                    ),
+                )
+            }
+        }
+    }
+}
 
+@Composable
+private fun ProfileHero(
+    firstName: String,
+    lastName: String,
+    email: String,
+    photoUrl: String?,
+    onBack: () -> Unit,
+    onPhotoClick: () -> Unit,
+) {
+    val name = listOf(firstName, lastName).map { it.trim() }.filter { it.isNotBlank() }.joinToString(" ").ifBlank { "Patient" }
+    Box(Modifier.fillMaxWidth().height(404.dp)) {
+        ProfileHeader(onBack)
+        Surface(
+            modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp).fillMaxWidth().height(235.dp)
+                .shadow(10.dp, PanelShape, ambientColor = Color(0xFFB7D8D5).copy(alpha = 0.35f), spotColor = Color.Transparent),
+            shape = PanelShape,
+            color = Color.White,
+        ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .offset(y = (-15).dp),
+                modifier = Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 91.dp, bottom = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Surface(
-                    modifier = Modifier
-                        .size(110.dp)
-                        .clickable { showOptions = true },
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 8.dp,
-                    border = androidx.compose.foundation.BorderStroke(4.dp, MaterialTheme.colorScheme.surface)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        if (!user?.profilePicture.isNullOrEmpty()) {
-                            AsyncImage(
-                                model = user?.profilePicture,
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Person,
-                                null,
-                                modifier = Modifier.size(70.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                Text(name, color = ProfileNavy, fontSize = 23.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(5.dp))
+                Text(email.ifBlank { "Email not available" }, color = ProfileMuted, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(13.dp))
+                Surface(shape = RoundedCornerShape(50), color = Color(0xFFE3F6F3)) {
+                    Row(Modifier.padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.VerifiedUser, null, tint = Color(0xFF087F7A), modifier = Modifier.size(21.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text("Verified Patient", color = Color(0xFF087F7A), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
-                }
-
-                if (showOptions) {
-                    ModalBottomSheet(
-                        onDismissRequest = { showOptions = false },
-                        sheetState = sheetState,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp)
-                                .padding(bottom = 32.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text(
-                                text = "Profile Options",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            
-                            ProfileOptionItem(
-                                title = "View Profile Picture",
-                                icon = Icons.Default.Visibility,
-                                onClick = {
-                                    showOptions = false
-                                    showFullImage = true
-                                }
-                            )
-                            
-                            ProfileOptionItem(
-                                title = "Edit Profile",
-                                icon = Icons.Default.Edit,
-                                onClick = {
-                                    showOptions = false
-                                    onNavigateToPersonalInformation()
-                                }
-                            )
-                        }
-                    }
-                }
-
-                if (showFullImage) {
-                    Dialog(onDismissRequest = { showFullImage = false }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { showFullImage = false },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.9f)
-                                    .aspectRatio(1f),
-                                shape = RoundedCornerShape(24.dp),
-                                color = MaterialTheme.colorScheme.surface
-                            ) {
-                                if (!user?.profilePicture.isNullOrEmpty()) {
-                                    AsyncImage(
-                                        model = user?.profilePicture,
-                                        contentDescription = "Full Profile Picture",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Icon(
-                                        Icons.Default.Person,
-                                        null,
-                                        modifier = Modifier.fillMaxSize().padding(48.dp),
-                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                NeumorphicCard(modifier = Modifier.fillMaxWidth()) {
-                    if (isEditing) {
-                        MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Icons.Default.Badge)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Icons.Default.Badge)
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                            Text(text = if (displayFirstName != "Patient") "$displayFirstName $displayLastName" else displayFirstName, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onBackground)
-                            Text(text = defaultEmail, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Verified, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "VERIFIED PATIENT",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 1.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    ProfileMenuItem(
-                        title = "Personal Information",
-                        icon = Icons.Default.PersonOutline,
-                        iconColor = Color(0xFF00C9B1),
-                        iconBg = Color(0xFFE0F7F4),
-                        onClick = onNavigateToPersonalInformation
-                    )
-                    ProfileMenuItem(
-                        title = "My Appointments",
-                        icon = Icons.AutoMirrored.Filled.EventNote,
-                        iconColor = DeepTeal,
-                        iconBg = MintSparkle,
-                        onClick = onNavigateToHistory
-                    )
-                    ProfileMenuItem(
-                        title = "Medical Records",
-                        icon = Icons.Default.MedicalInformation,
-                        iconColor = Color(0xFF0288D1),
-                        iconBg = Color(0xFFE1F5FE)
-                    ) {
-                        scope.launch { snackbarHostState.showSnackbar("ACCESSING: Clinical Records") }
-                    }
-                    ProfileMenuItem(
-                        title = "Change Password",
-                        icon = Icons.Default.LockOpen,
-                        iconColor = Color(0xFF64748B),
-                        iconBg = Color(0xFFF1F5F9)
-                    ) {
-                        onNavigateToChangePassword()
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(36.dp))
-                VibrantButton(
-                    text = if (isEditing) (if (updateState is Resource.Loading) "Saving..." else "Save Profile") else "Edit Profile",
-                    onClick = {
-                        if (isEditing) {
-                            viewModel.updateProfile(firstName, lastName, email)
-                        } else {
-                            isEditing = true
-                        }
-                    },
-                    enabled = updateState !is Resource.Loading
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-                TextButton(onClick = onLogout) {
-                    Text(text = "Log Out", color = ErrorRed, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
-    }
-}
-
-@Composable
-fun ProfileOptionItem(title: String, icon: ImageVector, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = 132.dp).size(126.dp),
+            shape = CircleShape,
+            color = Color.White,
+            border = BorderStroke(5.dp, Color.White),
+            shadowElevation = 5.dp,
         ) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
+            if (photoUrl.isNullOrBlank()) {
+                Box(Modifier.fillMaxSize().background(ProfileMint), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Person, "Profile photo", tint = ProfileTeal, modifier = Modifier.size(76.dp))
+                }
+            } else {
+                AsyncImage(model = photoUrl, contentDescription = "Profile photo", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
+        }
+        Surface(
+            modifier = Modifier.align(Alignment.TopCenter).offset(x = 48.dp, y = 218.dp).size(48.dp)
+                .clickable(role = Role.Button, onClick = onPhotoClick),
+            shape = CircleShape,
+            color = Color(0xFFDBF4F1),
+            border = BorderStroke(2.dp, Color.White),
+            shadowElevation = 3.dp,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.CameraAlt, "Edit profile photo", tint = Color(0xFF087F7A), modifier = Modifier.size(23.dp))
+            }
         }
     }
 }
 
 @Composable
-fun ProfileMenuItem(title: String, icon: ImageVector, iconColor: Color, iconBg: Color, onClick: () -> Unit) {
-    NeumorphicCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(iconBg, RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
+private fun ProfileHeader(onBack: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().height(245.dp).drawBehind {
+            drawRect(Brush.linearGradient(listOf(Color(0xFF009D9D), Color(0xFF1CB9B5), Color(0xFF69DAD3)), Offset.Zero, Offset(size.width, size.height)))
+            val backWave = Path().apply {
+                moveTo(0f, size.height * 0.66f)
+                cubicTo(size.width * 0.18f, size.height * 0.65f, size.width * 0.25f, size.height * 0.98f, size.width * 0.58f, size.height * 0.97f)
+                cubicTo(size.width * 0.78f, size.height * 0.96f, size.width * 0.9f, size.height * 0.75f, size.width, size.height * 0.72f)
+                lineTo(size.width, size.height); lineTo(0f, size.height); close()
             }
-            Spacer(modifier = Modifier.width(18.dp))
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp
-            )
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(22.dp))
+            drawPath(backWave, Color(0xFF6ADBD4).copy(alpha = 0.72f))
+            val frontWave = Path().apply {
+                moveTo(0f, size.height * 0.83f)
+                cubicTo(size.width * 0.22f, size.height * 1.06f, size.width * 0.46f, size.height * 1.02f, size.width * 0.65f, size.height * 0.98f)
+                cubicTo(size.width * 0.82f, size.height * 0.94f, size.width * 0.91f, size.height * 0.83f, size.width, size.height * 0.78f)
+                lineTo(size.width, size.height); lineTo(0f, size.height); close()
+            }
+            drawPath(frontWave, Color(0xFFB7F0EC).copy(alpha = 0.84f))
+        }.statusBarsPadding(),
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 7.dp).size(48.dp)) {
+            Icon(Icons.Outlined.ArrowBackIosNew, "Back", tint = Color.White, modifier = Modifier.size(25.dp))
+        }
+        Column(Modifier.align(Alignment.TopStart).padding(start = 62.dp, top = 12.dp, end = 118.dp)) {
+            Text("Profile", color = Color.White, fontSize = 27.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+            Text("Manage your account and preferences", color = Color.White.copy(alpha = 0.84f), fontSize = 14.sp, lineHeight = 19.sp)
+        }
+        Column(Modifier.align(Alignment.TopEnd).padding(top = 23.dp, end = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Outlined.Eco, null, tint = Color.White, modifier = Modifier.size(35.dp))
+            Text("Better Care\nBrighter Days", color = Color.White, fontSize = 10.sp, lineHeight = 13.sp, fontFamily = FontFamily.SansSerif)
         }
     }
+}
+
+@Composable
+private fun ProfileSection(title: String, entries: List<ProfileMenuEntry>) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Text(title, color = ProfileMuted, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 2.dp, bottom = 9.dp).semantics { heading() })
+        Surface(
+            modifier = Modifier.fillMaxWidth().shadow(7.dp, PanelShape, ambientColor = Color(0xFFB7D8D5).copy(alpha = 0.28f), spotColor = Color.Transparent),
+            shape = PanelShape,
+            color = Color.White,
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                entries.forEachIndexed { index, entry ->
+                    ProfileMenuRow(entry)
+                    if (index < entries.lastIndex) HorizontalDivider(color = ProfileDivider, thickness = 1.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileMenuRow(entry: ProfileMenuEntry) {
+    val accent = if (entry.destructive) ProfileRed else Color(0xFF087F7A)
+    val background = if (entry.destructive) Color(0xFFFFECEE) else ProfileMint
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 82.dp).clickable(role = Role.Button, onClick = entry.onClick).padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(46.dp).background(background, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Icon(entry.icon, null, tint = accent, modifier = Modifier.size(25.dp))
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(entry.title, color = if (entry.destructive) ProfileRed else ProfileNavy, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(3.dp))
+            Text(entry.subtitle, color = ProfileMuted, fontSize = 13.sp, lineHeight = 17.sp)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = ProfileMuted, modifier = Modifier.size(26.dp))
+    }
+}
+
+@Composable
+private fun ProfileSystemBars() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val activity = view.context.findActivity()
+        val controller = if (!view.isInEditMode && activity != null) WindowCompat.getInsetsController(activity.window, view) else null
+        val previous = controller?.isAppearanceLightStatusBars
+        controller?.isAppearanceLightStatusBars = false
+        onDispose { previous?.let { controller.isAppearanceLightStatusBars = it } }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

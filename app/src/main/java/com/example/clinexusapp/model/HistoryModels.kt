@@ -23,7 +23,11 @@ data class AppointmentDTO(
         @SerializedName("cancelled_by") val cancelledBy: String? = null,
         @SerializedName("cancelled_at") val cancelledAt: String? = null,
         @SerializedName("cancellation_reason") val cancellationReason: String? = null,
-        @SerializedName("reschedule_note") val rescheduleNote: String? = null
+        @SerializedName("reschedule_note") val rescheduleNote: String? = null,
+        @SerializedName("requested_date") val requestedDate: String? = null,
+        @SerializedName("requested_start_time") val requestedStartTime: String? = null,
+        @SerializedName("requested_end_time") val requestedEndTime: String? = null,
+        @SerializedName("reschedule_source") val rescheduleSource: String? = null
 ) {
     // ✅ Combine first and last names
     val doctor: String get() = listOfNotNull(dentistFirstName, dentistLastName)
@@ -32,6 +36,9 @@ data class AppointmentDTO(
 
     // ✅ Use the correct field name
     val treatment: String get() = appointmentType.replaceFirstChar { it.uppercase() }
+
+    val needsPatientScheduleChoice: Boolean
+        get() = appointmentStatus.equals("needs_reschedule", ignoreCase = true) && requestedDate.isNullOrBlank()
 
     // ✅ Format status for display
     val displayStatus: String get() = when (appointmentStatus.lowercase().trim()) {

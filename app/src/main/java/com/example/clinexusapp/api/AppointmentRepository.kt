@@ -116,7 +116,13 @@ class AppointmentRepository @Inject constructor(
             when (response.code()) {
 
                 400 ->
-                    "Bad Request (400): $serverMessage"
+                    serverMessage
+
+                409 ->
+                    serverMessage
+
+                429 ->
+                    "The server is receiving too many requests. Please wait a moment and try again."
 
                 401 ->
                     "Unauthorized (401): $serverMessage. Please login again."

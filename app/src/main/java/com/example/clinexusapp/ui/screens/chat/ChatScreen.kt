@@ -21,12 +21,18 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -43,7 +49,6 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.clinexusapp.R
 import com.example.clinexusapp.model.*
-import com.example.clinexusapp.ui.components.ElegantTopAppBar
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.util.Resource
@@ -75,6 +80,7 @@ fun ChatScreen(
     val selectedContact by viewModel.selectedContact.collectAsState()
 
     var currentView by remember { mutableStateOf(ChatView.CONVERSATIONS) }
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(currentView) {
         onVisibilityChange(currentView != ChatView.MESSAGES)
@@ -143,6 +149,8 @@ fun ChatScreen(
         }
     }
 
+    BackHandler(enabled = currentView == ChatView.CONVERSATIONS) { onBack() }
+
     Scaffold(
         topBar = {
             if (currentView == ChatView.MESSAGES) {
@@ -185,49 +193,39 @@ fun ChatScreen(
                         containerColor = Color.White.copy(alpha = 0.95f),
                     )
                 )
-            } else {
-                ElegantTopAppBar(
-                    title = when(currentView) {
-                        ChatView.CONVERSATIONS -> "Messages"
-                        ChatView.CONTACTS -> "New Chat"
-                        else -> "Clinic Chat"
-                    },
-                    onBack = {
-                        when(currentView) {
-                            ChatView.CONVERSATIONS -> onBack()
-                            ChatView.CONTACTS -> {
-                                viewModel.selectContact(null)
-                                currentView = ChatView.CONVERSATIONS
-                            }
-                            else -> {}
-                        }
-                    }
-                )
             }
         },
         floatingActionButton = {
             if (currentView == ChatView.CONVERSATIONS) {
                 FloatingActionButton(
-                    onClick = { currentView = ChatView.CONTACTS },
-                    containerColor = RoyalNavy,
+                    onClick = {
+                        searchQuery = ""
+                        currentView = ChatView.CONTACTS
+                    },
+                    containerColor = Color(0xFF00BDB2),
                     contentColor = Color.White,
                     shape = CircleShape,
-                    modifier = Modifier.padding(8.dp)
+                    modifier = Modifier.padding(12.dp).size(64.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "New Chat")
+                    Icon(Icons.Default.Add, contentDescription = "New Chat", modifier = Modifier.size(34.dp))
                 }
             }
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF5FCFB)
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .chatScreenBackground()
         ) {
             when (currentView) {
                 ChatView.CONVERSATIONS -> {
-                    Box(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        ChatListHeader(title = "Messages")
+                        MessageSearchField(searchQuery, { searchQuery = it }, "Search conversations...")
+                        Spacer(Modifier.height(26.dp))
+                        Box(modifier = Modifier.weight(1f)) {
                         when (val convState = conversationsState) {
                             is Resource.Loading -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -240,33 +238,56 @@ fun ChatScreen(
                                 }
                             }
                             is Resource.Success -> {
-                                val conversations = convState.data
+                                val conversations = convState.data.filter {
+                                    searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) ||
+                                        it.lastMessage.orEmpty().contains(searchQuery, ignoreCase = true)
+                                }
                                 if (conversations.isEmpty()) {
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(text = "No active conversations", color = SlateGray)
+                                        Text(text = if (searchQuery.isBlank()) "No active conversations" else "No conversations found", color = SlateGray)
                                     }
                                 } else {
-                                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, bottom = 96.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
                                         items(conversations) { conversation ->
                                             ConversationItem(conversation = conversation) {
                                                 viewModel.selectConversation(conversation)
                                                 currentView = ChatView.MESSAGES
                                             }
-                                            HorizontalDivider(
-                                                modifier = Modifier.padding(start = 76.dp),
-                                                thickness = 0.5.dp,
-                                                color = SoftMist
-                                            )
                                         }
                                     }
                                 }
                             }
                             else -> {}
                         }
+                        }
                     }
                 }
                 ChatView.CONTACTS -> {
-                    Box(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        ChatListHeader(
+                            title = "New Chat",
+                            centered = true,
+                            onBack = {
+                                searchQuery = ""
+                                viewModel.selectContact(null)
+                                currentView = ChatView.CONVERSATIONS
+                            },
+                        )
+                        MessageSearchField(searchQuery, { searchQuery = it }, "Search staff or contacts...")
+                        Spacer(Modifier.height(30.dp))
+                        Text(
+                            "Available Contacts",
+                            color = Color(0xFF7D839D),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Box(modifier = Modifier.weight(1f)) {
                         when (val cState = contactsState) {
                             is Resource.Loading -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -279,28 +300,41 @@ fun ChatScreen(
                                 }
                             }
                             is Resource.Success -> {
-                                val contacts = cState.data
+                                val contacts = cState.data.filter {
+                                    searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) ||
+                                        it.role.contains(searchQuery, ignoreCase = true)
+                                }
                                 if (contacts.isEmpty()) {
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(text = "No contacts available", color = SlateGray)
+                                        Text(text = if (searchQuery.isBlank()) "No contacts available" else "No contacts found", color = SlateGray)
                                     }
                                 } else {
-                                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                        items(contacts) { contact ->
-                                            ContactItem(contact = contact) {
-                                                viewModel.selectContact(contact)
-                                                currentView = ChatView.MESSAGES
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                                    ) {
+                                        item {
+                                            Surface(
+                                                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0xFFB8DEDB).copy(alpha = 0.28f), spotColor = Color.Transparent),
+                                                shape = RoundedCornerShape(20.dp),
+                                                color = Color.White,
+                                            ) {
+                                                Column(Modifier.padding(horizontal = 14.dp)) {
+                                                    contacts.forEachIndexed { index, contact ->
+                                                        ContactItem(contact = contact) {
+                                                            viewModel.selectContact(contact)
+                                                            currentView = ChatView.MESSAGES
+                                                        }
+                                                        if (index < contacts.lastIndex) HorizontalDivider(color = Color(0xFFE8EBF0))
+                                                    }
+                                                }
                                             }
-                                            HorizontalDivider(
-                                                modifier = Modifier.padding(start = 76.dp),
-                                                thickness = 0.5.dp,
-                                                color = SoftMist
-                                            )
                                         }
                                     }
                                 }
                             }
                             else -> {}
+                        }
                         }
                     }
                 }
@@ -493,6 +527,85 @@ fun ChatScreen(
     }
 }
 
+private fun Modifier.chatScreenBackground(): Modifier = drawBehind {
+    drawRect(Color(0xFFF5FCFB))
+    val topAccent = Path().apply {
+        moveTo(size.width * 0.55f, 0f)
+        cubicTo(size.width * 0.58f, size.height * 0.11f, size.width * 0.78f, size.height * 0.13f, size.width, size.height * 0.18f)
+        lineTo(size.width, 0f)
+        close()
+    }
+    drawPath(
+        topAccent,
+        Brush.linearGradient(
+            listOf(Color(0xFFEDFDFC), Color(0xFFCDF7F3)),
+            Offset(size.width * 0.55f, 0f),
+            Offset(size.width, size.height * 0.18f),
+        ),
+    )
+    val lowerAccent = Path().apply {
+        moveTo(0f, size.height * 0.69f)
+        cubicTo(size.width * 0.25f, size.height * 0.69f, size.width * 0.39f, size.height * 0.91f, size.width * 0.76f, size.height)
+        lineTo(0f, size.height)
+        close()
+    }
+    drawPath(lowerAccent, Color(0xFFE5F9F7).copy(alpha = 0.78f))
+}
+
+@Composable
+private fun ChatListHeader(
+    title: String,
+    centered: Boolean = false,
+    onBack: (() -> Unit)? = null,
+) {
+    val headerHeight = if (centered) 72.dp else 44.dp
+    Box(
+        modifier = Modifier.fillMaxWidth().height(headerHeight).padding(horizontal = 22.dp),
+    ) {
+        if (onBack != null) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart).size(48.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color(0xFF07143C), modifier = Modifier.size(30.dp))
+            }
+        }
+        Text(
+            text = title,
+            color = Color(0xFF07143C),
+            fontSize = if (centered) 24.sp else 22.sp,
+            lineHeight = 28.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = if (centered) Modifier.align(Alignment.Center) else Modifier.align(Alignment.BottomStart).padding(bottom = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun MessageSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).height(58.dp),
+        placeholder = { Text(placeholder, color = Color(0xFF939AB2), fontSize = 16.sp, maxLines = 1) },
+        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color(0xFF858CA8), modifier = Modifier.size(28.dp)) },
+        trailingIcon = if (value.isNotEmpty()) {
+            { IconButton(onClick = { onValueChange("") }) { Icon(Icons.Default.Close, "Clear search", tint = Color(0xFF858CA8)) } }
+        } else null,
+        singleLine = true,
+        shape = RoundedCornerShape(30.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color(0xFFEFF9F8).copy(alpha = 0.92f),
+            unfocusedContainerColor = Color(0xFFEFF9F8).copy(alpha = 0.92f),
+            focusedTextColor = Color(0xFF07143C),
+            unfocusedTextColor = Color(0xFF07143C),
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+        ),
+    )
+}
+
 enum class ChatView { CONVERSATIONS, CONTACTS, MESSAGES }
 
 fun getInitials(name: String): String {
@@ -510,38 +623,44 @@ fun ChatAvatar(imageUrl: String?, name: String, size: Dp, fontSize: TextUnit = 1
         AsyncImage(
             model = imageUrl,
             contentDescription = name,
-            modifier = Modifier.size(size).clip(CircleShape),
+            modifier = Modifier.size(size).clip(CircleShape).background(Color(0xFFE0F7F4)),
             contentScale = ContentScale.Crop,
             placeholder = painterResource(R.drawable.ic_person_placeholder),
             error = painterResource(R.drawable.ic_person_placeholder)
         )
     } else {
         Box(
-            modifier = Modifier.size(size).background(SoftMist, CircleShape),
+            modifier = Modifier.size(size).background(Color(0xFFE0F7F4), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = getInitials(name), color = SlateGray, fontWeight = FontWeight.Bold, fontSize = fontSize)
+            Text(text = getInitials(name), color = Color(0xFF009E97), fontWeight = FontWeight.Bold, fontSize = fontSize)
         }
     }
 }
 
 @Composable
 fun ConversationItem(conversation: ConversationDTO, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0xFFB8DEDB).copy(alpha = 0.28f), spotColor = Color.Transparent)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
     ) {
-        ChatAvatar(imageUrl = conversation.profilePicture, name = conversation.name, size = 52.dp, fontSize = 20.sp)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text(text = conversation.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = RoyalNavy, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                if (conversation.lastMessageTime != null) {
-                    Text(text = DateUtils.formatChatTime(conversation.lastMessageTime), fontSize = 13.sp, color = SlateGray)
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = SoftMist, modifier = Modifier.size(16.dp))
+        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+            ChatAvatar(imageUrl = conversation.profilePicture, name = conversation.name, size = 58.dp, fontSize = 20.sp)
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(text = conversation.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF07143C), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    conversation.lastMessageTime?.let {
+                        Text(text = DateUtils.formatChatTime(it), fontSize = 13.sp, color = Color(0xFF8A90A8), maxLines = 1)
+                    }
                 }
+                Spacer(Modifier.height(4.dp))
+                Text(text = conversation.lastMessage ?: "No messages yet", fontSize = 14.sp, color = Color(0xFF8A90A8), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Text(text = conversation.lastMessage ?: "No messages yet", fontSize = 14.sp, color = SlateGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFF858CA2), modifier = Modifier.size(28.dp))
         }
     }
 }
@@ -549,15 +668,17 @@ fun ConversationItem(conversation: ConversationDTO, onClick: () -> Unit) {
 @Composable
 fun ContactItem(contact: ContactDTO, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ChatAvatar(imageUrl = contact.profilePicture, name = contact.name, size = 52.dp, fontSize = 20.sp)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column {
-            Text(text = contact.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = RoyalNavy)
-            Text(text = contact.role, fontSize = 13.sp, color = SlateGray)
+        ChatAvatar(imageUrl = contact.profilePicture, name = contact.name, size = 58.dp, fontSize = 21.sp)
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(text = contact.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF07143C), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(3.dp))
+            Text(text = contact.role, fontSize = 14.sp, color = Color(0xFF8A90A8), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFF858CA2), modifier = Modifier.size(28.dp))
     }
 }
 

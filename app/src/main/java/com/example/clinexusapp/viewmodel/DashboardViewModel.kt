@@ -39,10 +39,6 @@ class DashboardViewModel @Inject constructor(
     private val _unreadNotificationsCount = MutableStateFlow(0)
     val unreadNotificationsCount = _unreadNotificationsCount.asStateFlow()
 
-    init {
-        fetchDashboardData()
-    }
-
     fun fetchDashboardData() {
         viewModelScope.launch {
             _newsState.value = Resource.Loading
@@ -59,58 +55,11 @@ class DashboardViewModel @Inject constructor(
             }
 
             launch {
-                val result = appointmentRepository.getPatientAppointments()
-                if (result is Resource.Success) {
-                    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                    val now = Date()
-                    
-                    val activeAppts = result.data.filter {
-                        val status = it.appointmentStatus.lowercase()
-                        // Filter out terminal states
-                        status != "cancelled" && status != "canceled" && status != "completed" && status != "done" && status != "rejected"
-                    }.filter {
-                        try {
-                            val cleanDate = it.appointmentDate.substringBefore("T")
-                            val apptDate = sdf.parse("$cleanDate ${it.startTime}")
-                            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
-                            // Show today's or future appointments
-                            apptDate?.after(now) == true || cleanDate == todayStr
-                        } catch (_: Exception) {
-                            false
-                        }
-                    }.sortedWith(compareBy<AppointmentDTO> {
-                        // Priority: CONFIRMED (0) > PENDING (1) > RESCHEDULE (2)
-                        val status = mapAppointmentStatus(it.appointmentStatus)
-                        when (status) {
-                            AppointmentStatus.CONFIRMED -> 0
-                            AppointmentStatus.PENDING -> 1
-                            AppointmentStatus.RESCHEDULE_REQUESTED -> 2
-                            else -> 3
-                        }
-                    }.thenBy {
-                        try {
-                            val cleanDate = it.appointmentDate.substringBefore("T")
-                            sdf.parse("$cleanDate ${it.startTime}")?.time ?: Long.MAX_VALUE
-                        } catch (_: Exception) {
-                            Long.MAX_VALUE
-                        }
-                    })
-
-                    _nextAppointment.value = Resource.Success(activeAppts.firstOrNull())
-                } else if (result is Resource.Error) {
-                    _nextAppointment.value = Resource.Error(result.message ?: "Failed to load appointments")
-                }
+                refreshAppointments()
             }
 
             launch {
-                val notifResult = repository.getNotifications()
-                if (notifResult is Resource.Success) {
-                    // Only count isRead == 0 as unread
-                    val unreadCount = notifResult.data.count { it.isRead == 0 }
-                    _unreadNotificationsCount.value = unreadCount
-                } else {
-                    _unreadNotificationsCount.value = 0
-                }
+                refreshNotifications()
             }
 
             launch {
@@ -124,6 +73,64 @@ class DashboardViewModel @Inject constructor(
             launch {
                 _promotionsState.value = appointmentRepository.getActivePromotions()
             }
+        }
+    }
+
+    fun refreshAppointmentsAndNotifications() {
+        viewModelScope.launch {
+            launch { refreshAppointments() }
+            launch { refreshNotifications() }
+        }
+    }
+
+    private suspend fun refreshAppointments() {
+        val result = appointmentRepository.getPatientAppointments()
+        if (result is Resource.Success) {
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val now = Date()
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+            val activeAppts = result.data.filter {
+                when (mapAppointmentStatus(it.appointmentStatus)) {
+                    AppointmentStatus.PENDING,
+                    AppointmentStatus.CONFIRMED,
+                    AppointmentStatus.RESCHEDULE_REQUESTED,
+                    AppointmentStatus.CANCELLATION_REQUESTED -> true
+                    else -> false
+                }
+            }.filter {
+                try {
+                    val cleanDate = it.appointmentDate.substringBefore("T")
+                    val apptDate = sdf.parse("$cleanDate ${it.startTime}")
+                    apptDate?.after(now) == true || cleanDate == todayStr
+                } catch (_: Exception) {
+                    false
+                }
+            }.sortedWith(compareBy<AppointmentDTO> {
+                when (mapAppointmentStatus(it.appointmentStatus)) {
+                    AppointmentStatus.CONFIRMED -> 0
+                    AppointmentStatus.PENDING -> 1
+                    AppointmentStatus.RESCHEDULE_REQUESTED -> 2
+                    AppointmentStatus.CANCELLATION_REQUESTED -> 3
+                    else -> 4
+                }
+            }.thenBy {
+                try {
+                    val cleanDate = it.appointmentDate.substringBefore("T")
+                    sdf.parse("$cleanDate ${it.startTime}")?.time ?: Long.MAX_VALUE
+                } catch (_: Exception) {
+                    Long.MAX_VALUE
+                }
+            })
+            _nextAppointment.value = Resource.Success(activeAppts.firstOrNull())
+        } else if (result is Resource.Error) {
+            _nextAppointment.value = Resource.Error(result.message ?: "Failed to load appointments")
+        }
+    }
+
+    private suspend fun refreshNotifications() {
+        val result = repository.getNotifications()
+        if (result is Resource.Success) {
+            _unreadNotificationsCount.value = result.data.count { it.isRead == 0 }
         }
     }
 }

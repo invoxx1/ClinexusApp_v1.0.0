@@ -33,6 +33,7 @@ class DashboardLogicTest {
     fun `mapAppointmentStatus maps Cancelled correctly`() {
         assertEquals(AppointmentStatus.CANCELLED, mapAppointmentStatus("CANCELLED"))
         assertEquals(AppointmentStatus.CANCELLED, mapAppointmentStatus("CANCELED"))
+        assertEquals(AppointmentStatus.CANCELLED, mapAppointmentStatus("CANCELLATION_APPROVED"))
         assertEquals(AppointmentStatus.CANCELLED, mapAppointmentStatus("rejected"))
     }
 

@@ -46,6 +46,7 @@ import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.DashboardViewModel
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 internal object DashboardStyle {
     val Background = Color(0xFFF0FAFA)
@@ -56,6 +57,21 @@ internal object DashboardStyle {
     val Orange = Color(0xFFFF792A)
     val CardShape = RoundedCornerShape(18.dp)
 }
+
+private val FallbackHealthInsight = HealthInsightDTO(
+    id = "local-health-insight",
+    title = "Protect your smile today",
+    description = "Brush twice a day, floss gently, and schedule a dental check-up when it is due.",
+    category = "Daily tip",
+    iconEmoji = "health",
+)
+
+private val FallbackClinicNews = ClinicNewsDTO(
+    id = "local-clinic-news",
+    title = "Clinic hours",
+    description = "Our clinic is open Monday to Saturday for appointments and patient support.",
+    date = "Mon-Sat · 8:00 AM - 5:00 PM",
+)
 
 @Composable
 fun DashboardScreen(
@@ -70,7 +86,13 @@ fun DashboardScreen(
     val nextApptState by viewModel.nextAppointment.collectAsState()
     val unreadCount by viewModel.unreadNotificationsCount.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.fetchDashboardData() }
+    LaunchedEffect(Unit) {
+        viewModel.fetchDashboardData()
+        while (true) {
+            delay(30_000)
+            viewModel.refreshAppointmentsAndNotifications()
+        }
+    }
 
     DashboardContent(
         firstName = user?.firstName.orEmpty(),
@@ -200,24 +222,20 @@ internal fun DashboardContent(
                     }
                 }
             }
-            val insight = (insightsState as? Resource.Success)?.data?.firstOrNull()
-            if (insight != null) {
-                item(key = "insights") {
-                    Column(Modifier.padding(horizontal = 22.dp)) {
-                        DashboardSectionHeader("Health Insights", Icons.Default.Lightbulb)
-                        Spacer(Modifier.height(4.dp))
-                        InsightCard(insight.title, insight.description, insight.category) { selectedInsight = insight }
-                    }
+            val insight = (insightsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackHealthInsight
+            item(key = "insights") {
+                Column(Modifier.padding(horizontal = 22.dp)) {
+                    DashboardSectionHeader("Health Insights", Icons.Default.Lightbulb)
+                    Spacer(Modifier.height(4.dp))
+                    InsightCard(insight.title, insight.description, insight.category) { selectedInsight = insight }
                 }
             }
-            val news = (newsState as? Resource.Success)?.data?.firstOrNull()
-            if (news != null) {
-                item(key = "news") {
-                    Column(Modifier.padding(horizontal = 22.dp)) {
-                        DashboardSectionHeader("Clinic News", Icons.Default.Campaign)
-                        Spacer(Modifier.height(4.dp))
-                        NewsCard(news.title, news.description, news.date)
-                    }
+            val news = (newsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackClinicNews
+            item(key = "news") {
+                Column(Modifier.padding(horizontal = 22.dp)) {
+                    DashboardSectionHeader("Clinic News", Icons.Default.Campaign)
+                    Spacer(Modifier.height(4.dp))
+                    NewsCard(news.title, news.description, news.date)
                 }
             }
         }
