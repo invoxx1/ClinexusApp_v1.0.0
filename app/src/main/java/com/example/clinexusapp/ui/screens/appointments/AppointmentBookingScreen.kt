@@ -240,7 +240,7 @@ private fun DateStrip(state: BookingUiState, viewModel: BookingViewModel) {
             )
             Surface(
                 onClick = { if (!unavailable) viewModel.selectDate(value) }, enabled = !unavailable,
-                modifier = Modifier.width(68.dp).height(90.dp), shape = BookingCardShape,
+                modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 90.dp).padding(horizontal = 2.dp), shape = BookingCardShape,
                 color = if (selected) VibrantTeal else White, border = BorderStroke(1.dp, if (selected) VibrantTeal else Color(0xFFE4EAEE))
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -261,7 +261,7 @@ private fun TimeGrid(slots: List<AvailableSlotDTO>, selected: AvailableSlotDTO?,
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { slot ->
                     val isSelected = selected?.startTime == slot.startTime
-                    Surface(onClick = { onSelect(slot) }, modifier = Modifier.weight(1f).height(56.dp), shape = BookingCardShape, color = if (isSelected) VibrantTeal else White) { Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) { Text(slot.label ?: slot.startTime ?: "Time", color = if (isSelected) White else RoyalNavy, fontWeight = FontWeight.Bold) } }
+                    Surface(onClick = { onSelect(slot) }, modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 2.dp), shape = BookingCardShape, color = if (isSelected) VibrantTeal else White) { Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp)) { Text(slot.label ?: slot.startTime ?: "Time", color = if (isSelected) White else RoyalNavy, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center) } }
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
@@ -367,7 +367,7 @@ private fun <T> ResourceContent(resource: Resource<List<T>>, onRetry: () -> Unit
 @Composable private fun ErrorState(message: String, retry: () -> Unit) { Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) { Text(message, color = ErrorRed); TextButton(onClick = retry) { Text("Retry") } } }
 
 @Composable
-private fun BookingBottomAction(label: String, enabled: Boolean, onClick: () -> Unit) { Surface(color = White, shadowElevation = 8.dp) { Box(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding()) { Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal, disabledContainerColor = Color(0xFFCBD5D8))) { Text(label, fontSize = 17.sp, fontWeight = FontWeight.Bold) } } } }
+private fun BookingBottomAction(label: String, enabled: Boolean, onClick: () -> Unit) { Surface(color = White, shadowElevation = 8.dp) { Box(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding()) { Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal, disabledContainerColor = Color(0xFFCBD5D8))) { Text(label, fontSize = 17.sp, fontWeight = FontWeight.Bold) } } } }
 
 private fun formatPrice(price: Double?): String = price?.let { "₱${String.format(Locale.US, "%,.0f", it)}" } ?: "Price unavailable"
 private fun formatAppointmentDate(value: String?): String = value?.let {

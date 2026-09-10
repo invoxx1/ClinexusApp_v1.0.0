@@ -151,7 +151,10 @@ fun DashboardScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                    ) {
                                         Box(
                                             modifier = Modifier
                                                 .size(54.dp)
@@ -161,7 +164,7 @@ fun DashboardScreen(
                                             Icon(Icons.AutoMirrored.Filled.EventNote, null, tint = DeepTeal, modifier = Modifier.size(26.dp))
                                         }
                                         Spacer(modifier = Modifier.width(18.dp))
-                                        Column {
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = nextAppt!!.treatment, 
                                                 fontWeight = FontWeight.Bold, 

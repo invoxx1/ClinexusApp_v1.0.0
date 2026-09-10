@@ -391,7 +391,7 @@ fun ChatScreen(
 
                     // Floating Pill Input area
                     Surface(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding(),
                         color = Color.White,
                         tonalElevation = 0.dp
                     ) {

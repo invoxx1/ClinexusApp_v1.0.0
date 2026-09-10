@@ -122,6 +122,7 @@ fun TealBottomBar(navController: NavHostController) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 20.dp)
             .shadow(12.dp, RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp),
@@ -130,8 +131,8 @@ fun TealBottomBar(navController: NavHostController) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
-                .padding(horizontal = 8.dp),
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
