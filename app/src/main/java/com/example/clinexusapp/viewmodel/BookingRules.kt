@@ -34,7 +34,7 @@ fun mapAppointmentStatus(raw: String?): AppointmentStatus {
     val value = raw?.trim()?.lowercase().orEmpty()
     return when {
         value == "reschedule_requested" || value == "needs_reschedule" || value.contains("reschedule") -> AppointmentStatus.RESCHEDULE_REQUESTED
-        value == "pending" || value == "requested" || value == "needs_cancellation" -> AppointmentStatus.PENDING
+        value == "pending" || value == "requested" || value == "request" || value == "needs_cancellation" || value.contains("await") -> AppointmentStatus.PENDING
         value == "approved" || value == "confirmed" || value == "scheduled" || value == "upcoming" -> AppointmentStatus.CONFIRMED
         value == "completed" || value == "done" || value == "no_show" -> AppointmentStatus.COMPLETED
         value == "cancelled" || value == "canceled" || value == "rejected" || value == "declined" || value == "denied" -> AppointmentStatus.CANCELLED

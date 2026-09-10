@@ -33,8 +33,11 @@ class DashboardViewModel @Inject constructor(
     private val _promotionsState = MutableStateFlow<Resource<List<PromotionDTO>>>(Resource.Loading)
     val promotionsState = _promotionsState.asStateFlow()
 
-    private val _nextAppointment = MutableStateFlow<AppointmentDTO?>(null)
+    private val _nextAppointment = MutableStateFlow<Resource<AppointmentDTO?>>(Resource.Idle)
     val nextAppointment = _nextAppointment.asStateFlow()
+
+    private val _unreadNotificationsCount = MutableStateFlow(0)
+    val unreadNotificationsCount = _unreadNotificationsCount.asStateFlow()
 
     init {
         fetchDashboardData()
@@ -45,6 +48,7 @@ class DashboardViewModel @Inject constructor(
             _newsState.value = Resource.Loading
             _insightsState.value = Resource.Loading
             _promotionsState.value = Resource.Loading
+            _nextAppointment.value = Resource.Loading
             
             // Parallel execution
             launch {
@@ -60,31 +64,52 @@ class DashboardViewModel @Inject constructor(
                     val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
                     val now = Date()
                     
-                    // Filter: Not cancelled and in the future (or today)
-                    // Sort: Closest to current time
-                    val next = result.data
-                        .asSequence()
-                        .filter { it.appointmentStatus.lowercase() != "cancelled" }
-                        .sortedBy { 
-                            try {
-                                val cleanDate = it.appointmentDate.substringBefore("T")
-                                sdf.parse("$cleanDate ${it.startTime}")
-                            } catch (_: Exception) {
-                                null
-                            }
+                    val activeAppts = result.data.filter {
+                        val status = it.appointmentStatus.lowercase()
+                        // Filter out terminal states
+                        status != "cancelled" && status != "canceled" && status != "completed" && status != "done" && status != "rejected"
+                    }.filter {
+                        try {
+                            val cleanDate = it.appointmentDate.substringBefore("T")
+                            val apptDate = sdf.parse("$cleanDate ${it.startTime}")
+                            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+                            // Show today's or future appointments
+                            apptDate?.after(now) == true || cleanDate == todayStr
+                        } catch (_: Exception) {
+                            false
                         }
-                        .firstOrNull { 
-                            try {
-                                val cleanDate = it.appointmentDate.substringBefore("T")
-                                val apptDate = sdf.parse("$cleanDate ${it.startTime}")
-                                val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
-                                apptDate?.after(now) == true || cleanDate == todayStr
-                            } catch (_: Exception) {
-                                false
-                            }
+                    }.sortedWith(compareBy<AppointmentDTO> {
+                        // Priority: CONFIRMED (0) > PENDING (1) > RESCHEDULE (2)
+                        val status = mapAppointmentStatus(it.appointmentStatus)
+                        when (status) {
+                            AppointmentStatus.CONFIRMED -> 0
+                            AppointmentStatus.PENDING -> 1
+                            AppointmentStatus.RESCHEDULE_REQUESTED -> 2
+                            else -> 3
                         }
-                    
-                    _nextAppointment.value = next
+                    }.thenBy {
+                        try {
+                            val cleanDate = it.appointmentDate.substringBefore("T")
+                            sdf.parse("$cleanDate ${it.startTime}")?.time ?: Long.MAX_VALUE
+                        } catch (_: Exception) {
+                            Long.MAX_VALUE
+                        }
+                    })
+
+                    _nextAppointment.value = Resource.Success(activeAppts.firstOrNull())
+                } else if (result is Resource.Error) {
+                    _nextAppointment.value = Resource.Error(result.message ?: "Failed to load appointments")
+                }
+            }
+
+            launch {
+                val notifResult = repository.getNotifications()
+                if (notifResult is Resource.Success) {
+                    // Only count isRead == 0 as unread
+                    val unreadCount = notifResult.data.count { it.isRead == 0 }
+                    _unreadNotificationsCount.value = unreadCount
+                } else {
+                    _unreadNotificationsCount.value = 0
                 }
             }
 

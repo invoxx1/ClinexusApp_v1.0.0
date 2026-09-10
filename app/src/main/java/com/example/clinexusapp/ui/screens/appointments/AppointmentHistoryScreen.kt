@@ -2,6 +2,7 @@ package com.example.clinexusapp.ui.screens.appointments
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -150,36 +151,41 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
     val status = mapAppointmentStatus(appointment.appointmentStatus)
     val style = statusStyle(status)
     Surface(
-        onClick = onClick,
-        modifier = Modifier.semantics(mergeDescendants = true) {
-            contentDescription = "View appointment details for ${appointment.doctor}"
-            role = Role.Button
-        },
         color = White,
         shape = AppointmentCardShape,
         border = BorderStroke(1.dp, Color(0xFFE3ECEE))
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppointmentAvatar(appointment)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(appointment.doctor, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Text(appointment.dentistSpecialty ?: "Dental care", color = SlateGray, fontSize = 14.sp)
+            // Clickable header area for details
+            Column(
+                modifier = Modifier.clickable { onClick() }.semantics(mergeDescendants = true) {
+                    contentDescription = "View appointment details for ${appointment.doctor}"
+                    role = Role.Button
+                },
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AppointmentAvatar(appointment)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(appointment.doctor, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(appointment.dentistSpecialty ?: "Dental care", color = SlateGray, fontSize = 14.sp)
+                    }
+                    StatusBadge(style)
                 }
-                StatusBadge(style)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CalendarMonth, "Appointment date", tint = DeepTeal, modifier = Modifier.size(22.dp))
+                    Text(DateUtils.formatDisplayDate(appointment.appointmentDate), color = SlateGray, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
+                    Spacer(Modifier.width(14.dp))
+                    Box(Modifier.width(1.dp).height(22.dp).background(Color(0xFFD5E1E3)))
+                    Spacer(Modifier.width(14.dp))
+                    Icon(Icons.Default.AccessTime, "Appointment time", tint = DeepTeal, modifier = Modifier.size(22.dp))
+                    Text(DateUtils.formatDisplayTime(appointment.startTime), color = SlateGray, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
+                }
+                Text("${appointment.serviceName ?: appointment.treatment}  •  ${appointment.clinicName ?: "Clinexus Dental Clinic"}", color = SlateGray, fontSize = 13.sp)
+                Surface(color = style.background, shape = RoundedCornerShape(12.dp)) { Text(style.message, color = style.foreground, fontSize = 13.sp, modifier = Modifier.padding(12.dp)) }
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarMonth, "Appointment date", tint = DeepTeal, modifier = Modifier.size(22.dp))
-                Text(DateUtils.formatDisplayDate(appointment.appointmentDate), color = SlateGray, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
-                Spacer(Modifier.width(14.dp))
-                Box(Modifier.width(1.dp).height(22.dp).background(Color(0xFFD5E1E3)))
-                Spacer(Modifier.width(14.dp))
-                Icon(Icons.Default.AccessTime, "Appointment time", tint = DeepTeal, modifier = Modifier.size(22.dp))
-                Text(DateUtils.formatDisplayTime(appointment.startTime), color = SlateGray, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
-            }
-            Text("${appointment.serviceName ?: appointment.treatment}  •  ${appointment.clinicName ?: "Clinexus Dental Clinic"}", color = SlateGray, fontSize = 13.sp)
-            Surface(color = style.background, shape = RoundedCornerShape(12.dp)) { Text(style.message, color = style.foreground, fontSize = 13.sp, modifier = Modifier.padding(12.dp)) }
+            
             val cardButtonsLargeFont = androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
             if (cardButtonsLargeFont) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -257,7 +263,7 @@ private fun CancellationSheet(appointment: AppointmentDTO, submitting: Boolean, 
                 Surface(color = Color(0xFFEAF5FF), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF1689E8)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Info, "Reschedule information", tint = White, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.PriorityHigh, "Reschedule information", tint = White, modifier = Modifier.size(24.dp))
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

@@ -197,7 +197,7 @@ private fun ServiceStep(state: BookingUiState, viewModel: BookingViewModel) {
                     Icon(Icons.Default.MedicalServices, null, tint = DeepTeal, modifier = Modifier.size(32.dp))
                     Column(Modifier.weight(1f)) {
                         Text(service.serviceName ?: "Service", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Text("${formatPrice(service.price)}  •  ${service.durationMinutes?.let { "$it min" } ?: "Duration provided by clinic"}", color = DeepTeal, fontSize = 14.sp)
+                        Text("${formatPrice(service.price)}${service.durationMinutes?.let { "  •  $it min" } ?: ""}", color = DeepTeal, fontSize = 14.sp)
                     }
                     Checkmark(selected)
                 }

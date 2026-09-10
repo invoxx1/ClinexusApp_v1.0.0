@@ -12,7 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -159,18 +161,21 @@ fun TealNavItem(
     onClick: () -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val contentColor = if (isSelected) primaryColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-    val highlightColor = primaryColor.copy(alpha = 0.12f)
+    val contentColor = if (isSelected) primaryColor else Color(0xFF64748B)
+    val highlightColor = Color(0xFFE0F7F4)
 
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
             .background(if (isSelected) highlightColor else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
             Icon(
                 imageVector = screen.icon,
                 contentDescription = screen.title,
@@ -178,11 +183,19 @@ fun TealNavItem(
                 modifier = Modifier.size(24.dp)
             )
             if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .size(4.dp)
-                        .background(primaryColor, CircleShape)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = when (screen.title) {
+                        "Visits" -> "Appointments"
+                        "Home" -> "Home"
+                        "Chat" -> "Messages"
+                        "Profile" -> "Profile"
+                        else -> screen.title
+                    },
+                    color = primaryColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
             }
         }

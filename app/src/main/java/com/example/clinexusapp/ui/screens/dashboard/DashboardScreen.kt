@@ -1,66 +1,49 @@
 package com.example.clinexusapp.ui.screens.dashboard
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Launch
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.clinexusapp.ui.components.DashboardSkeleton
-import com.example.clinexusapp.ui.components.NeumorphicCard
-import com.example.clinexusapp.ui.components.VibrantButton
-import com.example.clinexusapp.ui.components.WavyTealHeader
-import com.example.clinexusapp.ui.navigation.Screen
-import com.example.clinexusapp.ui.theme.DeepTeal
+import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.model.PromotionDTO
+import com.example.clinexusapp.ui.navigation.Screen
+import com.example.clinexusapp.ui.theme.*
+import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.DashboardViewModel
 import java.util.Locale
-
-data class DashboardArticle(val title: String, val category: String)
 
 @Composable
 fun DashboardScreen(
@@ -68,329 +51,153 @@ fun DashboardScreen(
     rootNavController: NavController,
     onNotificationClick: () -> Unit,
 ) {
-    var showInsightDialog by remember { mutableStateOf<DashboardArticle?>(null) }
-    
     val user by SessionManager.currentUser.collectAsState()
     val firstName = user?.firstName ?: "Patient"
 
     val newsState by viewModel.newsState.collectAsState()
     val insightsState by viewModel.insightsState.collectAsState()
     val promotionsState by viewModel.promotionsState.collectAsState()
-    val nextAppt by viewModel.nextAppointment.collectAsState()
+    val nextApptState by viewModel.nextAppointment.collectAsState()
+    val unreadCount by viewModel.unreadNotificationsCount.collectAsState()
+
+    var showInsightDialog by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.fetchDashboardData()
+    }
 
     if (showInsightDialog != null) {
-        val article = showInsightDialog!!
         AlertDialog(
             onDismissRequest = { showInsightDialog = null },
             confirmButton = {
-                TextButton(onClick = { showInsightDialog = null }) { 
-                    Text("DONE", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) 
+                TextButton(onClick = { showInsightDialog = null }) {
+                    Text("DONE", color = DeepTeal, fontWeight = FontWeight.Bold)
                 }
             },
-            title = { 
-                Text(
-                    text = article.title.uppercase(), 
-                    color = MaterialTheme.colorScheme.primary, 
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                ) 
-            },
-            text = { 
-                Text(
-                    text = "Professional clinical data regarding ${article.category.lowercase()} is being synchronized. Stay tuned for expert health tips!",
-                    color = MaterialTheme.colorScheme.onSurface,
-                ) 
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(20.dp),
+            title = { Text("Health Insight", color = RoyalNavy, fontWeight = FontWeight.Bold) },
+            text = { Text(showInsightDialog!!, color = SlateGray) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(24.dp)
         )
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = SoftMist,
     ) { padding ->
-        val isLoading = (newsState is Resource.Loading) || (insightsState is Resource.Loading) || (promotionsState is Resource.Loading)
-        
-        if (isLoading) {
-            DashboardSkeleton()
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = padding.calculateBottomPadding()),
-            ) {
-                item {
-                    WavyTealHeader(
-                        title = "Hello, $firstName!",
-                        subtitle = "Welcome back!",
-                        onNotificationClick = onNotificationClick,
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = padding.calculateBottomPadding()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
+            item {
+                DashboardHeader(
+                    firstName = if (firstName == "Patient") "" else firstName,
+                    hasUnreadNotifications = unreadCount > 0,
+                    onNotificationClick = onNotificationClick
+                )
+            }
+
+            // 1. Upcoming Appointment Section
+            item {
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    DashboardSectionHeader(
+                        title = "Upcoming Appointment",
+                        icon = Icons.Default.CalendarMonth,
+                        actionText = "View All",
+                        onActionClick = { rootNavController.navigate(Screen.AppointmentHistory.route) }
                     )
-                }
-
-                item {
-                    Column(modifier = Modifier.padding(horizontal = 24.dp).padding(top = 10.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Upcoming Appointment",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            TextButton(onClick = { rootNavController.navigate(Screen.AppointmentHistory.route) }) {
-                                Text("VIEW ALL", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    when (val apptResource = nextApptState) {
+                        is Resource.Loading -> {
+                            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = DeepTeal)
                             }
                         }
-                        NeumorphicCard(modifier = Modifier.fillMaxWidth()) {
+                        is Resource.Error -> {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                Text(apptResource.message ?: "Error loading appointments", color = ErrorRed)
+                            }
+                        }
+                        else -> {
+                            val nextAppt = (apptResource as? Resource.Success)?.data
                             if (nextAppt != null) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f).padding(end = 8.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(54.dp)
-                                                .background(Color(0xFFE0F7F4), RoundedCornerShape(14.dp)),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            Icon(Icons.AutoMirrored.Filled.EventNote, null, tint = DeepTeal, modifier = Modifier.size(26.dp))
-                                        }
-                                        Spacer(modifier = Modifier.width(18.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = nextAppt!!.treatment, 
-                                                fontWeight = FontWeight.Bold, 
-                                                color = MaterialTheme.colorScheme.onSurface, 
-                                                fontSize = 17.sp,
-                                            )
-                                            Text(
-                                                text = "${com.example.clinexusapp.util.DateUtils.formatDisplayDate(nextAppt!!.appointmentDate)} • ${com.example.clinexusapp.util.DateUtils.formatDisplayTime(nextAppt!!.startTime)}", 
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), 
-                                                fontSize = 13.sp,
-                                            )
-
-                                            val status = nextAppt!!.appointmentStatus.lowercase()
-                                            val isConfirmed = status.contains("confirmed") || status.contains("scheduled")
-                                            
-                                            val badgeColor = when {
-                                                isConfirmed -> Color(0xFF4CAF50)
-                                                else -> MaterialTheme.colorScheme.primary
-                                            }
-
-                                            Surface(
-                                                color = badgeColor.copy(alpha = 0.1f),
-                                                shape = RoundedCornerShape(4.dp),
-                                                modifier = Modifier.padding(top = 4.dp),
-                                            ) {
-                                                Text(
-                                                    text = nextAppt!!.displayStatus.uppercase(), 
-                                                    fontSize = 9.sp, 
-                                                    fontWeight = FontWeight.Black,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                    color = badgeColor,
-                                                )
-                                            }
-                                        }
-                                    }
-                                    Box(
-                                        modifier = Modifier.size(64.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        CircularProgressIndicator(
-                                            progress = { 1f },
-                                            modifier = Modifier.fillMaxSize(),
-                                            color = DeepTeal,
-                                            strokeWidth = 4.dp,
-                                            trackColor = DeepTeal.copy(alpha = 0.1f),
-                                        )
-                                        Icon(Icons.Default.Schedule, null, tint = DeepTeal, modifier = Modifier.size(24.dp))
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(24.dp))
-                                Surface(
-                                    onClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.align(Alignment.End),
-                                ) {
-                                    Text(
-                                        text = "View Details", 
-                                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                                        fontSize = 13.sp, 
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                }
-                            } else {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        text = "No upcoming appointments",
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                        fontSize = 15.sp,
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    VibrantButton(
-                                        text = "Book Now",
-                                        onClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    val promotions = (promotionsState as? Resource.Success)?.data ?: emptyList()
-                    if (promotions.isNotEmpty()) {
-                        Column(modifier = Modifier.padding(horizontal = 24.dp).padding(top = 32.dp)) {
-                            Text(
-                                text = "Promotions",
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground,
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                promotions.forEach { promotion ->
-                                    PromotionCard(promotion)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    Column(modifier = Modifier.padding(horizontal = 24.dp).padding(top = 32.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Health Insights", 
-                                fontSize = 19.sp, 
-                                fontWeight = FontWeight.Bold, 
-                                color = MaterialTheme.colorScheme.onBackground,
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                repeat(3) { index ->
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(horizontal = 3.dp)
-                                            .size(if (index == 0) 8.dp else 6.dp)
-                                            .background(
-                                                if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), 
-                                                CircleShape,
-                                            ),
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(20.dp))
-                        
-                        val insights = (insightsState as? Resource.Success)?.data ?: emptyList()
-                        if ((insights.isEmpty()) && (insightsState is Resource.Success)) {
-                             Text("No insights available", modifier = Modifier.padding(8.dp))
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                                insights.take(2).forEach { insight ->
-                                    InsightItem(
-                                        title = insight.title,
-                                        subtitle = insight.description,
-                                        icon = Icons.Default.Lightbulb,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        bgColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                    ) { showInsightDialog = DashboardArticle(insight.title, insight.category) }
-                                }
-                                
-                                // Fallback if no data yet or to match your previous manual items
-                                if (insights.isEmpty()) {
-                                    InsightItem(
-                                        title = "Tips for a Brighter Smile",
-                                        subtitle = "Essential dental care tips you should know",
-                                        icon = Icons.Default.AutoFixHigh,
-                                        color = Color(0xFFFF8A65),
-                                        bgColor = Color(0xFFFFEAE3),
-                                    ) { showInsightDialog = DashboardArticle("Tips for a Brighter Smile", "Care") }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 32.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(), 
-                            horizontalArrangement = Arrangement.SpaceBetween, 
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Clinic News", 
-                                    fontSize = 19.sp, 
-                                    fontWeight = FontWeight.Bold, 
-                                    color = MaterialTheme.colorScheme.onBackground,
+                                UpcomingAppointmentCard(
+                                    appointment = nextAppt,
+                                    onDetailsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) }
                                 )
-                                Box(modifier = Modifier.padding(start = 8.dp).size(6.dp).background(MaterialTheme.colorScheme.secondary, CircleShape))
-                            }
-                            IconButton(onClick = { /* simulated web link */ }) { 
-                                Icon(Icons.AutoMirrored.Filled.Launch, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) 
-                            }
-                        }
-                        
-                        val newsList = (newsState as? Resource.Success)?.data ?: emptyList()
-                        if ((newsList.isEmpty()) && (newsState is Resource.Success)) {
-                             Text("No news currently", modifier = Modifier.padding(8.dp))
-                        } else {
-                            newsList.take(1).forEach { news ->
-                                NeumorphicCard(modifier = Modifier.fillMaxWidth()) {
-                                    Column {
-                                        Text(
-                                            text = news.title,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 16.sp,
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = news.description,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                            fontSize = 14.sp,
-                                            lineHeight = 20.sp,
-                                        )
-                                    }
-                                }
-                            }
-                            
-                            if (newsList.isEmpty()) {
-                                NeumorphicCard(modifier = Modifier.fillMaxWidth()) {
-                                    Column {
-                                        Text(
-                                            text = "Our Clinic is Expanding!",
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 16.sp,
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "Exciting new facilities coming soon to serve you better with the latest dental technology.",
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                            fontSize = 14.sp,
-                                            lineHeight = 20.sp,
-                                        )
-                                    }
-                                }
+                            } else {
+                                EmptyAppointmentCard(
+                                    onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) }
+                                )
                             }
                         }
+                    }
+                }
+            }
+
+            // 2. Promotions Section
+            val promotionsResource = promotionsState
+            if (promotionsResource is Resource.Success && promotionsResource.data.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        DashboardSectionHeader(
+                            title = "Promotions",
+                            icon = Icons.Default.LocalOffer,
+                            actionText = "View All",
+                            onActionClick = { /* Navigate to promotions if screen exists */ }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            promotionsResource.data.forEach { promotion ->
+                                PromotionCard(
+                                    title = promotion.title,
+                                    value = formatDiscount(promotion.discountType, promotion.discountValue ?: 0.0),
+                                    description = promotion.description ?: ""
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Health Insights Section
+            val insightsResource = insightsState
+            if (insightsResource is Resource.Success && insightsResource.data.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        DashboardSectionHeader(
+                            title = "Health Insights",
+                            icon = Icons.Default.Lightbulb
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val topInsight = insightsResource.data.first()
+                        InsightCard(
+                            title = topInsight.title,
+                            subtitle = topInsight.description
+                        ) {
+                            showInsightDialog = topInsight.description
+                        }
+                    }
+                }
+            }
+
+            // 4. Clinic News Section
+            val newsResource = newsState
+            if (newsResource is Resource.Success && newsResource.data.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        DashboardSectionHeader(
+                            title = "Clinic News",
+                            icon = Icons.Default.Campaign
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val firstNews = newsResource.data.first()
+                        NewsCard(
+                            title = firstNews.title,
+                            description = firstNews.description
+                        )
                     }
                 }
             }
@@ -399,42 +206,498 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun PromotionCard(promotion: PromotionDTO) {
-    NeumorphicCard(modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.Top) {
+fun DashboardHeader(
+    firstName: String,
+    hasUnreadNotifications: Boolean,
+    onNotificationClick: () -> Unit
+) {
+    val isLargeFont = LocalDensity.current.fontScale > 1.2f
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                // Wave/curve matching target reference aesthetics
+                val path = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(size.width, 0f)
+                    lineTo(size.width, size.height * 0.82f)
+                    quadraticTo(size.width * 0.5f, size.height, 0f, size.height * 0.82f)
+                    close()
+                }
+                drawPath(path, brush = WavyTealGradient)
+                
+                // Extra translucent highlight glow overlay
+                val glowPath = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(size.width, 0f)
+                    lineTo(size.width, size.height * 0.65f)
+                    quadraticTo(size.width * 0.5f, size.height * 0.78f, 0f, size.height * 0.62f)
+                    close()
+                }
+                drawPath(glowPath, color = Color.White.copy(alpha = 0.08f))
+            }
+            .statusBarsPadding()
+            .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 48.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f).padding(end = 8.dp)
+            ) {
+                // Placeholder for Clinic Logo PNG
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color.White.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = com.example.clinexusapp.R.drawable.ic_person_placeholder),
+                        contentDescription = "Clinic Logo",
+                        modifier = Modifier.size(36.dp).clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column {
+                    Text(
+                        text = if (firstName.isNotBlank()) "Hello, $firstName!" else "Hello!",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = "Welcome back!",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "HEALTHY SMILES BRIGHTER TOMORROWS",
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Box(modifier = Modifier.size(48.dp)) {
+                    IconButton(onClick = onNotificationClick, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    if (hasUnreadNotifications) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .background(ErrorRed, CircleShape)
+                                .align(Alignment.TopEnd)
+                                .offset(x = (-4).dp, y = 4.dp)
+                        )
+                    }
+                }
+                if (!isLargeFont) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Smile\nBrighter\nToday \u263A",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontStyle = FontStyle.Italic,
+                        lineHeight = 16.sp,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DashboardSectionHeader(
+    title: String,
+    icon: ImageVector,
+    actionText: String? = null,
+    onActionClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .background(Color(0xFFFFE8D5), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center,
+                    .size(34.dp)
+                    .background(Color(0xFFE0F7F4), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.LocalOffer, null, tint = Color(0xFFE77A35), modifier = Modifier.size(24.dp))
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = DeepTeal,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = title,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = RoyalNavy
+            )
+        }
+        if (actionText != null && onActionClick != null) {
+            TextButton(
+                onClick = onActionClick,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = actionText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DeepTeal
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun UpcomingAppointmentCard(
+    appointment: AppointmentDTO,
+    onDetailsClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.03f)),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(Color(0xFFE0F7F4), RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        tint = DeepTeal,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = appointment.serviceName ?: appointment.treatment,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = RoyalNavy
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CalendarMonth, null, tint = SlateGray, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = DateUtils.formatDisplayDate(appointment.appointmentDate),
+                            fontSize = 13.sp,
+                            color = SlateGray
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Icon(Icons.Default.Schedule, null, tint = SlateGray, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = DateUtils.formatDisplayTime(appointment.startTime),
+                            fontSize = 13.sp,
+                            color = SlateGray
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val status = com.example.clinexusapp.viewmodel.mapAppointmentStatus(appointment.appointmentStatus)
+                    val (label, color, icon) = when (status) {
+                        com.example.clinexusapp.viewmodel.AppointmentStatus.PENDING -> Triple("PENDING", Color(0xFFD97706), Icons.Default.Schedule)
+                        com.example.clinexusapp.viewmodel.AppointmentStatus.CONFIRMED -> Triple("CONFIRMED", Color(0xFF168C2F), Icons.Default.CheckCircle)
+                        com.example.clinexusapp.viewmodel.AppointmentStatus.RESCHEDULE_REQUESTED -> Triple("RESCHEDULE REQUESTED", Color(0xFF7C3AED), Icons.Default.EventRepeat)
+                        com.example.clinexusapp.viewmodel.AppointmentStatus.COMPLETED -> Triple("COMPLETED", Color(0xFF2563EB), Icons.Default.TaskAlt)
+                        com.example.clinexusapp.viewmodel.AppointmentStatus.CANCELLED -> Triple("CANCELLED", Color(0xFFD92D38), Icons.Default.Cancel)
+                        else -> Triple("UNKNOWN", Color.Gray, Icons.Default.Help)
+                    }
+                    Surface(
+                        color = color.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(icon, null, tint = color, modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = label,
+                                color = color,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                
+                // Circular design visual accent decoration on the right
+                Box(
+                    modifier = Modifier.size(54.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawCircle(
+                            color = DeepTeal.copy(alpha = 0.1f),
+                            radius = size.minDimension / 2f,
+                            style = Stroke(width = 3.dp.toPx())
+                        )
+                        drawArc(
+                            color = DeepTeal,
+                            startAngle = -90f,
+                            sweepAngle = 280f,
+                            useCenter = false,
+                            style = Stroke(width = 3.dp.toPx())
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = DeepTeal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onDetailsClick,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .height(40.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = DeepTeal),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    text = "View Details",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyAppointmentCard(onBookClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(2.dp, RoundedCornerShape(22.dp)),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "No upcoming appointment",
+                color = SlateGray,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = onBookClick,
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = DeepTeal)
+            ) {
+                Text("Book appointment", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun PromotionCard(
+    title: String,
+    value: String,
+    description: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(2.dp, RoundedCornerShape(22.dp)),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color(0xFFFFE8D5), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocalOffer,
+                    contentDescription = null,
+                    tint = Color(0xFFE77A35),
+                    modifier = Modifier.size(22.dp)
+                )
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = promotion.title,
-                    fontWeight = FontWeight.Bold,
+                    text = title,
                     fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    color = RoyalNavy
                 )
-                promotion.discountValue?.let { value ->
-                    Text(
-                        text = formatDiscount(promotion.discountType, value),
-                        color = Color(0xFFE77A35),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                promotion.description?.takeIf { it.isNotBlank() }?.let { description ->
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = description,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                    )
-                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = value,
+                    color = Color(0xFFE77A35),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    color = SlateGray,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun InsightCard(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(2.dp, RoundedCornerShape(22.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color(0xFFFFEAE3), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoFixHigh,
+                    contentDescription = null,
+                    tint = Color(0xFFFF8A65),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RoyalNavy
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    color = SlateGray,
+                    fontSize = 13.sp
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = LightSlate,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun NewsCard(
+    title: String,
+    description: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(2.dp, RoundedCornerShape(22.dp)),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color(0xFFE1F5FE), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Business,
+                    contentDescription = null,
+                    tint = Color(0xFF0288D1),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RoyalNavy
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    color = SlateGray,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
             }
         }
     }
@@ -445,42 +708,5 @@ private fun formatDiscount(type: String?, value: Double): String {
         "${value.toInt()}% OFF"
     } else {
         "PHP ${String.format(Locale.US, "%,.2f", value)} OFF"
-    }
-}
-
-@Composable
-fun InsightItem(title: String, subtitle: String, icon: ImageVector, color: Color, bgColor: Color, onClick: () -> Unit) {
-    NeumorphicCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .background(bgColor, RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(26.dp))
-            }
-            Spacer(modifier = Modifier.width(18.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title, 
-                    fontWeight = FontWeight.Bold, 
-                    color = MaterialTheme.colorScheme.onSurface, 
-                    fontSize = 16.sp,
-                )
-                Text(
-                    text = subtitle, 
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), 
-                    fontSize = 13.sp, 
-                    maxLines = 1,
-                )
-            }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight, 
-                null, 
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), 
-                modifier = Modifier.size(20.dp),
-            )
-        }
     }
 }

@@ -165,7 +165,7 @@ data class RescheduleAppointmentRequest(
     @SerializedName("endTime")
     val endTime: String,
 
-    @SerializedName("note")
+    @SerializedName("reschedule_note")
     val note: String,
 
     @SerializedName("dentistID")
@@ -173,6 +173,6 @@ data class RescheduleAppointmentRequest(
 )
 
 data class CancelAppointmentRequest(
-    @SerializedName("cancellationNote")
+    @SerializedName("cancellation_reason")
     val cancellationNote: String
 )
