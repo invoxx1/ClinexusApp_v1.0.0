@@ -1,9 +1,9 @@
 package com.example.clinexusapp.ui.screens.main
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,7 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -44,7 +46,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 TealBottomBar(navController = navController)
             }
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color(0xFFF0FAFA),
     ) { innerPadding ->
         NavHost(
             navController = navController,
@@ -125,24 +127,31 @@ fun TealBottomBar(navController: NavHostController) {
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 20.dp)
-            .shadow(12.dp, RoundedCornerShape(24.dp)),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(22.dp),
+                ambientColor = Color(0xFFB5DAD6),
+                spotColor = Color(0xFFB5DAD6),
+            ),
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 72.dp)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+                .selectableGroup()
+                .heightIn(min = 60.dp)
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             screens.forEach { screen ->
                 val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                 TealNavItem(
                     screen = screen,
-                    isSelected = isSelected
+                    isSelected = isSelected,
+                    modifier = Modifier.weight(1f),
                 ) {
                     navController.navigate(screen.route) {
                         popUpTo(navController.graph.findStartDestination().id)
@@ -158,46 +167,47 @@ fun TealBottomBar(navController: NavHostController) {
 fun TealNavItem(
     screen: BottomBarScreen,
     isSelected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val contentColor = if (isSelected) primaryColor else Color(0xFF64748B)
-    val highlightColor = Color(0xFFE0F7F4)
+    val contentColor = if (isSelected) Color(0xFF00A69C) else Color(0xFF969CAC)
+    val highlightColor = Color(0xFFD5F4F0)
+    val label = when (screen) {
+        BottomBarScreen.Dashboard -> "Home"
+        BottomBarScreen.Appointments -> "Appointments"
+        BottomBarScreen.Chat -> "Messages"
+        BottomBarScreen.Profile -> "Profile"
+    }
 
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
+    BoxWithConstraints(
+        modifier = modifier
+            .heightIn(min = 52.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(if (isSelected) highlightColor else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .selectable(selected = isSelected, role = Role.Tab, onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        val labelSize = if (maxWidth < 76.dp) 10.sp else 11.sp
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Icon(
                 imageVector = screen.icon,
-                contentDescription = screen.title,
+                contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
-            if (isSelected) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = when (screen.title) {
-                        "Visits" -> "Appointments"
-                        "Home" -> "Home"
-                        "Chat" -> "Messages"
-                        "Profile" -> "Profile"
-                        else -> screen.title
-                    },
-                    color = primaryColor,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-            }
+            Text(
+                text = label,
+                color = contentColor,
+                fontSize = labelSize,
+                lineHeight = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+            )
         }
     }
 }

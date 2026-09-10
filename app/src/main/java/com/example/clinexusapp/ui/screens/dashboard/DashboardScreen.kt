@@ -1,49 +1,61 @@
 package com.example.clinexusapp.ui.screens.dashboard
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
+import com.example.clinexusapp.R
 import com.example.clinexusapp.model.AppointmentDTO
+import com.example.clinexusapp.model.ClinicNewsDTO
+import com.example.clinexusapp.model.HealthInsightDTO
 import com.example.clinexusapp.model.PromotionDTO
 import com.example.clinexusapp.ui.navigation.Screen
-import com.example.clinexusapp.ui.theme.*
-import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.DashboardViewModel
 import java.util.Locale
+
+internal object DashboardStyle {
+    val Background = Color(0xFFF0FAFA)
+    val Teal = Color(0xFF00A99D)
+    val Navy = Color(0xFF080B36)
+    val Muted = Color(0xFF7E87A4)
+    val Mint = Color(0xFFD9F6F3)
+    val Orange = Color(0xFFFF792A)
+    val CardShape = RoundedCornerShape(18.dp)
+}
 
 @Composable
 fun DashboardScreen(
@@ -52,155 +64,166 @@ fun DashboardScreen(
     onNotificationClick: () -> Unit,
 ) {
     val user by SessionManager.currentUser.collectAsState()
-    val firstName = user?.firstName ?: "Patient"
-
     val newsState by viewModel.newsState.collectAsState()
     val insightsState by viewModel.insightsState.collectAsState()
     val promotionsState by viewModel.promotionsState.collectAsState()
     val nextApptState by viewModel.nextAppointment.collectAsState()
     val unreadCount by viewModel.unreadNotificationsCount.collectAsState()
 
-    var showInsightDialog by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { viewModel.fetchDashboardData() }
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchDashboardData()
-    }
+    DashboardContent(
+        firstName = user?.firstName.orEmpty(),
+        newsState = newsState,
+        insightsState = insightsState,
+        promotionsState = promotionsState,
+        nextAppointmentState = nextApptState,
+        hasUnreadNotifications = unreadCount > 0,
+        onNotificationClick = onNotificationClick,
+        onAppointmentsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
+        onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
+        onRetry = viewModel::fetchDashboardData,
+    )
+}
 
-    if (showInsightDialog != null) {
+@Composable
+internal fun DashboardContent(
+    firstName: String,
+    newsState: Resource<List<ClinicNewsDTO>>,
+    insightsState: Resource<List<HealthInsightDTO>>,
+    promotionsState: Resource<List<PromotionDTO>>,
+    nextAppointmentState: Resource<AppointmentDTO?>,
+    hasUnreadNotifications: Boolean,
+    onNotificationClick: () -> Unit,
+    onAppointmentsClick: () -> Unit,
+    onBookClick: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val listState = rememberLazyListState()
+    val headerVisible by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
+    var selectedInsight by remember { mutableStateOf<HealthInsightDTO?>(null) }
+    var showPromotions by remember { mutableStateOf(false) }
+    val promotions = (promotionsState as? Resource.Success)?.data.orEmpty()
+
+    DashboardSystemBars(headerVisible)
+
+    selectedInsight?.let { insight ->
         AlertDialog(
-            onDismissRequest = { showInsightDialog = null },
+            onDismissRequest = { selectedInsight = null },
             confirmButton = {
-                TextButton(onClick = { showInsightDialog = null }) {
-                    Text("DONE", color = DeepTeal, fontWeight = FontWeight.Bold)
+                TextButton(onClick = { selectedInsight = null }) {
+                    Text("Done", color = DashboardStyle.Teal, fontWeight = FontWeight.Bold)
                 }
             },
-            title = { Text("Health Insight", color = RoyalNavy, fontWeight = FontWeight.Bold) },
-            text = { Text(showInsightDialog!!, color = SlateGray) },
+            title = { Text(insight.title, color = DashboardStyle.Navy, fontWeight = FontWeight.Bold) },
+            text = {
+                LazyColumn { item { Text(insight.description, color = DashboardStyle.Muted) } }
+            },
             containerColor = Color.White,
-            shape = RoundedCornerShape(24.dp)
+            shape = RoundedCornerShape(24.dp),
         )
     }
 
-    Scaffold(
-        containerColor = SoftMist,
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = padding.calculateBottomPadding()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 32.dp)
-        ) {
-            item {
-                DashboardHeader(
-                    firstName = if (firstName == "Patient") "" else firstName,
-                    hasUnreadNotifications = unreadCount > 0,
-                    onNotificationClick = onNotificationClick
-                )
-            }
+    if (showPromotions) {
+        AlertDialog(
+            onDismissRequest = { showPromotions = false },
+            confirmButton = {
+                TextButton(onClick = { showPromotions = false }) {
+                    Text("Done", color = DashboardStyle.Teal, fontWeight = FontWeight.Bold)
+                }
+            },
+            title = { Text("Promotions", color = DashboardStyle.Navy, fontWeight = FontWeight.Bold) },
+            text = {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(promotions, key = { it.promotionId }) { promotion ->
+                        Column {
+                            Text(promotion.title, color = DashboardStyle.Navy, fontWeight = FontWeight.Bold)
+                            Text(
+                                formatDiscount(promotion.discountType, promotion.discountValue ?: 0.0),
+                                color = DashboardStyle.Orange,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(promotion.description.orEmpty(), color = DashboardStyle.Muted)
+                        }
+                    }
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(24.dp),
+        )
+    }
 
-            // 1. Upcoming Appointment Section
-            item {
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+    Box(Modifier.fillMaxSize().background(DashboardStyle.Background)) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 8.dp),
+        ) {
+            item(key = "header") {
+                DashboardHeader(firstName, hasUnreadNotifications, onNotificationClick)
+            }
+            item(key = "appointment") {
+                Column(Modifier.padding(horizontal = 22.dp)) {
                     DashboardSectionHeader(
                         title = "Upcoming Appointment",
                         icon = Icons.Default.CalendarMonth,
                         actionText = "View All",
-                        onActionClick = { rootNavController.navigate(Screen.AppointmentHistory.route) }
+                        onActionClick = onAppointmentsClick,
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    when (val apptResource = nextApptState) {
-                        is Resource.Loading -> {
-                            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = DeepTeal)
-                            }
-                        }
-                        is Resource.Error -> {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                Text(apptResource.message ?: "Error loading appointments", color = ErrorRed)
-                            }
-                        }
-                        else -> {
-                            val nextAppt = (apptResource as? Resource.Success)?.data
-                            if (nextAppt != null) {
-                                UpcomingAppointmentCard(
-                                    appointment = nextAppt,
-                                    onDetailsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) }
-                                )
-                            } else {
-                                EmptyAppointmentCard(
-                                    onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) }
-                                )
-                            }
-                        }
+                    Spacer(Modifier.height(4.dp))
+                    when (val state = nextAppointmentState) {
+                        Resource.Loading, Resource.Idle -> DashboardLoadingCard()
+                        is Resource.Error -> DashboardErrorCard(state.message ?: "Unable to load appointments", onRetry)
+                        is Resource.Success -> state.data?.let {
+                            UpcomingAppointmentCard(it, onAppointmentsClick)
+                        } ?: EmptyAppointmentCard(onBookClick)
                     }
                 }
             }
-
-            // 2. Promotions Section
-            val promotionsResource = promotionsState
-            if (promotionsResource is Resource.Success && promotionsResource.data.isNotEmpty()) {
-                item {
-                    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                        DashboardSectionHeader(
-                            title = "Promotions",
-                            icon = Icons.Default.LocalOffer,
-                            actionText = "View All",
-                            onActionClick = { /* Navigate to promotions if screen exists */ }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            promotionsResource.data.forEach { promotion ->
+            if (promotions.isNotEmpty()) {
+                item(key = "promotions") {
+                    Column(Modifier.padding(horizontal = 22.dp)) {
+                        DashboardSectionHeader("Promotions", Icons.Default.LocalOffer, "View All") {
+                            showPromotions = true
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            promotions.take(2).forEach { promotion ->
                                 PromotionCard(
                                     title = promotion.title,
                                     value = formatDiscount(promotion.discountType, promotion.discountValue ?: 0.0),
-                                    description = promotion.description ?: ""
+                                    description = promotion.description.orEmpty(),
                                 )
                             }
                         }
                     }
                 }
             }
-
-            // 3. Health Insights Section
-            val insightsResource = insightsState
-            if (insightsResource is Resource.Success && insightsResource.data.isNotEmpty()) {
-                item {
-                    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                        DashboardSectionHeader(
-                            title = "Health Insights",
-                            icon = Icons.Default.Lightbulb
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val topInsight = insightsResource.data.first()
-                        InsightCard(
-                            title = topInsight.title,
-                            subtitle = topInsight.description
-                        ) {
-                            showInsightDialog = topInsight.description
-                        }
+            val insight = (insightsState as? Resource.Success)?.data?.firstOrNull()
+            if (insight != null) {
+                item(key = "insights") {
+                    Column(Modifier.padding(horizontal = 22.dp)) {
+                        DashboardSectionHeader("Health Insights", Icons.Default.Lightbulb)
+                        Spacer(Modifier.height(4.dp))
+                        InsightCard(insight.title, insight.description) { selectedInsight = insight }
                     }
                 }
             }
-
-            // 4. Clinic News Section
-            val newsResource = newsState
-            if (newsResource is Resource.Success && newsResource.data.isNotEmpty()) {
-                item {
-                    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                        DashboardSectionHeader(
-                            title = "Clinic News",
-                            icon = Icons.Default.Campaign
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val firstNews = newsResource.data.first()
-                        NewsCard(
-                            title = firstNews.title,
-                            description = firstNews.description
-                        )
+            val news = (newsState as? Resource.Success)?.data?.firstOrNull()
+            if (news != null) {
+                item(key = "news") {
+                    Column(Modifier.padding(horizontal = 22.dp)) {
+                        DashboardSectionHeader("Clinic News", Icons.Default.Campaign)
+                        Spacer(Modifier.height(4.dp))
+                        NewsCard(news.title, news.description)
                     }
                 }
             }
+        }
+        // Keep content from scrolling under the status icons after the header leaves the screen.
+        if (!headerVisible) {
+            Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(DashboardStyle.Background))
         }
     }
 }
@@ -209,118 +232,113 @@ fun DashboardScreen(
 fun DashboardHeader(
     firstName: String,
     hasUnreadNotifications: Boolean,
-    onNotificationClick: () -> Unit
+    onNotificationClick: () -> Unit,
 ) {
-    val isLargeFont = LocalDensity.current.fontScale > 1.2f
-
-    Box(
+    val fontScale = LocalDensity.current.fontScale
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .drawBehind {
-                // Wave/curve matching target reference aesthetics
-                val path = Path().apply {
+                val silhouette = Path().apply {
                     moveTo(0f, 0f)
                     lineTo(size.width, 0f)
-                    lineTo(size.width, size.height * 0.82f)
-                    quadraticTo(size.width * 0.5f, size.height, 0f, size.height * 0.82f)
+                    lineTo(size.width, size.height - 30.dp.toPx())
+                    cubicTo(size.width * 0.88f, size.height + 10.dp.toPx(), size.width * 0.12f, size.height + 10.dp.toPx(), 0f, size.height - 30.dp.toPx())
                     close()
                 }
-                drawPath(path, brush = WavyTealGradient)
-                
-                // Extra translucent highlight glow overlay
-                val glowPath = Path().apply {
-                    moveTo(0f, 0f)
-                    lineTo(size.width, 0f)
-                    lineTo(size.width, size.height * 0.65f)
-                    quadraticTo(size.width * 0.5f, size.height * 0.78f, 0f, size.height * 0.62f)
-                    close()
+                clipPath(silhouette) {
+                    drawRect(
+                        Brush.linearGradient(
+                            colors = listOf(Color(0xFF72DDD5), Color(0xFF09BAB1), Color(0xFF00A59C)),
+                            start = Offset.Zero,
+                            end = Offset(size.width * 0.82f, size.height),
+                        )
+                    )
+                    val upperWave = Path().apply {
+                        moveTo(size.width * 0.54f, 8.dp.toPx())
+                        cubicTo(size.width * 0.77f, size.height * 0.35f, size.width * 0.98f, size.height * 0.22f, size.width * 1.1f, size.height * 0.26f)
+                        lineTo(size.width * 1.1f, size.height * 0.72f)
+                        cubicTo(size.width * 0.80f, size.height * 0.57f, size.width * 0.64f, size.height * 0.43f, size.width * 0.54f, 8.dp.toPx())
+                        close()
+                    }
+                    drawPath(upperWave, Color.White.copy(alpha = 0.10f))
+                    val lowerWave = Path().apply {
+                        moveTo(0f, size.height * 0.66f)
+                        quadraticTo(size.width * 0.18f, size.height * 0.86f, size.width * 0.53f, size.height)
+                        lineTo(0f, size.height)
+                        close()
+                    }
+                    drawPath(lowerWave, Color(0xFF008F98).copy(alpha = 0.10f))
                 }
-                drawPath(glowPath, color = Color.White.copy(alpha = 0.08f))
             }
-            .statusBarsPadding()
-            .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 48.dp)
+            .statusBarsPadding(),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f).padding(end = 8.dp)
-            ) {
-                // Placeholder for Clinic Logo PNG
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(Color.White.copy(alpha = 0.15f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(id = com.example.clinexusapp.R.drawable.ic_person_placeholder),
-                        contentDescription = "Clinic Logo",
-                        modifier = Modifier.size(36.dp).clip(CircleShape),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column {
+        val showSlogan = maxWidth >= 380.dp && fontScale <= 1.15f
+        Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 22.dp, top = 20.dp, bottom = 25.dp)) {
+            Row(Modifier.fillMaxWidth().padding(end = 42.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_dashboard_tooth),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(42.dp),
+                )
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
                     Text(
-                        text = if (firstName.isNotBlank()) "Hello, $firstName!" else "Hello!",
+                        text = if (firstName.isBlank()) "Hello!" else "Hello, ${firstName.trim()}!",
+                        fontSize = 25.sp,
+                        lineHeight = 29.sp,
+                        letterSpacing = (-0.6).sp,
+                        fontWeight = FontWeight.Bold,
                         color = Color.White,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold
+                        modifier = Modifier.semantics { heading() },
                     )
-                    Text(
-                        text = "Welcome back!",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "HEALTHY SMILES BRIGHTER TOMORROWS",
-                        color = Color.White.copy(alpha = 0.65f),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 0.5.sp
-                    )
+                    Text("Welcome back!", fontSize = 16.sp, lineHeight = 21.sp, color = Color.White)
                 }
             }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Box(modifier = Modifier.size(48.dp)) {
-                    IconButton(onClick = onNotificationClick, modifier = Modifier.fillMaxSize()) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications",
-                            tint = Color.White,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                    if (hasUnreadNotifications) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .background(ErrorRed, CircleShape)
-                                .align(Alignment.TopEnd)
-                                .offset(x = (-4).dp, y = 4.dp)
-                        )
-                    }
-                }
-                if (!isLargeFont) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Smile\nBrighter\nToday \u263A",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontStyle = FontStyle.Italic,
-                        lineHeight = 16.sp,
-                        textAlign = TextAlign.End
-                    )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.padding(start = 56.dp, end = if (showSlogan) 62.dp else 0.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.width(18.dp).height(1.dp).background(Color.White.copy(alpha = 0.85f)))
+                Spacer(Modifier.width(7.dp))
+                Text(
+                    "HEALTHY SMILES BRIGHTER TOMORROWS",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 7.sp,
+                    lineHeight = 11.sp,
+                    letterSpacing = 1.1.sp,
+                )
+            }
+        }
+        IconButton(
+            onClick = onNotificationClick,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 12.dp).size(48.dp),
+        ) {
+            Box {
+                Icon(
+                    Icons.Default.Notifications,
+                    contentDescription = if (hasUnreadNotifications) "Notifications, unread notifications" else "Notifications",
+                    tint = Color.White,
+                    modifier = Modifier.size(27.dp),
+                )
+                if (hasUnreadNotifications) {
+                    Box(Modifier.align(Alignment.TopEnd).size(8.dp).background(Color(0xFFFF575D), CircleShape))
                 }
             }
+        }
+        if (showSlogan) {
+            Text(
+                "Smile\nBrighter\nToday ◡",
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 17.dp, bottom = 22.dp),
+                color = Color.White.copy(alpha = 0.9f),
+                fontFamily = FontFamily.Cursive,
+                fontStyle = FontStyle.Italic,
+                fontSize = 13.sp,
+                lineHeight = 13.sp,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -330,383 +348,75 @@ fun DashboardSectionHeader(
     title: String,
     icon: ImageVector,
     actionText: String? = null,
-    onActionClick: (() -> Unit)? = null
+    onActionClick: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .background(Color(0xFFE0F7F4), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = DeepTeal,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = title,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = RoyalNavy
-            )
+    Row(Modifier.fillMaxWidth().heightIn(min = 38.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(34.dp).background(DashboardStyle.Mint, CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = DashboardStyle.Teal, modifier = Modifier.size(21.dp))
         }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            title,
+            modifier = Modifier.weight(1f).semantics { heading() },
+            fontSize = 17.sp,
+            lineHeight = 21.sp,
+            letterSpacing = (-0.4).sp,
+            fontWeight = FontWeight.Bold,
+            color = DashboardStyle.Navy,
+        )
         if (actionText != null && onActionClick != null) {
-            TextButton(
-                onClick = onActionClick,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = actionText,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = DeepTeal
-                )
+            TextButton(onClick = onActionClick, contentPadding = PaddingValues(start = 8.dp)) {
+                Text(actionText, color = DashboardStyle.Teal, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
 @Composable
-fun UpcomingAppointmentCard(
-    appointment: AppointmentDTO,
-    onDetailsClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.03f)),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(Color(0xFFE0F7F4), RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarToday,
-                        contentDescription = null,
-                        tint = DeepTeal,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = appointment.serviceName ?: appointment.treatment,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = RoyalNavy
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CalendarMonth, null, tint = SlateGray, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = DateUtils.formatDisplayDate(appointment.appointmentDate),
-                            fontSize = 13.sp,
-                            color = SlateGray
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Icon(Icons.Default.Schedule, null, tint = SlateGray, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = DateUtils.formatDisplayTime(appointment.startTime),
-                            fontSize = 13.sp,
-                            color = SlateGray
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    val status = com.example.clinexusapp.viewmodel.mapAppointmentStatus(appointment.appointmentStatus)
-                    val (label, color, icon) = when (status) {
-                        com.example.clinexusapp.viewmodel.AppointmentStatus.PENDING -> Triple("PENDING", Color(0xFFD97706), Icons.Default.Schedule)
-                        com.example.clinexusapp.viewmodel.AppointmentStatus.CONFIRMED -> Triple("CONFIRMED", Color(0xFF168C2F), Icons.Default.CheckCircle)
-                        com.example.clinexusapp.viewmodel.AppointmentStatus.RESCHEDULE_REQUESTED -> Triple("RESCHEDULE REQUESTED", Color(0xFF7C3AED), Icons.Default.EventRepeat)
-                        com.example.clinexusapp.viewmodel.AppointmentStatus.COMPLETED -> Triple("COMPLETED", Color(0xFF2563EB), Icons.Default.TaskAlt)
-                        com.example.clinexusapp.viewmodel.AppointmentStatus.CANCELLED -> Triple("CANCELLED", Color(0xFFD92D38), Icons.Default.Cancel)
-                        else -> Triple("UNKNOWN", Color.Gray, Icons.Default.Help)
-                    }
-                    Surface(
-                        color = color.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(icon, null, tint = color, modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = label,
-                                color = color,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-                
-                // Circular design visual accent decoration on the right
-                Box(
-                    modifier = Modifier.size(54.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawCircle(
-                            color = DeepTeal.copy(alpha = 0.1f),
-                            radius = size.minDimension / 2f,
-                            style = Stroke(width = 3.dp.toPx())
-                        )
-                        drawArc(
-                            color = DeepTeal,
-                            startAngle = -90f,
-                            sweepAngle = 280f,
-                            useCenter = false,
-                            style = Stroke(width = 3.dp.toPx())
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.Schedule,
-                        contentDescription = null,
-                        tint = DeepTeal,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onDetailsClick,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .height(40.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = DeepTeal),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 0.dp)
-            ) {
-                Text(
-                    text = "View Details",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
+private fun DashboardLoadingCard() {
+    Surface(shape = DashboardStyle.CardShape, color = Color.White, modifier = Modifier.fillMaxWidth()) {
+        Box(Modifier.height(112.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = DashboardStyle.Teal, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
         }
     }
 }
 
 @Composable
-fun EmptyAppointmentCard(onBookClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(2.dp, RoundedCornerShape(22.dp)),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "No upcoming appointment",
-                color = SlateGray,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = onBookClick,
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = DeepTeal)
-            ) {
-                Text("Book appointment", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
+private fun DashboardErrorCard(message: String, onRetry: () -> Unit) {
+    Surface(shape = DashboardStyle.CardShape, color = Color.White, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(message, color = DashboardStyle.Muted, textAlign = TextAlign.Center)
+            TextButton(onClick = onRetry) { Text("Try again", color = DashboardStyle.Teal) }
         }
     }
 }
 
 @Composable
-fun PromotionCard(
-    title: String,
-    value: String,
-    description: String
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(2.dp, RoundedCornerShape(22.dp)),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFFFFE8D5), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LocalOffer,
-                    contentDescription = null,
-                    tint = Color(0xFFE77A35),
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RoyalNavy
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = value,
-                    color = Color(0xFFE77A35),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = description,
-                    color = SlateGray,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp
-                )
-            }
+private fun DashboardSystemBars(headerVisible: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(view, headerVisible) {
+        val activity = view.context.findActivity()
+        val controller = if (!view.isInEditMode && activity != null) WindowCompat.getInsetsController(activity.window, view) else null
+        val previousStatus = controller?.isAppearanceLightStatusBars
+        val previousNavigation = controller?.isAppearanceLightNavigationBars
+        controller?.isAppearanceLightStatusBars = !headerVisible
+        controller?.isAppearanceLightNavigationBars = true
+        onDispose {
+            previousStatus?.let { controller?.isAppearanceLightStatusBars = it }
+            previousNavigation?.let { controller?.isAppearanceLightNavigationBars = it }
         }
     }
 }
 
-@Composable
-fun InsightCard(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(2.dp, RoundedCornerShape(22.dp))
-            .clickable { onClick() },
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFFFFEAE3), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AutoFixHigh,
-                    contentDescription = null,
-                    tint = Color(0xFFFF8A65),
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RoyalNavy
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    color = SlateGray,
-                    fontSize = 13.sp
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = LightSlate,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
-@Composable
-fun NewsCard(
-    title: String,
-    description: String
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(2.dp, RoundedCornerShape(22.dp)),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFFE1F5FE), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Business,
-                    contentDescription = null,
-                    tint = Color(0xFF0288D1),
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RoyalNavy
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = description,
-                    color = SlateGray,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
-                )
-            }
-        }
-    }
-}
-
-private fun formatDiscount(type: String?, value: Double): String {
-    return if (type.equals("percentage", ignoreCase = true) || type.equals("percent", ignoreCase = true)) {
+private fun formatDiscount(type: String?, value: Double): String =
+    if (type.equals("percentage", ignoreCase = true) || type.equals("percent", ignoreCase = true)) {
         "${value.toInt()}% OFF"
     } else {
         "PHP ${String.format(Locale.US, "%,.2f", value)} OFF"
     }
-}
