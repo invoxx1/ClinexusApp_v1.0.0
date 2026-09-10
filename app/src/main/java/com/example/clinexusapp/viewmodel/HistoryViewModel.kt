@@ -112,7 +112,19 @@ class HistoryViewModel @Inject constructor(
                 )
                 fetchHistory(clearOperation = false)
             } else {
-                _uiState.value = _uiState.value.copy(rescheduleSubmitting = false, operation = Resource.Error((result as Resource.Error).message))
+                val serverMessage = (result as Resource.Error).message
+                val message = if (
+                    appointment.needsPatientScheduleChoice &&
+                    serverMessage?.contains("can no longer be rescheduled", ignoreCase = true) == true
+                ) {
+                    "We couldn't submit your new schedule yet. Please try again in a moment."
+                } else {
+                    serverMessage
+                }
+                _uiState.value = _uiState.value.copy(
+                    rescheduleSubmitting = false,
+                    operation = Resource.Error(message)
+                )
             }
         }
     }

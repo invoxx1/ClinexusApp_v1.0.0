@@ -48,10 +48,15 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
         },
         containerColor = Color(0xFFF0FAFA),
     ) { innerPadding ->
+        val contentBottomPadding = PaddingValues(
+            bottom = innerPadding.calculateBottomPadding()
+        )
         NavHost(
             navController = navController,
             startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding()),
+            modifier = Modifier
+                .padding(contentBottomPadding)
+                .consumeWindowInsets(contentBottomPadding),
         ) {
             composable(route = Screen.Dashboard.route) {
                 val dashboardViewModel: DashboardViewModel = hiltViewModel()

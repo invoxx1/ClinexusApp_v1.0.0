@@ -217,6 +217,7 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .consumeWindowInsets(padding)
                 .chatScreenBackground()
         ) {
             when (currentView) {

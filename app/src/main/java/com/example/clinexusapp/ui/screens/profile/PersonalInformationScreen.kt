@@ -31,6 +31,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 
+private fun normalizeDateOfBirth(value: String?): String = value.orEmpty().substringBefore('T')
+
 @Composable
 fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
     val user by SessionManager.currentUser.collectAsState()
@@ -48,7 +50,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
     var middleName by remember { mutableStateOf(user?.middleName ?: "") }
     var lastName by remember { mutableStateOf(user?.lastName ?: "") }
     var phoneNumber by remember { mutableStateOf(user?.phoneNumber ?: "") }
-    var dateOfBirth by remember { mutableStateOf(user?.dateOfBirth ?: "") }
+    var dateOfBirth by remember { mutableStateOf(normalizeDateOfBirth(user?.dateOfBirth)) }
     var streetAddress by remember { mutableStateOf(user?.streetAddress ?: "") }
     var province by remember { mutableStateOf(user?.province ?: "") }
     var city by remember { mutableStateOf(user?.city ?: "") }
@@ -77,7 +79,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
             if (middleName.isEmpty()) middleName = it.middleName ?: ""
             if (lastName.isEmpty()) lastName = it.lastName ?: ""
             if (phoneNumber.isEmpty()) phoneNumber = it.phoneNumber ?: ""
-            if (dateOfBirth.isEmpty()) dateOfBirth = it.dateOfBirth ?: ""
+            if (dateOfBirth.isEmpty()) dateOfBirth = normalizeDateOfBirth(it.dateOfBirth)
             if (streetAddress.isEmpty()) streetAddress = it.streetAddress ?: ""
             if (province.isEmpty()) province = it.province ?: ""
             if (city.isEmpty()) city = it.city ?: ""
@@ -234,7 +236,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                                 middleName = middleName,
                                 lastName = lastName,
                                 phoneNumber = phoneNumber,
-                                dateOfBirth = dateOfBirth,
+                                dateOfBirth = normalizeDateOfBirth(dateOfBirth),
                                 streetAddress = streetAddress,
                                 province = province,
                                 city = city,

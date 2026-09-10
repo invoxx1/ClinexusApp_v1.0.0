@@ -4,6 +4,8 @@ import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.viewmodel.AppointmentStatus
 import com.example.clinexusapp.viewmodel.mapAppointmentStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DashboardLogicTest {
@@ -38,6 +40,20 @@ class DashboardLogicTest {
     }
 
     @Test
+    fun `clinic reschedule requires patient choice until a requested date is submitted`() {
+        assertTrue(createAppt(1, "needs_reschedule", "2026-09-10", "10:00").needsPatientScheduleChoice)
+        assertFalse(
+            createAppt(
+                2,
+                "needs_reschedule",
+                "2026-09-10",
+                "10:00",
+                requestedDate = "2026-09-15"
+            ).needsPatientScheduleChoice
+        )
+    }
+
+    @Test
     fun `sorting logic priority is Confirmed over Pending`() {
         val appts = listOf(
             createAppt(1, "pending", "2026-09-10", "10:00"),
@@ -57,7 +73,7 @@ class DashboardLogicTest {
         assertEquals(2, sorted[0].appointmentId)
     }
 
-    private fun createAppt(id: Int, status: String, date: String, time: String) = AppointmentDTO(
+    private fun createAppt(id: Int, status: String, date: String, time: String, requestedDate: String? = null) = AppointmentDTO(
         appointmentId = id,
         patientId = 1,
         dentistId = 1,
@@ -78,6 +94,7 @@ class DashboardLogicTest {
         cancelledBy = null,
         cancelledAt = null,
         cancellationReason = null,
-        rescheduleNote = null
+        rescheduleNote = null,
+        requestedDate = requestedDate
     )
 }

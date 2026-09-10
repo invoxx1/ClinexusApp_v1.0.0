@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.model.AvailableSlotDTO
@@ -117,17 +118,9 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
         RescheduleSheet(rescheduleTarget!!, state, viewModel, onDismiss = { rescheduleTarget = null })
     }
     errorMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { errorMessage = null },
-            icon = { Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = ErrorRed) },
-            title = { Text("Request could not be submitted", color = RoyalNavy, fontWeight = FontWeight.Bold) },
-            text = { Text(message, color = SlateGray, lineHeight = 20.sp) },
-            confirmButton = {
-                TextButton(onClick = { errorMessage = null }) {
-                    Text("OK", color = DeepTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            containerColor = White,
+        AppointmentErrorDialog(
+            message = message,
+            onDismiss = { errorMessage = null }
         )
     }
     if (selected != null) AppointmentDetailsDialog(selected!!, onDismiss = { selected = null })
@@ -158,10 +151,66 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
                 is Resource.Error -> item { ErrorState(appointments.message ?: "Unable to load appointments.", viewModel::fetchHistory) }
                 is Resource.Success -> {
                     val visible = viewModel.filteredAppointments(state.selectedTab, appointments.data)
-                    if (visible.isEmpty()) item { EmptyAppointments(onNavigateToBooking) }
+                    if (visible.isEmpty()) item { EmptyAppointments() }
                     else items(visible, key = { it.appointmentId }) { appointment ->
                         AppointmentCard(appointment, onClick = { selected = appointment }, onCancel = { cancelTarget = appointment }, onReschedule = { rescheduleTarget = appointment }, onBook = onNavigateToBooking)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = White,
+            shape = RoundedCornerShape(26.dp),
+            shadowElevation = 18.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(58.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFFEEEE)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.EventBusy,
+                        contentDescription = null,
+                        tint = ErrorRed,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+                Text(
+                    "Schedule not submitted",
+                    color = RoyalNavy,
+                    fontSize = 22.sp,
+                    lineHeight = 27.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Text(
+                    message,
+                    color = SlateGray,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal)
+                ) {
+                    Text("Choose Another Time", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }
@@ -552,6 +601,6 @@ private fun AppointmentDetailsDialog(appointment: AppointmentDTO, onDismiss: () 
     AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }, title = { Text("Appointment details", color = RoyalNavy, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { AppointmentAvatar(appointment, size = 56.dp); Spacer(Modifier.width(12.dp)); Column { Text(appointment.doctor, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold); Text(appointment.dentistSpecialty ?: "Dental care", color = SlateGray, fontSize = 14.sp) } }; StatusBadge(style); DetailLine(Icons.Default.MedicalServices, "Service", appointment.serviceName ?: appointment.treatment); appointment.price?.let { DetailLine(Icons.Default.LocalOffer, "Price", "₱${String.format(Locale.US, "%,.0f", it)}") }; DetailLine(Icons.Default.CalendarMonth, "Date", DateUtils.formatDisplayDate(appointment.appointmentDate)); DetailLine(Icons.Default.AccessTime, "Time", "${DateUtils.formatDisplayTime(appointment.startTime)} – ${DateUtils.formatDisplayTime(appointment.endTime)}"); DetailLine(Icons.Default.LocationOn, "Clinic", appointment.clinicName ?: "Clinexus Dental Clinic"); Text("Booking reference: #${appointment.appointmentId}", color = SlateGray, fontSize = 13.sp); appointment.submittedAt?.let { Text("Submitted: ${DateUtils.formatDisplayDate(it)}", color = SlateGray, fontSize = 13.sp) }; appointment.cancelledBy?.let { Text("Cancelled by: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.cancellationReason?.let { Text("Cancellation reason: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.rescheduleNote?.let { Text("Reschedule note: $it", color = Color(0xFF7C3AED), fontSize = 13.sp) } } })
 }
 
-@Composable private fun EmptyAppointments(onBook: () -> Unit) { Column(Modifier.fillMaxWidth().padding(vertical = 44.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { Icon(Icons.Default.EventAvailable, "No appointments", tint = TealMuted, modifier = Modifier.size(56.dp)); Text("No appointments in this tab", color = RoyalNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Book a visit when you are ready.", color = SlateGray); Button(onClick = onBook, colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal)) { Text("Book appointment") } } }
+@Composable private fun EmptyAppointments() { Column(Modifier.fillMaxWidth().padding(vertical = 44.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { Icon(Icons.Default.EventAvailable, "No appointments", tint = TealMuted, modifier = Modifier.size(56.dp)); Text("No appointments in this tab", color = RoyalNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Book a visit when you are ready.", color = SlateGray) } }
 @Composable private fun LoadingState() { Box(Modifier.fillMaxWidth().padding(44.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = VibrantTeal) } }
 @Composable private fun ErrorState(message: String, retry: () -> Unit) { Column(Modifier.fillMaxWidth().padding(30.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(message, color = ErrorRed); TextButton(onClick = retry) { Text("Retry") } } }
