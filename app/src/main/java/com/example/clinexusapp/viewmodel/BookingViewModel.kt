@@ -169,7 +169,7 @@ class BookingViewModel @Inject constructor(
                 update {
                     val remainingSlots = if (result is Resource.Success && it.timeslots is Resource.Success) {
                         Resource.Success(it.timeslots.data.filterNot { available ->
-                            available.startTime?.take(5) == slot.startTime?.take(5)
+                            available.startTime?.take(5) == slot.startTime.take(5)
                         })
                     } else {
                         it.timeslots

@@ -9,6 +9,9 @@ import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -64,6 +67,37 @@ class ProfileViewModel @Inject constructor(
             _barangays.value = emptyList()
             (addressRepository.getBarangays(cityCode) as? Resource.Success)?.let {
                 _barangays.value = it.data
+            }
+        }
+    }
+
+    fun loadAddressOptionsForProfile(selectedProvince: String, selectedCity: String) {
+        viewModelScope.launch {
+            val regionResult = addressRepository.getRegions()
+            val regionList = (regionResult as? Resource.Success)?.data ?: _regions.value
+            if (regionList.isEmpty()) return@launch
+            _regions.value = regionList
+
+            val allProvinces = coroutineScope {
+                regionList.map { region ->
+                    async {
+                        (addressRepository.getProvinces(region.code) as? Resource.Success)?.data.orEmpty()
+                    }
+                }.awaitAll().flatten()
+            }.distinctBy { it.code }
+            _provinces.value = allProvinces
+
+            val province = allProvinces.firstOrNull {
+                it.displayName.equals(selectedProvince.trim(), ignoreCase = true)
+            } ?: return@launch
+            val cityList = (addressRepository.getCities(province.code) as? Resource.Success)?.data ?: return@launch
+            _cities.value = cityList
+
+            val city = cityList.firstOrNull {
+                it.displayName.equals(selectedCity.trim(), ignoreCase = true)
+            } ?: return@launch
+            (addressRepository.getBarangays(city.code) as? Resource.Success)?.data?.let {
+                _barangays.value = it
             }
         }
     }

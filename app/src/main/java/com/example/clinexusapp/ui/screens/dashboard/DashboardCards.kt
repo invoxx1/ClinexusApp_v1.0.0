@@ -23,10 +23,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
@@ -67,7 +67,7 @@ fun UpcomingAppointmentCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                DashboardCardIcon(Icons.Default.EventNote, DashboardStyle.Mint, DashboardStyle.Teal)
+                DashboardCardIcon(Icons.AutoMirrored.Filled.EventNote, DashboardStyle.Mint, DashboardStyle.Teal)
                 Column(Modifier.weight(1f)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -127,7 +127,7 @@ fun EmptyAppointmentCard(onBookClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Icons.Default.EventNote, DashboardStyle.Mint, DashboardStyle.Teal)
+            DashboardCardIcon(Icons.AutoMirrored.Filled.EventNote, DashboardStyle.Mint, DashboardStyle.Teal)
             Column(Modifier.weight(1f)) {
                 DashboardCardTitle("No upcoming appointment")
                 DashboardPillButton("Book appointment", onBookClick)

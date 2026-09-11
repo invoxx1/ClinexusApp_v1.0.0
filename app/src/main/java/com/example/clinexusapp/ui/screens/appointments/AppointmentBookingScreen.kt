@@ -50,9 +50,28 @@ fun AppointmentBookingScreen(
     LaunchedEffect(state.submission) {
         if (state.submission is Resource.Success) {
             NotificationHelper.showBookingNotification(context, state.selectedDentist?.dentistName ?: doctorName)
-            viewModel.buildTicket()?.let(onBookSuccess)
-            viewModel.clearSubmission()
+            val ticket = viewModel.buildTicket()
+            if (ticket != null) {
+                viewModel.clearSubmission()
+                onBookSuccess(ticket)
+            }
         }
+    }
+
+    if (state.step == BookingStep.DATE_TIME && state.submission is Resource.Error) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearSubmission() },
+            icon = { Icon(Icons.Default.EventBusy, null, tint = ErrorRed) },
+            title = { Text("Time slot unavailable") },
+            text = {
+                Text("That appointment time was just booked by someone else. Please choose another available time.")
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.clearSubmission() }) {
+                    Text("Choose another time")
+                }
+            },
+        )
     }
 
     if (showCalendar) {

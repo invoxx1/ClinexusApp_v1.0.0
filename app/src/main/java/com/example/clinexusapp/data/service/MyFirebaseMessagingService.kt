@@ -16,6 +16,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCM", "Refreshed token: $token")

@@ -3,6 +3,10 @@ package com.example.clinexusapp.navigation
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -25,6 +29,7 @@ import com.example.clinexusapp.viewmodel.*
 
 @Composable
 fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsViewModel) {
+    var latestAppointmentTicket by remember { mutableStateOf<AppointmentTicket?>(null) }
     NavHost(
         navController = navController,
         startDestination = Screen.Splash.route,
@@ -183,7 +188,7 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
                 doctorName = doctorName,
                 onBack = { navController.popBackStack() },
                 onBookSuccess = { ticket ->
-                    navController.currentBackStackEntry?.savedStateHandle?.set("appointment_ticket", ticket)
+                    latestAppointmentTicket = ticket
                     navController.navigate(Screen.AppointmentTicket.route)
                 },
                 viewModel = bookingViewModel
@@ -191,15 +196,19 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
         }
 
         composable(route = Screen.AppointmentTicket.route) {
-            val ticket = navController.previousBackStackEntry?.savedStateHandle?.get<AppointmentTicket>("appointment_ticket")
+            val ticket = latestAppointmentTicket
             if (ticket != null) {
                 AppointmentTicketScreen(
                     ticket = ticket,
-                    onViewAppointments = { navController.navigate(Screen.AppointmentHistory.route) },
+                    onViewAppointments = {
+                        navController.navigate(Screen.AppointmentHistory.route)
+                        latestAppointmentTicket = null
+                    },
                     onBackHome = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.AppointmentBooking.route) { inclusive = true }
                         }
+                        latestAppointmentTicket = null
                     }
                 )
             }

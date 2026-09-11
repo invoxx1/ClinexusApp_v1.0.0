@@ -6,6 +6,8 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +41,37 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER") settingsViewModel: SettingsViewModel) {
     val navController = rememberNavController()
     var isBottomBarVisible by remember { mutableStateOf(value = true) }
+    val pendingPasswordSave by SessionManager.pendingPasswordSave.collectAsState()
+
+    if (pendingPasswordSave != null) {
+        AlertDialog(
+            onDismissRequest = { SessionManager.dismissPasswordSave() },
+            icon = {
+                Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFE0F7F4)) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = Color(0xFF00A896),
+                        modifier = Modifier.padding(12.dp).size(28.dp),
+                    )
+                }
+            },
+            title = { Text("Remember password?") },
+            text = {
+                Text("Next time you sign in on this phone, just tap your profile picture instead of typing your password.")
+            },
+            confirmButton = {
+                Button(onClick = { SessionManager.confirmPasswordSave() }) {
+                    Text("Remember")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { SessionManager.dismissPasswordSave() }) {
+                    Text("Not now")
+                }
+            },
+        )
+    }
 
     Scaffold(
         bottomBar = { 
@@ -90,6 +123,16 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
             composable(route = Screen.Profile.route) {
                 val profileViewModel: ProfileViewModel = hiltViewModel()
                 ProfileScreen(
+                    onSwitchAccount = {
+                        rootNavController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
+                        }
+                    },
+                    onAddAccount = {
+                        rootNavController.navigate(Screen.Login.route) {
+                            launchSingleTop = true
+                        }
+                    },
                     onLogout = {
                         SessionManager.logout()
                         rootNavController.navigate(Screen.Login.route) {

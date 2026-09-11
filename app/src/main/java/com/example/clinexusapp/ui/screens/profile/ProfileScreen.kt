@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.ProfileViewModel
 import kotlinx.coroutines.launch
@@ -63,6 +65,8 @@ private data class ProfileMenuEntry(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    onSwitchAccount: () -> Unit,
+    onAddAccount: () -> Unit,
     onLogout: () -> Unit,
     onBack: () -> Unit,
     @Suppress("UNUSED_PARAMETER") onNavigateToSettings: () -> Unit,
@@ -72,9 +76,11 @@ fun ProfileScreen(
     viewModel: ProfileViewModel,
 ) {
     val user by SessionManager.currentUser.collectAsState()
+    val savedAccounts by SessionManager.savedAccounts.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showPhotoOptions by remember { mutableStateOf(false) }
+    var showAccountSwitcher by remember { mutableStateOf(false) }
 
     LaunchedEffect(user) {
         if (user != null && user?.firstName.isNullOrBlank()) viewModel.fetchProfile()
@@ -108,6 +114,91 @@ fun ProfileScreen(
         }
     }
 
+    if (showAccountSwitcher) {
+        ModalBottomSheet(
+            onDismissRequest = { showAccountSwitcher = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Switch account", color = ProfileNavy, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                Text("Choose a patient account saved on this phone.", color = ProfileMuted, fontSize = 14.sp)
+                savedAccounts.filterNot { it.patient.patientID == user?.patientID }.forEach { account ->
+                    val patient = account.patient
+                    val accountPhoto = account.cachedProfilePicture ?: patient.profilePicture
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            showAccountSwitcher = false
+                            if (account.password.isNullOrBlank()) {
+                                SessionManager.requestAccountLogin(patient.patientID)
+                                onAddAccount()
+                            } else if (SessionManager.switchAccount(patient.patientID)) {
+                                onSwitchAccount()
+                            }
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF7F9FC),
+                    ) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                modifier = Modifier.size(46.dp),
+                                shape = CircleShape,
+                                color = Color.White,
+                            ) {
+                                if (accountPhoto.isNullOrBlank()) {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.Person, null, tint = ProfileTeal, modifier = Modifier.size(28.dp))
+                                    }
+                                } else {
+                                    SubcomposeAsyncImage(
+                                        model = accountPhoto,
+                                        contentDescription = "${patient.firstName.orEmpty()} profile photo",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                        loading = {
+                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(22.dp),
+                                                    color = ProfileTeal,
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            }
+                                        },
+                                        error = {
+                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                Icon(Icons.Default.Person, null, tint = ProfileTeal, modifier = Modifier.size(28.dp))
+                                            }
+                                        },
+                                        success = { SubcomposeAsyncImageContent() },
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                val accountName = listOf(patient.firstName, patient.lastName).filterNotNull().joinToString(" ").ifBlank { "Patient" }
+                                Text(accountName, color = ProfileNavy, fontWeight = FontWeight.Bold)
+                                Text(patient.email.orEmpty(), color = ProfileMuted, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+                OutlinedButton(
+                    onClick = { showAccountSwitcher = false; onAddAccount() },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, ProfileTeal),
+                ) {
+                    Icon(Icons.Outlined.PersonAdd, null, tint = ProfileTeal)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add account", color = ProfileTeal, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = ProfileBackground,
@@ -132,9 +223,6 @@ fun ProfileScreen(
                     entries = listOf(
                         ProfileMenuEntry("Personal Information", "View and manage your details", Icons.Outlined.Person, onClick = onNavigateToPersonalInformation),
                         ProfileMenuEntry("My Appointments", "View and manage your appointments", Icons.Outlined.CalendarMonth, onClick = onNavigateToHistory),
-                        ProfileMenuEntry("Medical Records", "View your health records", Icons.Outlined.Description) {
-                            scope.launch { snackbarHostState.showSnackbar("Medical records are not available yet.") }
-                        },
                     ),
                 )
             }
@@ -144,7 +232,7 @@ fun ProfileScreen(
                     title = "Security and Session",
                     entries = listOf(
                         ProfileMenuEntry("Change Password", "Update your account password", Icons.Outlined.Lock, onClick = onNavigateToChangePassword),
-                        ProfileMenuEntry("Switch Account", "Log in to another account", Icons.Outlined.SwapHoriz, onClick = onLogout),
+                        ProfileMenuEntry("Switch Account", "Choose or add another account", Icons.Outlined.SwapHoriz) { showAccountSwitcher = true },
                         ProfileMenuEntry("Log Out", "Sign out from this account", Icons.AutoMirrored.Outlined.Logout, destructive = true, onClick = onLogout),
                     ),
                 )

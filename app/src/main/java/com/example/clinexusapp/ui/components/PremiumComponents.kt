@@ -126,31 +126,64 @@ fun MintTextField(
     onValueChange: (String) -> Unit,
     label: String,
     icon: ImageVector,
-    isPassword: Boolean = false
+    isPassword: Boolean = false,
+    errorText: String? = null,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val hasError = !errorText.isNullOrBlank()
+    var passwordVisible by remember { mutableStateOf(false) }
     
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            color = onSurfaceColor.copy(alpha = 0.5f),
+            color = if (hasError) MaterialTheme.colorScheme.error else onSurfaceColor.copy(alpha = 0.5f),
             modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
         )
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            leadingIcon = { Icon(icon, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp)) },
+            leadingIcon = {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (hasError) MaterialTheme.colorScheme.error else primaryColor,
+                    modifier = Modifier.size(20.dp),
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+            visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+            trailingIcon = if (isPassword) {
+                {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                        )
+                    }
+                }
+            } else null,
+            isError = hasError,
+            supportingText = errorText?.let { message ->
+                {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ErrorOutline, null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(message)
+                    }
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedContainerColor = primaryColor.copy(alpha = 0.05f),
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = primaryColor.copy(alpha = 0.3f)
+                focusedBorderColor = primaryColor.copy(alpha = 0.3f),
+                errorBorderColor = MaterialTheme.colorScheme.error,
+                errorLeadingIconColor = MaterialTheme.colorScheme.error,
+                errorSupportingTextColor = MaterialTheme.colorScheme.error,
             ),
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(fontSize = 15.sp)

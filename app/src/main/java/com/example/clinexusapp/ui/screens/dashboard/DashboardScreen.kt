@@ -420,8 +420,8 @@ private fun DashboardSystemBars(headerVisible: Boolean) {
         controller?.isAppearanceLightStatusBars = !headerVisible
         controller?.isAppearanceLightNavigationBars = true
         onDispose {
-            previousStatus?.let { controller?.isAppearanceLightStatusBars = it }
-            previousNavigation?.let { controller?.isAppearanceLightNavigationBars = it }
+            previousStatus?.let { controller.isAppearanceLightStatusBars = it }
+            previousNavigation?.let { controller.isAppearanceLightNavigationBars = it }
         }
     }
 }

@@ -87,6 +87,12 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
         }
     }
 
+    LaunchedEffect(user?.patientID) {
+        user?.let {
+            viewModel.loadAddressOptionsForProfile(it.province.orEmpty(), it.city.orEmpty())
+        }
+    }
+
     val state = updateState
     LaunchedEffect(state) {
         when (state) {
@@ -198,6 +204,8 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                         selectedOption = province,
                         onOptionSelected = { name ->
                             province = name
+                            city = ""
+                            barangay = ""
                             val prov = provinces.find { it.displayName == name }
                             prov?.let { viewModel.onProvinceSelected(it.code) }
                         }
@@ -209,6 +217,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                         selectedOption = city,
                         onOptionSelected = { name ->
                             city = name
+                            barangay = ""
                             val c = cities.find { it.displayName == name }
                             c?.let { viewModel.onCitySelected(it.code) }
                         }
