@@ -3,6 +3,7 @@ package com.example.clinexusapp.di
 import com.example.clinexusapp.api.AddressApiService
 import com.example.clinexusapp.api.ApiService
 import com.example.clinexusapp.api.AppointmentApiService
+import com.example.clinexusapp.api.SessionExpiryInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -35,6 +36,7 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(loggingInterceptor: HttpLoggingInterceptor): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(SessionExpiryInterceptor)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)

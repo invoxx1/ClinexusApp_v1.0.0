@@ -55,6 +55,9 @@ object SessionManager {
     private val _isInitialized = MutableStateFlow(value = false)
     val isInitialized = _isInitialized.asStateFlow()
 
+    private val _sessionExpired = MutableStateFlow(value = false)
+    val sessionExpired = _sessionExpired.asStateFlow()
+
     private var _token: String? = null
     val token: String? get() = _token
 
@@ -176,6 +179,22 @@ object SessionManager {
     }
 
     fun logout() {
+        _sessionExpired.value = false
+        clearActiveSession()
+    }
+
+    @Synchronized
+    fun expireSession() {
+        if (_token.isNullOrBlank() || _sessionExpired.value) return
+        clearActiveSession()
+        _sessionExpired.value = true
+    }
+
+    fun acknowledgeSessionExpiry() {
+        _sessionExpired.value = false
+    }
+
+    private fun clearActiveSession() {
         _pendingPasswordSave.value = null
         _token = null
         _currentUser.value = null
