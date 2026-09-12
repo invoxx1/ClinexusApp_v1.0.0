@@ -1,9 +1,9 @@
-
 package com.example.clinexusapp.ui.screens.auth
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mail
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -107,7 +107,7 @@ fun ForgotPasswordScreen(
 
                     label = "Email Address",
 
-                    icon = Icons.Default.Email
+                    icon = Lucide.Mail
                 )
             }
 

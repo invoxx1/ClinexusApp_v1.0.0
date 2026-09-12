@@ -1,15 +1,19 @@
 package com.example.clinexusapp.ui.screens.settings
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Bell
+import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.CircleQuestionMark
+import com.composables.icons.lucide.Moon
+import com.composables.icons.lucide.ShieldCheck
+
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.HelpCenter
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,8 +32,25 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: SettingsViewModel) {
     val darkMode by settingsViewModel.isDarkMode.collectAsState()
     var notificationsEnabled by remember { mutableStateOf(value = true) }
+    var confirmLogout by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    if (confirmLogout) {
+        AlertDialog(
+            onDismissRequest = { confirmLogout = false },
+            title = { Text("Log out?", fontWeight = FontWeight.Bold) },
+            text = { Text("You’ll need to sign in again to access your account.") },
+            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Cancel") } },
+            confirmButton = {
+                Button(
+                    onClick = { confirmLogout = false; onLogout() },
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)
+                ) { Text("Log out") }
+            },
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -58,7 +79,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                         Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                             SettingsToggleItem(
                                 title = "Notifications",
-                                icon = Icons.Default.Notifications,
+                                icon = Lucide.Bell,
                                 iconColor = Color(0xFF0288D1),
                                 iconBg = if (isSystemInDarkTheme()) Color(0xFF0288D1).copy(alpha = 0.1f) else Color(0xFFE1F5FE),
                                 isChecked = notificationsEnabled,
@@ -67,7 +88,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                             }
                             SettingsToggleItem(
                                 title = "Dark Mode",
-                                icon = Icons.Default.DarkMode,
+                                icon = Lucide.Moon,
                                 iconColor = Color(0xFF2C3E50),
                                 iconBg = if (isSystemInDarkTheme()) Color(0xFF2C3E50).copy(alpha = 0.1f) else Color(0xFFF1F5F9),
                                 isChecked = darkMode,
@@ -82,7 +103,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                         Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                             SettingsLinkItem(
                                 title = "Privacy & Security", 
-                                icon = Icons.Default.VerifiedUser,
+                                icon = Lucide.ShieldCheck,
                                 iconColor = Color(0xFF00A896),
                                 iconBg = if (isSystemInDarkTheme()) Color(0xFF00A896).copy(alpha = 0.1f) else Color(0xFFE0F7F4)
                             ) {
@@ -90,7 +111,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                             }
                             SettingsLinkItem(
                                 title = "Help & Support", 
-                                icon = Icons.AutoMirrored.Filled.HelpCenter,
+                                icon = Lucide.CircleQuestionMark,
                                 iconColor = Color(0xFF0288D1),
                                 iconBg = if (isSystemInDarkTheme()) Color(0xFF0288D1).copy(alpha = 0.1f) else Color(0xFFE1F5FE)
                             ) {
@@ -104,7 +125,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                     Spacer(modifier = Modifier.height(24.dp))
                     VibrantButton(
                         text = "Log Out",
-                        onClick = onLogout
+                        onClick = { confirmLogout = true }
                     )
                 }
             }
@@ -154,6 +175,6 @@ fun SettingsLinkItem(title: String, icon: ImageVector, iconColor: Color, iconBg:
         }
         Spacer(modifier = Modifier.width(18.dp))
         Text(text = title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(22.dp))
+        Icon(Lucide.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(22.dp))
     }
 }

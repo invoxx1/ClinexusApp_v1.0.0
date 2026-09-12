@@ -1,5 +1,13 @@
 package com.example.clinexusapp.ui.components
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.Bell
+import com.composables.icons.lucide.CircleAlert
+import com.composables.icons.lucide.Eye
+import com.composables.icons.lucide.EyeOff
+
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -9,9 +17,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -160,7 +165,7 @@ fun MintTextField(
                 {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
-                            if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            if (passwordVisible) Lucide.Eye else Lucide.EyeOff,
                             contentDescription = if (passwordVisible) "Hide password" else "Show password",
                         )
                     }
@@ -170,7 +175,7 @@ fun MintTextField(
             supportingText = errorText?.let { message ->
                 {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.ErrorOutline, null, modifier = Modifier.size(17.dp))
+                        Icon(Lucide.CircleAlert, null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(message)
                     }
@@ -246,7 +251,7 @@ fun WavyTealHeader(
         ) {
             if (onBack != null) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = White, modifier = Modifier.size(24.dp))
+                    Icon(Lucide.ArrowLeft, "Back", tint = White, modifier = Modifier.size(24.dp))
                 }
             } else {
                 Spacer(modifier = Modifier.size(48.dp))
@@ -255,7 +260,7 @@ fun WavyTealHeader(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 onNotificationClick?.let {
                     IconButton(onClick = it) {
-                        Icon(Icons.Default.Notifications, null, tint = White, modifier = Modifier.size(22.dp))
+                        Icon(Lucide.Bell, null, tint = White, modifier = Modifier.size(22.dp))
                     }
                 }
 
@@ -325,7 +330,7 @@ fun ElegantTopAppBar(title: String, onBack: (() -> Unit)? = null, actions: @Comp
         navigationIcon = {
             if (onBack != null) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
+                    Icon(Lucide.ArrowLeft, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                 }
             }
         },

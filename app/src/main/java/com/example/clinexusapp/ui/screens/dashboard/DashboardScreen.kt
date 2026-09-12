@@ -1,5 +1,13 @@
 package com.example.clinexusapp.ui.screens.dashboard
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Bell
+import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.Lightbulb
+import com.composables.icons.lucide.Megaphone
+import com.composables.icons.lucide.Tag
+
+
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -10,12 +18,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -42,6 +49,7 @@ import com.example.clinexusapp.model.ClinicNewsDTO
 import com.example.clinexusapp.model.HealthInsightDTO
 import com.example.clinexusapp.model.PromotionDTO
 import com.example.clinexusapp.ui.navigation.Screen
+import com.example.clinexusapp.ui.components.shimmer
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.DashboardViewModel
@@ -189,7 +197,7 @@ internal fun DashboardContent(
                 Column(Modifier.padding(horizontal = 22.dp)) {
                     DashboardSectionHeader(
                         title = "Upcoming Appointment",
-                        icon = Icons.Default.CalendarMonth,
+                        icon = Lucide.CalendarDays,
                         actionText = "View All",
                         onActionClick = onAppointmentsClick,
                     )
@@ -206,7 +214,7 @@ internal fun DashboardContent(
             if (promotions.isNotEmpty()) {
                 item(key = "promotions") {
                     Column(Modifier.padding(horizontal = 22.dp)) {
-                        DashboardSectionHeader("Promotions", Icons.Default.LocalOffer, "View All") {
+                        DashboardSectionHeader("Promotions", Lucide.Tag, "View All") {
                             showPromotions = true
                         }
                         Spacer(Modifier.height(4.dp))
@@ -225,7 +233,7 @@ internal fun DashboardContent(
             val insight = (insightsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackHealthInsight
             item(key = "insights") {
                 Column(Modifier.padding(horizontal = 22.dp)) {
-                    DashboardSectionHeader("Health Insights", Icons.Default.Lightbulb)
+                    DashboardSectionHeader("Health Insights", Lucide.Lightbulb)
                     Spacer(Modifier.height(4.dp))
                     InsightCard(insight.title, insight.description, insight.category) { selectedInsight = insight }
                 }
@@ -233,7 +241,7 @@ internal fun DashboardContent(
             val news = (newsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackClinicNews
             item(key = "news") {
                 Column(Modifier.padding(horizontal = 22.dp)) {
-                    DashboardSectionHeader("Clinic News", Icons.Default.Campaign)
+                    DashboardSectionHeader("Clinic News", Lucide.Megaphone)
                     Spacer(Modifier.height(4.dp))
                     NewsCard(news.title, news.description, news.date)
                 }
@@ -336,7 +344,7 @@ fun DashboardHeader(
         ) {
             Box {
                 Icon(
-                    Icons.Default.Notifications,
+                    Lucide.Bell,
                     contentDescription = if (hasUnreadNotifications) "Notifications, unread notifications" else "Notifications",
                     tint = Color.White,
                     modifier = Modifier.size(27.dp),
@@ -393,8 +401,10 @@ fun DashboardSectionHeader(
 @Composable
 private fun DashboardLoadingCard() {
     Surface(shape = DashboardStyle.CardShape, color = Color.White, modifier = Modifier.fillMaxWidth()) {
-        Box(Modifier.height(112.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = DashboardStyle.Teal, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+        Column(Modifier.height(112.dp).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.fillMaxWidth(0.55f).height(20.dp).clip(RoundedCornerShape(8.dp)).shimmer())
+            Box(Modifier.fillMaxWidth(0.8f).height(16.dp).clip(RoundedCornerShape(8.dp)).shimmer())
+            Box(Modifier.fillMaxWidth(0.65f).height(16.dp).clip(RoundedCornerShape(8.dp)).shimmer())
         }
     }
 }

@@ -124,6 +124,23 @@ class BookingViewModel @Inject constructor(
         }
     }
 
+    fun refreshSelectedDate() {
+        val state = _uiState.value
+        val dentist = state.selectedDentist ?: return
+        val date = state.selectedDate ?: return
+        viewModelScope.launch {
+            val slots = getBookableSlots(dentist.dentistId, date)
+            update {
+                // Preserve the patient's choice only while that slot is still available.
+                it.copy(
+                    timeslots = slots,
+                    selectedSlot = BookingRules.keepSlotIfAvailable(it.selectedSlot, slots),
+                    confirmationChecked = if (BookingRules.keepSlotIfAvailable(it.selectedSlot, slots) == null) false else it.confirmationChecked
+                )
+            }
+        }
+    }
+
     fun selectSlot(slot: AvailableSlotDTO) { update { it.copy(selectedSlot = slot, confirmationChecked = false) } }
     fun goTo(step: BookingStep) { update { it.copy(step = step) } }
     fun setConfirmationChecked(checked: Boolean) { update { it.copy(confirmationChecked = checked) } }

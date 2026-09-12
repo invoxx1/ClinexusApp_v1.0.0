@@ -1,5 +1,20 @@
 package com.example.clinexusapp.ui.screens.profile
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowLeftRight
+import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.Camera
+import com.composables.icons.lucide.ChevronLeft
+import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.Leaf
+import com.composables.icons.lucide.LockKeyhole
+import com.composables.icons.lucide.LogOut
+import com.composables.icons.lucide.Pencil
+import com.composables.icons.lucide.ShieldCheck
+import com.composables.icons.lucide.UserRound
+import com.composables.icons.lucide.UserRoundPlus
+
+
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -10,13 +25,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.VerifiedUser
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,11 +89,29 @@ fun ProfileScreen(
     val scope = rememberCoroutineScope()
     var showPhotoOptions by remember { mutableStateOf(false) }
     var showAccountSwitcher by remember { mutableStateOf(false) }
+    var confirmLogout by remember { mutableStateOf(false) }
 
     LaunchedEffect(user) {
         if (user != null && user?.firstName.isNullOrBlank()) viewModel.fetchProfile()
     }
     ProfileSystemBars()
+
+    if (confirmLogout) {
+        AlertDialog(
+            onDismissRequest = { confirmLogout = false },
+            title = { Text("Log out?", color = ProfileNavy, fontWeight = FontWeight.Bold) },
+            text = { Text("You’ll need to sign in again to access your appointments and messages.") },
+            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Stay signed in") } },
+            confirmButton = {
+                Button(
+                    onClick = { confirmLogout = false; onLogout() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                ) { Text("Log out") }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = Color.White,
+        )
+    }
 
     if (showPhotoOptions) {
         ModalBottomSheet(
@@ -106,7 +132,7 @@ fun ProfileScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ProfileTeal),
                 ) {
-                    Icon(Icons.Outlined.Edit, null)
+                    Icon(Lucide.Pencil, null)
                     Spacer(Modifier.width(8.dp))
                     Text("Edit profile photo", fontWeight = FontWeight.Bold)
                 }
@@ -150,7 +176,7 @@ fun ProfileScreen(
                             ) {
                                 if (accountPhoto.isNullOrBlank()) {
                                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Default.Person, null, tint = ProfileTeal, modifier = Modifier.size(28.dp))
+                                        Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(28.dp))
                                     }
                                 } else {
                                     SubcomposeAsyncImage(
@@ -169,7 +195,7 @@ fun ProfileScreen(
                                         },
                                         error = {
                                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                Icon(Icons.Default.Person, null, tint = ProfileTeal, modifier = Modifier.size(28.dp))
+                                                Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(28.dp))
                                             }
                                         },
                                         success = { SubcomposeAsyncImageContent() },
@@ -191,7 +217,7 @@ fun ProfileScreen(
                     shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, ProfileTeal),
                 ) {
-                    Icon(Icons.Outlined.PersonAdd, null, tint = ProfileTeal)
+                    Icon(Lucide.UserRoundPlus, null, tint = ProfileTeal)
                     Spacer(Modifier.width(8.dp))
                     Text("Add account", color = ProfileTeal, fontWeight = FontWeight.Bold)
                 }
@@ -221,8 +247,8 @@ fun ProfileScreen(
                 ProfileSection(
                     title = "Account",
                     entries = listOf(
-                        ProfileMenuEntry("Personal Information", "View and manage your details", Icons.Outlined.Person, onClick = onNavigateToPersonalInformation),
-                        ProfileMenuEntry("My Appointments", "View and manage your appointments", Icons.Outlined.CalendarMonth, onClick = onNavigateToHistory),
+                        ProfileMenuEntry("Personal Information", "View and manage your details", Lucide.UserRound, onClick = onNavigateToPersonalInformation),
+                        ProfileMenuEntry("My Appointments", "View and manage your appointments", Lucide.CalendarDays, onClick = onNavigateToHistory),
                     ),
                 )
             }
@@ -231,9 +257,9 @@ fun ProfileScreen(
                 ProfileSection(
                     title = "Security and Session",
                     entries = listOf(
-                        ProfileMenuEntry("Change Password", "Update your account password", Icons.Outlined.Lock, onClick = onNavigateToChangePassword),
-                        ProfileMenuEntry("Switch Account", "Choose or add another account", Icons.Outlined.SwapHoriz) { showAccountSwitcher = true },
-                        ProfileMenuEntry("Log Out", "Sign out from this account", Icons.AutoMirrored.Outlined.Logout, destructive = true, onClick = onLogout),
+                        ProfileMenuEntry("Change Password", "Update your account password", Lucide.LockKeyhole, onClick = onNavigateToChangePassword),
+                        ProfileMenuEntry("Switch Account", "Choose or add another account", Lucide.ArrowLeftRight) { showAccountSwitcher = true },
+                        ProfileMenuEntry("Log Out", "Sign out from this account", Lucide.LogOut, destructive = true) { confirmLogout = true },
                     ),
                 )
             }
@@ -269,7 +295,7 @@ private fun ProfileHero(
                 Spacer(Modifier.height(13.dp))
                 Surface(shape = RoundedCornerShape(50), color = Color(0xFFE3F6F3)) {
                     Row(Modifier.padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.VerifiedUser, null, tint = Color(0xFF087F7A), modifier = Modifier.size(21.dp))
+                        Icon(Lucide.ShieldCheck, null, tint = Color(0xFF087F7A), modifier = Modifier.size(21.dp))
                         Spacer(Modifier.width(9.dp))
                         Text("Verified Patient", color = Color(0xFF087F7A), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
@@ -285,7 +311,7 @@ private fun ProfileHero(
         ) {
             if (photoUrl.isNullOrBlank()) {
                 Box(Modifier.fillMaxSize().background(ProfileMint), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Person, "Profile photo", tint = ProfileTeal, modifier = Modifier.size(76.dp))
+                    Icon(Lucide.UserRound, "Profile photo", tint = ProfileTeal, modifier = Modifier.size(76.dp))
                 }
             } else {
                 AsyncImage(model = photoUrl, contentDescription = "Profile photo", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -300,7 +326,7 @@ private fun ProfileHero(
             shadowElevation = 3.dp,
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.CameraAlt, "Edit profile photo", tint = Color(0xFF087F7A), modifier = Modifier.size(23.dp))
+                Icon(Lucide.Camera, "Edit profile photo", tint = Color(0xFF087F7A), modifier = Modifier.size(23.dp))
             }
         }
     }
@@ -328,14 +354,14 @@ private fun ProfileHeader(onBack: () -> Unit) {
         }.statusBarsPadding(),
     ) {
         IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 7.dp).size(48.dp)) {
-            Icon(Icons.Outlined.ArrowBackIosNew, "Back", tint = Color.White, modifier = Modifier.size(25.dp))
+            Icon(Lucide.ChevronLeft, "Back", tint = Color.White, modifier = Modifier.size(25.dp))
         }
         Column(Modifier.align(Alignment.TopStart).padding(start = 62.dp, top = 12.dp, end = 118.dp)) {
             Text("Profile", color = Color.White, fontSize = 27.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
             Text("Manage your account and preferences", color = Color.White.copy(alpha = 0.84f), fontSize = 14.sp, lineHeight = 19.sp)
         }
         Column(Modifier.align(Alignment.TopEnd).padding(top = 23.dp, end = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Outlined.Eco, null, tint = Color.White, modifier = Modifier.size(35.dp))
+            Icon(Lucide.Leaf, null, tint = Color.White, modifier = Modifier.size(35.dp))
             Text("Better Care\nBrighter Days", color = Color.White, fontSize = 10.sp, lineHeight = 13.sp, fontFamily = FontFamily.SansSerif)
         }
     }
@@ -377,7 +403,7 @@ private fun ProfileMenuRow(entry: ProfileMenuEntry) {
             Spacer(Modifier.height(3.dp))
             Text(entry.subtitle, color = ProfileMuted, fontSize = 13.sp, lineHeight = 17.sp)
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = ProfileMuted, modifier = Modifier.size(26.dp))
+        Icon(Lucide.ChevronRight, null, tint = ProfileMuted, modifier = Modifier.size(26.dp))
     }
 }
 

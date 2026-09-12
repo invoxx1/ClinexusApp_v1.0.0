@@ -1,8 +1,13 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.BadgeCheck
+import com.composables.icons.lucide.KeyRound
+import com.composables.icons.lucide.LockKeyhole
+
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,11 +31,28 @@ fun ChangePasswordScreen(
     var otp by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var confirmChange by remember { mutableStateOf(false) }
 
     val otpState by viewModel.otpState.collectAsState()
     val resetToken by viewModel.resetToken.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+    if (confirmChange) {
+        AlertDialog(
+            onDismissRequest = { confirmChange = false },
+            title = { Text("Change password?", fontWeight = FontWeight.Bold) },
+            text = { Text("Your current password will stop working after this change.") },
+            dismissButton = { TextButton(onClick = { confirmChange = false }) { Text("Cancel") } },
+            confirmButton = {
+                Button(onClick = {
+                    confirmChange = false
+                    viewModel.changePassword(resetToken ?: "", newPassword)
+                }) { Text("Change password") }
+            },
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
 
     val state = otpState
     LaunchedEffect(state) {
@@ -117,7 +139,7 @@ fun ChangePasswordScreen(
                             value = otp,
                             onValueChange = { otp = it },
                             label = "OTP Code",
-                            icon = Icons.Default.Verified
+                            icon = Lucide.BadgeCheck
                         )
                     }
                     Spacer(modifier = Modifier.height(32.dp))
@@ -147,7 +169,7 @@ fun ChangePasswordScreen(
                             value = newPassword,
                             onValueChange = { newPassword = it },
                             label = "New Password",
-                            icon = Icons.Default.Lock,
+                            icon = Lucide.LockKeyhole,
                             isPassword = true
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -155,7 +177,7 @@ fun ChangePasswordScreen(
                             value = confirmPassword,
                             onValueChange = { confirmPassword = it },
                             label = "Confirm Password",
-                            icon = Icons.Default.LockReset,
+                            icon = Lucide.KeyRound,
                             isPassword = true
                         )
                     }
@@ -164,7 +186,7 @@ fun ChangePasswordScreen(
                         text = if (otpState is Resource.Loading) "Changing..." else "Change Password",
                         onClick = {
                             if (newPassword == confirmPassword) {
-                                viewModel.changePassword(resetToken ?: "", newPassword)
+                                confirmChange = true
                             } else {
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Passwords do not match")

@@ -1,5 +1,9 @@
 package com.example.clinexusapp.navigation
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ShieldAlert
+
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -17,8 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.LockClock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -323,7 +325,7 @@ private fun SessionExpiredDialog(onContinue: () -> Unit) {
             ) {
                 Surface(shape = CircleShape, color = MintSparkle) {
                     Icon(
-                        imageVector = Icons.Outlined.LockClock,
+                        imageVector = Lucide.ShieldAlert,
                         contentDescription = null,
                         tint = DeepTeal,
                         modifier = Modifier.padding(11.dp).size(27.dp),

@@ -1,5 +1,14 @@
 package com.example.clinexusapp.ui.screens.profile
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.House
+import com.composables.icons.lucide.IdCard
+import com.composables.icons.lucide.Pencil
+import com.composables.icons.lucide.Phone
+import com.composables.icons.lucide.UserRound
+
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,8 +17,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,6 +69,37 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
     val barangays by viewModel.barangays.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    var confirmSave by remember { mutableStateOf(false) }
+
+    val saveProfile = {
+        val imagePart = profileImageUri?.let { uri -> uriToMultipart(context, uri) }
+        viewModel.updateFullProfile(
+            UpdateProfileRequest(
+                email = user?.email ?: "",
+                firstName = firstName,
+                middleName = middleName,
+                lastName = lastName,
+                phoneNumber = phoneNumber,
+                dateOfBirth = normalizeDateOfBirth(dateOfBirth),
+                streetAddress = streetAddress,
+                province = province,
+                city = city,
+                barangay = barangay
+            ),
+            imagePart
+        )
+    }
+
+    if (confirmSave) {
+        AlertDialog(
+            onDismissRequest = { confirmSave = false },
+            title = { Text("Save profile changes?") },
+            text = { Text("Please confirm that your personal information is correct.") },
+            dismissButton = { TextButton(onClick = { confirmSave = false }) { Text("Review") } },
+            confirmButton = { Button(onClick = { confirmSave = false; saveProfile() }) { Text("Save changes") } },
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
 
     // Form validity – all fields including email must be filled
     val isFormValid = (firstName.isNotBlank()) &&
@@ -147,7 +186,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                             )
                         } else {
                             Icon(
-                                Icons.Default.Person,
+                                Lucide.UserRound,
                                 contentDescription = "Add Photo",
                                 modifier = Modifier.size(60.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -163,7 +202,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                             shadowElevation = 4.dp
                         ) {
                             Icon(
-                                Icons.Default.Edit,
+                                Lucide.Pencil,
                                 contentDescription = null,
                                 modifier = Modifier.padding(6.dp),
                                 tint = MaterialTheme.colorScheme.onPrimary
@@ -182,21 +221,21 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
             item {
                 SectionTitle("Personal Details")
                 NeumorphicCard {
-                    MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Icons.Default.Person)
+                    MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Lucide.UserRound)
                     Spacer(modifier = Modifier.height(12.dp))
-                    MintTextField(value = middleName, onValueChange = { middleName = it }, label = "Middle Name", icon = Icons.Default.Badge)
+                    MintTextField(value = middleName, onValueChange = { middleName = it }, label = "Middle Name", icon = Lucide.IdCard)
                     Spacer(modifier = Modifier.height(12.dp))
-                    MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Icons.Default.Person)
+                    MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Lucide.UserRound)
                     Spacer(modifier = Modifier.height(12.dp))
-                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Phone Number", icon = Icons.Default.Phone)
+                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Phone Number", icon = Lucide.Phone)
                     Spacer(modifier = Modifier.height(12.dp))
-                    MintTextField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, label = "Date of Birth (YYYY-MM-DD)", icon = Icons.Default.CalendarToday)
+                    MintTextField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, label = "Date of Birth (YYYY-MM-DD)", icon = Lucide.CalendarDays)
                 }
             }
             item {
                 SectionTitle("Address")
                 NeumorphicCard {
-                    MintTextField(value = streetAddress, onValueChange = { streetAddress = it }, label = "Street Address", icon = Icons.Default.Home)
+                    MintTextField(value = streetAddress, onValueChange = { streetAddress = it }, label = "Street Address", icon = Lucide.House)
                     Spacer(modifier = Modifier.height(12.dp))
                     AddressDropdown(
                         label = "Province",
@@ -234,26 +273,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
             item {
                 VibrantButton(
                     text = if (updateState is Resource.Loading) "Updating..." else "Save Changes",
-                    onClick = {
-                        val imagePart = profileImageUri?.let { uri ->
-                            uriToMultipart(context, uri)
-                        }
-                        viewModel.updateFullProfile(
-                            UpdateProfileRequest(
-                                email = user?.email ?: "",
-                                firstName = firstName,
-                                middleName = middleName,
-                                lastName = lastName,
-                                phoneNumber = phoneNumber,
-                                dateOfBirth = normalizeDateOfBirth(dateOfBirth),
-                                streetAddress = streetAddress,
-                                province = province,
-                                city = city,
-                                barangay = barangay
-                            ),
-                            imagePart
-                        )
-                    },
+                    onClick = { confirmSave = true },
                     enabled = (updateState !is Resource.Loading) && isFormValid
                 )
             }

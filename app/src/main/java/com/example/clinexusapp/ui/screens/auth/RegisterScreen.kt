@@ -1,5 +1,17 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.Camera
+import com.composables.icons.lucide.House
+import com.composables.icons.lucide.IdCard
+import com.composables.icons.lucide.KeyRound
+import com.composables.icons.lucide.LockKeyhole
+import com.composables.icons.lucide.Mail
+import com.composables.icons.lucide.Phone
+import com.composables.icons.lucide.UserRound
+
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,8 +21,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -150,7 +160,7 @@ fun RegisterScreen(
                         )
                     } else {
                         Icon(
-                            Icons.Default.AddAPhoto,
+                            Lucide.Camera,
                             contentDescription = "Add Photo",
                             modifier = Modifier.size(40.dp),
                             tint = MaterialTheme.colorScheme.primary,
@@ -162,15 +172,15 @@ fun RegisterScreen(
             item {
                 SectionTitle("Identity Details")
                 NeumorphicCard {
-                    MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Icons.Default.Person)
+                    MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Lucide.UserRound)
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = middleName, onValueChange = { middleName = it }, label = "Middle Name", icon = Icons.Default.Badge)
+                    MintTextField(value = middleName, onValueChange = { middleName = it }, label = "Middle Name", icon = Lucide.IdCard)
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Icons.Default.Person)
+                    MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Lucide.UserRound)
 
                     Spacer(modifier = Modifier.height(20.dp))
                     SectionTitle("Address Information")
-                    MintTextField(value = streetAddress, onValueChange = { streetAddress = it }, label = "Street Address", icon = Icons.Default.Home)
+                    MintTextField(value = streetAddress, onValueChange = { streetAddress = it }, label = "Street Address", icon = Lucide.House)
 
                     Spacer(modifier = Modifier.height(16.dp))
                     AddressDropdown(
@@ -232,20 +242,20 @@ fun RegisterScreen(
             item {
                 SectionTitle("Network Details")
                 NeumorphicCard {
-                    MintTextField(value = email, onValueChange = { email = it }, label = "Email Address", icon = Icons.Default.Email)
+                    MintTextField(value = email, onValueChange = { email = it }, label = "Email Address", icon = Lucide.Mail)
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Mobile Number", icon = Icons.Default.Phone)
+                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Mobile Number", icon = Lucide.Phone)
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, label = "Birthday (YYYY-MM-DD)", icon = Icons.Default.CalendarToday)
+                    MintTextField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, label = "Birthday (YYYY-MM-DD)", icon = Lucide.CalendarDays)
                 }
             }
 
             item {
                 SectionTitle("Security")
                 NeumorphicCard {
-                    MintTextField(value = password, onValueChange = { password = it }, label = "Account Password", icon = Icons.Default.Lock, isPassword = true)
+                    MintTextField(value = password, onValueChange = { password = it }, label = "Account Password", icon = Lucide.LockKeyhole, isPassword = true)
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, label = "Verify Password", icon = Icons.Default.LockReset, isPassword = true)
+                    MintTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, label = "Verify Password", icon = Lucide.KeyRound, isPassword = true)
                 }
             }
 

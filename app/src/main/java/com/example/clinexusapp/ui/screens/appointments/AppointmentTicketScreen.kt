@@ -1,12 +1,14 @@
 package com.example.clinexusapp.ui.screens.appointments
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.CircleCheck
+
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -45,7 +47,7 @@ fun AppointmentTicketScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(Icons.Default.CheckCircle, "Booking success", tint = VibrantTeal, modifier = Modifier.size(64.dp))
+            Icon(Lucide.CircleCheck, "Booking success", tint = VibrantTeal, modifier = Modifier.size(64.dp))
             Text(heading, color = RoyalNavy, fontSize = 26.sp, fontWeight = FontWeight.Bold)
             Surface(color = if (pending) Color(0xFFFFF3D6) else MintSparkle, shape = RoundedCornerShape(20.dp)) {
                 Text(status, color = RoyalNavy, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))

@@ -1,5 +1,9 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ShieldCheck
+
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,8 +12,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -126,7 +128,7 @@ fun OnboardingContent(page: OnboardingPage) {
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            Icons.Default.HealthAndSafety, 
+                            Lucide.ShieldCheck,
                             contentDescription = null, 
                             tint = MaterialTheme.colorScheme.primary, 
                             modifier = Modifier.size(48.dp)

@@ -1,5 +1,13 @@
 package com.example.clinexusapp.ui.screens.dashboard
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Building2
+import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.Clock
+import com.composables.icons.lucide.Sparkles
+import com.composables.icons.lucide.Tag
+
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,13 +30,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -67,7 +68,7 @@ fun UpcomingAppointmentCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                DashboardCardIcon(Icons.AutoMirrored.Filled.EventNote, DashboardStyle.Mint, DashboardStyle.Teal)
+                DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, DashboardStyle.Teal)
                 Column(Modifier.weight(1f)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -82,11 +83,11 @@ fun UpcomingAppointmentCard(
                                 verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 AppointmentDetail(
-                                    Icons.Default.CalendarMonth,
+                                    Lucide.CalendarDays,
                                     DateUtils.formatDisplayDate(appointment.appointmentDate)
                                 )
                                 AppointmentDetail(
-                                    Icons.Default.Schedule,
+                                    Lucide.Clock,
                                     DateUtils.formatDisplayTime(appointment.startTime)
                                 )
                             }
@@ -127,7 +128,7 @@ fun EmptyAppointmentCard(onBookClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Icons.AutoMirrored.Filled.EventNote, DashboardStyle.Mint, DashboardStyle.Teal)
+            DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, DashboardStyle.Teal)
             Column(Modifier.weight(1f)) {
                 DashboardCardTitle("No upcoming appointment")
                 DashboardPillButton("Book appointment", onBookClick)
@@ -144,7 +145,7 @@ fun PromotionCard(title: String, value: String, description: String) {
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.Top
         ) {
-            DashboardCardIcon(Icons.Default.LocalOffer, Color(0xFFFFEDDF), DashboardStyle.Orange)
+            DashboardCardIcon(Lucide.Tag, Color(0xFFFFEDDF), DashboardStyle.Orange)
             Column(Modifier.weight(1f)) {
                 DashboardCardTitle(title)
                 Spacer(Modifier.height(2.dp))
@@ -172,7 +173,7 @@ fun InsightCard(title: String, subtitle: String, category: String, onClick: () -
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Icons.Default.AutoFixHigh, Color(0xFFFFE9EA), Color(0xFFFF6468))
+            DashboardCardIcon(Lucide.Sparkles, Color(0xFFFFE9EA), Color(0xFFFF6468))
             Column(Modifier.weight(1f)) {
                 DashboardCardTitle(title)
                 if (category.isNotBlank()) {
@@ -195,7 +196,7 @@ fun NewsCard(title: String, description: String, date: String) {
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Icons.Default.Business, Color(0xFFE5F3FF), Color(0xFF70AFD0))
+            DashboardCardIcon(Lucide.Building2, Color(0xFFE5F3FF), Color(0xFF70AFD0))
             Column(Modifier.weight(1f)) {
                 DashboardCardTitle(title)
                 if (date.isNotBlank()) {
@@ -332,7 +333,7 @@ private fun AppointmentClock() {
                 style = Stroke(width = stroke)
             )
         }
-        Icon(Icons.Default.Schedule, contentDescription = null, tint = DashboardStyle.Teal, modifier = Modifier.size(24.dp))
+        Icon(Lucide.Clock, contentDescription = null, tint = DashboardStyle.Teal, modifier = Modifier.size(24.dp))
     }
 }
 

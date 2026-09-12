@@ -1,5 +1,19 @@
 package com.example.clinexusapp.ui.screens.appointments
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.CalendarX
+import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.Circle
+import com.composables.icons.lucide.CircleUserRound
+import com.composables.icons.lucide.Clock
+import com.composables.icons.lucide.MapPin
+import com.composables.icons.lucide.Stethoscope
+import com.composables.icons.lucide.Tag
+import com.composables.icons.lucide.UserRound
+
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,9 +22,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,12 +37,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.clinexusapp.model.*
+import com.example.clinexusapp.ui.components.dentalServiceIcon
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.util.NotificationHelper
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.viewmodel.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.delay
 
 private val BookingCardShape = RoundedCornerShape(16.dp)
 
@@ -43,6 +56,15 @@ fun AppointmentBookingScreen(
     doctorName: String = ""
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(state.step, state.selectedDate, state.selectedDentist?.dentistId) {
+        if (state.step == BookingStep.DATE_TIME && state.selectedDate != null) {
+            while (true) {
+                delay(10_000)
+                viewModel.refreshSelectedDate()
+            }
+        }
+    }
     val context = androidx.compose.ui.platform.LocalContext.current
     var showCalendar by remember { mutableStateOf(false) }
     val patient = com.example.clinexusapp.util.SessionManager.currentUser.collectAsState().value
@@ -61,7 +83,7 @@ fun AppointmentBookingScreen(
     if (state.step == BookingStep.DATE_TIME && state.submission is Resource.Error) {
         AlertDialog(
             onDismissRequest = { viewModel.clearSubmission() },
-            icon = { Icon(Icons.Default.EventBusy, null, tint = ErrorRed) },
+            icon = { Icon(Lucide.CalendarX, null, tint = ErrorRed) },
             title = { Text("Time slot unavailable") },
             text = {
                 Text("That appointment time was just booked by someone else. Please choose another available time.")
@@ -150,7 +172,7 @@ private fun BookingTopBar(onBack: (() -> Unit)?) {
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+        if (onBack != null) IconButton(onClick = onBack) { Icon(Lucide.ArrowLeft, "Back") }
         else Spacer(Modifier.size(48.dp))
         Text("Schedule visit", Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = RoyalNavy)
         Spacer(Modifier.size(48.dp))
@@ -164,7 +186,7 @@ private fun BookingProgress(step: BookingStep) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             BookingStep.values().forEachIndexed { itemIndex, item ->
                 Box(Modifier.size(36.dp).clip(CircleShape).background(if (itemIndex <= index) VibrantTeal else Color(0xFFD9E0E5)), contentAlignment = Alignment.Center) {
-                    if (itemIndex < index) Icon(Icons.Default.Check, null, tint = White)
+                    if (itemIndex < index) Icon(Lucide.Check, null, tint = White)
                     else Text("${itemIndex + 1}", color = if (itemIndex <= index) White else SlateGray, fontWeight = FontWeight.Bold)
                 }
                 if (itemIndex < 3) Box(Modifier.weight(1f).height(3.dp).background(if (itemIndex < index) VibrantTeal else Color(0xFFD9E0E5)))
@@ -219,10 +241,23 @@ private fun ServiceStep(state: BookingUiState, viewModel: BookingViewModel) {
             services.forEach { service ->
                 val selected = state.selectedService?.serviceId == service.serviceId
                 SelectableCard(selected, { viewModel.selectService(service) }) {
-                    Icon(Icons.Default.MedicalServices, null, tint = DeepTeal, modifier = Modifier.size(32.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selected) DeepTeal.copy(alpha = 0.12f) else MintSparkle,
+                    ) {
+                        Icon(
+                            imageVector = dentalServiceIcon(service.serviceName),
+                            contentDescription = service.serviceName,
+                            tint = DeepTeal,
+                            modifier = Modifier.padding(10.dp).size(23.dp),
+                        )
+                    }
                     Column(Modifier.weight(1f)) {
                         Text(service.serviceName ?: "Service", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text("${formatPrice(service.price)}${service.durationMinutes?.let { "  •  $it min" } ?: ""}", color = DeepTeal, fontSize = 14.sp)
+                        service.serviceCategoryName?.takeIf { it.isNotBlank() }?.let {
+                            Text(it, color = SlateGray, fontSize = 12.sp, maxLines = 1)
+                        }
                     }
                     Checkmark(selected)
                 }
@@ -236,7 +271,7 @@ private fun DateTimeStep(state: BookingUiState, viewModel: BookingViewModel, onC
     SummaryCard("Appointment", "${state.selectedDentist?.dentistName ?: "Dentist"} • ${state.selectedService?.serviceName ?: "Service"}", "Edit") { viewModel.goTo(BookingStep.SERVICE) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(SimpleDateFormat("MMMM yyyy", LocalLocale.current.platformLocale).format(Date()), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = RoyalNavy)
-        TextButton(onClick = onCalendar) { Icon(Icons.Default.CalendarMonth, null); Spacer(Modifier.width(4.dp)); Text("View calendar") }
+        TextButton(onClick = onCalendar) { Icon(Lucide.CalendarDays, null); Spacer(Modifier.width(4.dp)); Text("View calendar") }
     }
     DateStrip(state, viewModel)
     Text("Available times", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = RoyalNavy)
@@ -272,7 +307,7 @@ private fun DateStrip(state: BookingUiState, viewModel: BookingViewModel) {
                     Text(if (date.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)) "Today" else display.format(date.time), color = if (selected) White else if (unavailable) LightSlate else SlateGray, fontSize = 12.sp)
                     Text(day.format(date.time), color = if (selected) White else if (unavailable) LightSlate else RoyalNavy, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     if (unavailable) Text("Unavailable", color = LightSlate, fontSize = 9.sp)
-                    if (selected) Icon(Icons.Default.Check, null, tint = White, modifier = Modifier.size(16.dp))
+                    if (selected) Icon(Lucide.Check, null, tint = White, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -302,12 +337,12 @@ private fun ReviewStep(state: BookingUiState, patient: com.example.clinexusapp.m
                 Text("Appointment details", Modifier.weight(1f), color = RoyalNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 TextButton(onClick = { viewModel.goTo(BookingStep.DATE_TIME) }) { Text("Edit", color = DeepTeal) }
             }
-            DetailRow(Icons.Default.Person, "Dentist", state.selectedDentist?.dentistName.orEmpty(), "Dentist")
-            DetailRow(Icons.Default.MedicalServices, "Service", state.selectedService?.serviceName.orEmpty(), "Service")
-            DetailRow(Icons.Default.LocalOffer, "Price", formatPrice(state.selectedService?.price), "Price")
-            DetailRow(Icons.Default.CalendarMonth, "Date", formatAppointmentDate(state.selectedDate), "Date")
-            DetailRow(Icons.Default.AccessTime, "Time", formatTimeRange(state.selectedSlot), "Time")
-            DetailRow(Icons.Default.LocationOn, "Clinic", "Clinexus Dental Clinic", "Clinic")
+            DetailRow(Lucide.UserRound, "Dentist", state.selectedDentist?.dentistName.orEmpty(), "Dentist")
+            DetailRow(dentalServiceIcon(state.selectedService?.serviceName), "Service", state.selectedService?.serviceName.orEmpty(), "Service")
+            DetailRow(Lucide.Tag, "Price", formatPrice(state.selectedService?.price), "Price")
+            DetailRow(Lucide.CalendarDays, "Date", formatAppointmentDate(state.selectedDate), "Date")
+            DetailRow(Lucide.Clock, "Time", formatTimeRange(state.selectedSlot), "Time")
+            DetailRow(Lucide.MapPin, "Clinic", "Clinexus Dental Clinic", "Clinic")
         }
     }
     Surface(color = White, shape = BookingCardShape, border = BorderStroke(1.dp, Color(0xFFE4EAEE))) {
@@ -360,7 +395,7 @@ private fun SelectableCard(selected: Boolean, onClick: () -> Unit, content: @Com
 
 @Composable
 private fun Avatar(url: String?, description: String) {
-    Box(Modifier.size(52.dp).clip(CircleShape).background(MintSparkle), contentAlignment = Alignment.Center) { if (url.isNullOrBlank()) Icon(Icons.Default.Person, description, tint = DeepTeal) else AsyncImage(model = url, contentDescription = description, modifier = Modifier.fillMaxSize()) }
+    Box(Modifier.size(52.dp).clip(CircleShape).background(MintSparkle), contentAlignment = Alignment.Center) { if (url.isNullOrBlank()) Icon(Lucide.UserRound, description, tint = DeepTeal) else AsyncImage(model = url, contentDescription = description, modifier = Modifier.fillMaxSize()) }
 }
 
 @Composable
@@ -374,13 +409,13 @@ private fun PatientAvatar(patient: com.example.clinexusapp.model.PatientInfo?) {
         } else if (initials.isNotBlank()) {
             Text(initials.uppercase(Locale.US), color = DeepTeal, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         } else {
-            Icon(Icons.Default.AccountCircle, "Patient profile", tint = DeepTeal, modifier = Modifier.size(34.dp))
+            Icon(Lucide.CircleUserRound, "Patient profile", tint = DeepTeal, modifier = Modifier.size(34.dp))
         }
     }
 }
 
 @Composable
-private fun Checkmark(selected: Boolean) { Box(Modifier.size(28.dp).clip(CircleShape).background(if (selected) VibrantTeal else Color.Transparent), contentAlignment = Alignment.Center) { if (selected) Icon(Icons.Default.Check, null, tint = White) else Icon(Icons.Default.RadioButtonUnchecked, null, tint = LightSlate) } }
+private fun Checkmark(selected: Boolean) { Box(Modifier.size(28.dp).clip(CircleShape).background(if (selected) VibrantTeal else Color.Transparent), contentAlignment = Alignment.Center) { if (selected) Icon(Lucide.Check, null, tint = White) else Icon(Lucide.Circle, null, tint = LightSlate) } }
 
 @Composable
 private fun <T> ResourceContent(resource: Resource<List<T>>, onRetry: () -> Unit, content: @Composable (List<T>) -> Unit) {

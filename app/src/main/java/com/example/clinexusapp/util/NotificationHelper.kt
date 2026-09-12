@@ -3,8 +3,12 @@ package com.example.clinexusapp.util
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.app.PendingIntent
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.example.clinexusapp.R
+import com.example.clinexusapp.MainActivity
 
 object NotificationHelper {
     private const val CHANNEL_ID = "clinexus_notifications"
@@ -20,17 +24,30 @@ object NotificationHelper {
     }
 
     fun showBookingNotification(context: Context, doctorName: String) {
-        val notificationManager: NotificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
+        showNotification(context, "Appointment requested", "Your visit with $doctorName was sent to the clinic.")
+    }
+
+    fun showNotification(context: Context, title: String, message: String) {
+        createNotificationChannel(context)
+        val openApp = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Placeholder icon
-            .setContentTitle("Appointment Confirmed!")
-            .setContentText("Your consultation with $doctorName has been scheduled.")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setContentIntent(openApp)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
-
-        notificationManager.notify(1, notification)
+        try {
+            NotificationManagerCompat.from(context).notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification)
+        } catch (_: SecurityException) {
+            // Android 13+ users may decline notification permission.
+        }
     }
 }

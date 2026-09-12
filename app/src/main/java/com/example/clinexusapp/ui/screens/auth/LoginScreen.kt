@@ -1,5 +1,16 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.CircleAlert
+import com.composables.icons.lucide.LockKeyhole
+import com.composables.icons.lucide.Mail
+import com.composables.icons.lucide.Settings
+import com.composables.icons.lucide.UserRound
+import com.composables.icons.lucide.X
+
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -8,15 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -90,7 +92,7 @@ fun LoginScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(shape = CircleShape, color = Color(0xFFFFECEF)) {
                             Icon(
-                                Icons.Outlined.ErrorOutline,
+                                Lucide.CircleAlert,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(10.dp).size(24.dp),
@@ -105,7 +107,7 @@ fun LoginScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         IconButton(onClick = { loginError = null }) {
-                            Icon(Icons.Default.Close, "Close", tint = SlateGray)
+                            Icon(Lucide.X, "Close", tint = SlateGray)
                         }
                     }
                     Spacer(Modifier.height(16.dp))
@@ -142,7 +144,7 @@ fun LoginScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         IconButton(onClick = { showSavedAccountSettings = false }) {
-                            Icon(Icons.Default.Close, "Close", tint = SlateGray)
+                            Icon(Lucide.X, "Close", tint = SlateGray)
                         }
                     }
                     Spacer(Modifier.height(10.dp))
@@ -246,13 +248,13 @@ fun LoginScreen(
             } else {
                 if (!showSavedAccounts && savedAccounts.isNotEmpty()) {
                     IconButton(onClick = returnToSavedAccounts, modifier = Modifier.align(Alignment.Start)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to saved accounts", tint = RoyalNavy)
+                        Icon(Lucide.ArrowLeft, "Back to saved accounts", tint = RoyalNavy)
                     }
                 } else {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         if (showSavedAccounts) {
                             IconButton(onClick = { showSavedAccountSettings = true }) {
-                                Icon(Icons.Default.Settings, "Manage saved accounts", tint = RoyalNavy)
+                                Icon(Lucide.Settings, "Manage saved accounts", tint = RoyalNavy)
                             }
                         } else {
                             Spacer(Modifier.height(48.dp))
@@ -318,7 +320,7 @@ fun LoginScreen(
                                     Text(name, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                                     Text(patient.email.orEmpty(), color = SlateGray, fontSize = 13.sp, maxLines = 1)
                                 }
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = LightSlate)
+                                Icon(Lucide.ChevronRight, null, tint = LightSlate)
                             }
                         }
                         Spacer(Modifier.height(12.dp))
@@ -342,19 +344,19 @@ fun LoginScreen(
                     Spacer(Modifier.height(30.dp))
                     MintTextField(
                         value = password, onValueChange = { password = it; credentialError = null },
-                        label = "Password", icon = Icons.Default.Lock, isPassword = true, errorText = credentialError,
+                        label = "Password", icon = Lucide.LockKeyhole, isPassword = true, errorText = credentialError,
                     )
                 }
 
                 else -> {
                     MintTextField(
                         value = email, onValueChange = { email = it; credentialError = null },
-                        label = "Email address", icon = Icons.Default.Email,
+                        label = "Email address", icon = Lucide.Mail,
                     )
                     Spacer(Modifier.height(18.dp))
                     MintTextField(
                         value = password, onValueChange = { password = it; credentialError = null },
-                        label = "Password", icon = Icons.Default.Lock, isPassword = true, errorText = credentialError,
+                        label = "Password", icon = Lucide.LockKeyhole, isPassword = true, errorText = credentialError,
                     )
                 }
             }
@@ -400,7 +402,7 @@ private fun AccountAvatar(photo: String?, name: String, size: Dp) {
     Surface(modifier = Modifier.size(size), shape = CircleShape, color = MintSparkle) {
         if (photo.isNullOrBlank()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Person, null, tint = DeepTeal, modifier = Modifier.size(size * 0.56f))
+                Icon(Lucide.UserRound, null, tint = DeepTeal, modifier = Modifier.size(size * 0.56f))
             }
         } else {
             SubcomposeAsyncImage(
@@ -413,7 +415,7 @@ private fun AccountAvatar(photo: String?, name: String, size: Dp) {
                 },
                 error = {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, null, tint = DeepTeal, modifier = Modifier.size(size * 0.56f))
+                        Icon(Lucide.UserRound, null, tint = DeepTeal, modifier = Modifier.size(size * 0.56f))
                     }
                 },
                 success = { SubcomposeAsyncImageContent() },

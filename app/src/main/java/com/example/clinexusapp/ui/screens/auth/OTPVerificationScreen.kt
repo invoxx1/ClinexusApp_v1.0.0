@@ -1,8 +1,10 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.BadgeCheck
+
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -80,7 +82,7 @@ fun VerifyOTPScreen(
                     value = otp,
                     onValueChange = { otp = it },
                     label = "OTP Code",
-                    icon = Icons.Default.Verified
+                    icon = Lucide.BadgeCheck
                 )
             }
 

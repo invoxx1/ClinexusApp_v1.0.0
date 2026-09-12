@@ -1,7 +1,28 @@
 package com.example.clinexusapp.ui.screens.appointments
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.CalendarCheck
+import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.CalendarSync
+import com.composables.icons.lucide.CalendarX
+import com.composables.icons.lucide.CircleCheck
+import com.composables.icons.lucide.CircleQuestionMark
+import com.composables.icons.lucide.CircleX
+import com.composables.icons.lucide.Clock
+import com.composables.icons.lucide.Info
+import com.composables.icons.lucide.MapPin
+import com.composables.icons.lucide.Stethoscope
+import com.composables.icons.lucide.Tag
+import com.composables.icons.lucide.UserRound
+import com.composables.icons.lucide.Plus
+
+
+import android.content.Intent
+import android.provider.CalendarContract
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,10 +36,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -38,6 +56,8 @@ import coil.compose.AsyncImage
 import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.model.AvailableSlotDTO
 import com.example.clinexusapp.ui.theme.*
+import com.example.clinexusapp.ui.components.dentalServiceIcon
+import com.example.clinexusapp.ui.components.shimmer
 import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.viewmodel.*
@@ -46,29 +66,29 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.delay
 
 private val AppointmentCardShape = RoundedCornerShape(18.dp)
 
 private data class StatusStyle(val label: String, val icon: ImageVector, val foreground: Color, val background: Color, val message: String)
 
 private fun statusStyle(status: AppointmentStatus, needsPatientChoice: Boolean = false): StatusStyle = when (status) {
-    AppointmentStatus.PENDING -> StatusStyle("Pending", Icons.Default.Schedule, Color(0xFFD97706), Color(0xFFFFF7E6), "Waiting for confirmation from the clinic.")
-    AppointmentStatus.CONFIRMED -> StatusStyle("Confirmed", Icons.Default.CheckCircle, Color(0xFF15803D), Color(0xFFECFDF3), "Your appointment is confirmed.")
-    AppointmentStatus.COMPLETED -> StatusStyle("Completed", Icons.Default.TaskAlt, Color(0xFF2563EB), Color(0xFFEFF6FF), "This appointment has been completed.")
-    AppointmentStatus.CANCELLED -> StatusStyle("Cancelled", Icons.Default.Cancel, Color(0xFFDC2626), Color(0xFFFFF2F2), "This appointment was cancelled.")
+    AppointmentStatus.PENDING -> StatusStyle("Pending", Lucide.Clock, Color(0xFFD97706), Color(0xFFFFF7E6), "Waiting for confirmation from the clinic.")
+    AppointmentStatus.CONFIRMED -> StatusStyle("Confirmed", Lucide.CircleCheck, Color(0xFF15803D), Color(0xFFECFDF3), "Your appointment is confirmed.")
+    AppointmentStatus.COMPLETED -> StatusStyle("Completed", Lucide.CircleCheck, Color(0xFF2563EB), Color(0xFFEFF6FF), "This appointment has been completed.")
+    AppointmentStatus.CANCELLED -> StatusStyle("Cancelled", Lucide.CircleX, Color(0xFFDC2626), Color(0xFFFFF2F2), "This appointment was cancelled.")
     AppointmentStatus.RESCHEDULE_REQUESTED -> if (needsPatientChoice) {
-        StatusStyle("Action needed", Icons.Default.EventRepeat, Color(0xFF7C3AED), Color(0xFFF5F3FF), "The clinic requested a new schedule. Choose another available date and time.")
+        StatusStyle("Action needed", Lucide.CalendarSync, Color(0xFF7C3AED), Color(0xFFF5F3FF), "The clinic requested a new schedule. Choose another available date and time.")
     } else {
-        StatusStyle("Reschedule", Icons.Default.EventRepeat, Color(0xFF7C3AED), Color(0xFFF5F3FF), "Your selected schedule is waiting for clinic approval.")
+        StatusStyle("Reschedule", Lucide.CalendarSync, Color(0xFF7C3AED), Color(0xFFF5F3FF), "Your selected schedule is waiting for clinic approval.")
     }
-    AppointmentStatus.CANCELLATION_REQUESTED -> StatusStyle("Cancellation", Icons.Default.Cancel, Color(0xFFDC2626), Color(0xFFFFF2F2), "Your cancellation request is being processed.")
-    AppointmentStatus.UNKNOWN -> StatusStyle("Status unavailable", Icons.AutoMirrored.Filled.HelpOutline, SlateGray, Color(0xFFF1F5F9), "This appointment has an unrecognized status.")
+    AppointmentStatus.CANCELLATION_REQUESTED -> StatusStyle("Cancellation", Lucide.CircleX, Color(0xFFDC2626), Color(0xFFFFF2F2), "Your cancellation request is being processed.")
+    AppointmentStatus.UNKNOWN -> StatusStyle("Status unavailable", Lucide.CircleQuestionMark, SlateGray, Color(0xFFF1F5F9), "This appointment has an unrecognized status.")
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit, viewModel: HistoryViewModel) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     var selected by remember { mutableStateOf<AppointmentDTO?>(null) }
     var cancelTarget by remember { mutableStateOf<AppointmentDTO?>(null) }
@@ -127,10 +147,30 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
 
     Scaffold(containerColor = SoftMist) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 120.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item {
-                AppointmentHeader(onBack, onNavigateToBooking)
+            stickyHeader {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SoftMist)
+                        .padding(bottom = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AppointmentHeader(onBack, onNavigateToBooking)
+                    AppointmentTabs(state, viewModel)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("${tabLabel(state.selectedTab)} Appointments", color = RoyalNavy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { viewModel.selectTab(state.selectedTab) }) {
+                            Text("See All", color = DeepTeal, fontSize = 15.sp)
+                        }
+                    }
+                }
             }
-            item { AppointmentTabs(state, viewModel) }
             item {
                 AnimatedVisibility(
                     visible = successMessage != null,
@@ -140,12 +180,6 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
                     successMessage?.let { AppointmentSuccessBanner(it) }
                 }
             }
-            item {
-                Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("${tabLabel(state.selectedTab)} Appointments", color = RoyalNavy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    TextButton(onClick = { viewModel.selectTab(state.selectedTab) }) { Text("See All", color = DeepTeal, fontSize = 15.sp) }
-                }
-            }
             when (val appointments = state.appointments) {
                 Resource.Idle, Resource.Loading -> item { LoadingState() }
                 is Resource.Error -> item { ErrorState(appointments.message ?: "Unable to load appointments.", viewModel::fetchHistory) }
@@ -153,7 +187,7 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
                     val visible = viewModel.filteredAppointments(state.selectedTab, appointments.data)
                     if (visible.isEmpty()) item { EmptyAppointments() }
                     else items(visible, key = { it.appointmentId }) { appointment ->
-                        AppointmentCard(appointment, onClick = { selected = appointment }, onCancel = { cancelTarget = appointment }, onReschedule = { rescheduleTarget = appointment }, onBook = onNavigateToBooking)
+                        AppointmentCard(appointment, onClick = { selected = appointment }, onCancel = { cancelTarget = appointment }, onReschedule = { rescheduleTarget = appointment }, onBook = onNavigateToBooking, onAddToCalendar = { addAppointmentToCalendar(context, appointment) })
                     }
                 }
             }
@@ -183,7 +217,7 @@ private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Default.EventBusy,
+                        Lucide.CalendarX,
                         contentDescription = null,
                         tint = ErrorRed,
                         modifier = Modifier.size(30.dp)
@@ -231,7 +265,7 @@ private fun AppointmentSuccessBanner(message: String) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(
-                Icons.Default.CheckCircle,
+                Lucide.CircleCheck,
                 contentDescription = "Request completed",
                 tint = Color(0xFF078A5B),
                 modifier = Modifier.size(26.dp),
@@ -262,7 +296,7 @@ private fun AppointmentHeader(
                 .offset(x = (-8).dp)
         ) {
             Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
+                Lucide.ArrowLeft,
                 contentDescription = "Back",
                 tint = RoyalNavy,
                 modifier = Modifier.size(25.dp)
@@ -297,7 +331,7 @@ private fun AppointmentHeader(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.CalendarToday,
+                    Lucide.CalendarDays,
                     contentDescription = "Book appointment",
                     tint = DeepTeal,
                     modifier = Modifier.size(30.dp)
@@ -367,7 +401,7 @@ private fun AppointmentTabs(
 private fun tabLabel(tab: AppointmentTab) = when (tab) { AppointmentTab.PENDING -> "Pending"; AppointmentTab.CONFIRMED -> "Confirmed"; AppointmentTab.COMPLETED -> "Completed"; AppointmentTab.CANCELLED -> "Cancelled" }
 
 @Composable
-private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, onCancel: () -> Unit, onReschedule: () -> Unit, onBook: () -> Unit) {
+private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, onCancel: () -> Unit, onReschedule: () -> Unit, onBook: () -> Unit, onAddToCalendar: () -> Unit) {
     val status = mapAppointmentStatus(appointment.appointmentStatus)
     val style = statusStyle(status, appointment.needsPatientScheduleChoice)
     Surface(
@@ -391,12 +425,12 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                 StatusBadge(style)
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarMonth, "Appointment date", tint = DeepTeal, modifier = Modifier.size(22.dp))
+                Icon(Lucide.CalendarDays, "Appointment date", tint = DeepTeal, modifier = Modifier.size(22.dp))
                 Text(DateUtils.formatDisplayDate(appointment.appointmentDate), color = SlateGray, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
                 Spacer(Modifier.width(14.dp))
                 Box(Modifier.width(1.dp).height(22.dp).background(Color(0xFFD5E1E3)))
                 Spacer(Modifier.width(14.dp))
-                Icon(Icons.Default.AccessTime, "Appointment time", tint = DeepTeal, modifier = Modifier.size(22.dp))
+                Icon(Lucide.Clock, "Appointment time", tint = DeepTeal, modifier = Modifier.size(22.dp))
                 Text(DateUtils.formatDisplayTime(appointment.startTime), color = SlateGray, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
             }
             Text("${appointment.serviceName ?: appointment.treatment}  •  ${appointment.clinicName ?: "Clinexus Dental Clinic"}", color = SlateGray, fontSize = 13.sp)
@@ -406,13 +440,13 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
 
                     AppointmentStatus.PENDING -> {
                         OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f).height(38.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, ErrorRed), colors = ButtonDefaults.outlinedButtonColors(containerColor = White, contentColor = ErrorRed)) {
-                            Icon(Icons.Default.Cancel, "Cancel appointment", modifier = Modifier.size(20.dp))
+                            Icon(Lucide.CircleX, "Cancel appointment", modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Cancel", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
 
                         OutlinedButton(onClick = onReschedule, modifier = Modifier.weight(1f).height(38.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, DeepTeal), colors = ButtonDefaults.outlinedButtonColors(containerColor = White, contentColor = DeepTeal)) {
-                            Icon(Icons.Default.EventRepeat, "Reschedule appointment", modifier = Modifier.size(20.dp))
+                            Icon(Lucide.CalendarSync, "Reschedule appointment", modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Reschedule", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
@@ -420,13 +454,13 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
 
                     AppointmentStatus.CONFIRMED -> {
                         OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f).height(38.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, ErrorRed), colors = ButtonDefaults.outlinedButtonColors(containerColor = White, contentColor = ErrorRed)) {
-                            Icon(Icons.Default.Cancel, "Cancel appointment", modifier = Modifier.size(20.dp))
+                            Icon(Lucide.CircleX, "Cancel appointment", modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Cancel", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
 
                         OutlinedButton(onClick = onReschedule, modifier = Modifier.weight(1f).height(38.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, DeepTeal), colors = ButtonDefaults.outlinedButtonColors(containerColor = White, contentColor = DeepTeal)) {
-                            Icon(Icons.Default.EventRepeat, "Reschedule appointment", modifier = Modifier.size(20.dp))
+                            Icon(Lucide.CalendarSync, "Reschedule appointment", modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Reschedule", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
@@ -444,7 +478,7 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C3AED))
                         ) {
-                            Icon(Icons.Default.EventRepeat, "Choose new appointment schedule", modifier = Modifier.size(20.dp))
+                            Icon(Lucide.CalendarSync, "Choose new appointment schedule", modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(7.dp))
                             Text("Choose New Schedule", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
@@ -455,8 +489,29 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                     AppointmentStatus.UNKNOWN -> Unit
                 }
             }
+            if (status == AppointmentStatus.CONFIRMED) {
+                TextButton(onClick = onAddToCalendar, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Icon(Lucide.Plus, contentDescription = null, modifier = Modifier.size(19.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("Add to phone calendar", fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
     }
+}
+
+private fun addAppointmentToCalendar(context: android.content.Context, appointment: AppointmentDTO) {
+    val parser = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+    val date = appointment.appointmentDate.substringBefore('T')
+    val start = parser.parse("$date ${appointment.startTime}")?.time ?: return
+    val end = parser.parse("$date ${appointment.endTime}")?.time ?: (start + 60 * 60 * 1000)
+    val intent = Intent(Intent.ACTION_INSERT).setData(CalendarContract.Events.CONTENT_URI)
+        .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
+        .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, end)
+        .putExtra(CalendarContract.Events.TITLE, "Dental appointment – ${appointment.doctor}")
+        .putExtra(CalendarContract.Events.DESCRIPTION, appointment.serviceName ?: appointment.treatment)
+        .putExtra(CalendarContract.Events.EVENT_LOCATION, appointment.clinicName ?: "Clinexus Dental Clinic")
+    context.startActivity(intent)
 }
 
 @Composable
@@ -466,7 +521,7 @@ private fun StatusBadge(style: StatusStyle) { Surface(color = style.background, 
 private fun AppointmentAvatar(appointment: AppointmentDTO, size: androidx.compose.ui.unit.Dp = 52.dp) {
     var imageFailed by remember(appointment.dentistProfileImage) { mutableStateOf(false) }
     if (appointment.dentistProfileImage.isNullOrBlank() || imageFailed) {
-        Box(Modifier.size(size).clip(CircleShape).background(MintSparkle), contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, "Dentist profile", tint = DeepTeal, modifier = Modifier.size(size * 0.55f)) }
+        Box(Modifier.size(size).clip(CircleShape).background(MintSparkle), contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, "Dentist profile", tint = DeepTeal, modifier = Modifier.size(size * 0.55f)) }
     } else AsyncImage(model = appointment.dentistProfileImage, contentDescription = "Dentist profile image", modifier = Modifier.size(size).clip(CircleShape), onError = { imageFailed = true })
 }
 
@@ -499,7 +554,7 @@ private fun CancellationSheet(appointment: AppointmentDTO, submitting: Boolean, 
             Surface(color = Color(0xFFEAF5FF), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF1689E8)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Info, "Reschedule information", tint = White, modifier = Modifier.size(24.dp))
+                        Icon(Lucide.Info, "Reschedule information", tint = White, modifier = Modifier.size(24.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -540,9 +595,9 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                 lineHeight = 22.sp
             )
             AppointmentMiniSummary(appointment)
-            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.CalendarMonth, "Preferred date", tint = DeepTeal, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(8.dp)); Text("Preferred Date", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
+            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Lucide.CalendarDays, "Preferred date", tint = DeepTeal, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(8.dp)); Text("Preferred Date", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(dates) { calendar -> val value = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time); FilterChip(selected = date == value, onClick = { date = value; selectedSlot = null; viewModel.loadRescheduleSlots(appointment, value) }, label = { Text(SimpleDateFormat("MMM d", Locale.US).format(calendar.time)) }) } }
-            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.AccessTime, "Preferred time", tint = DeepTeal, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(8.dp)); Text("Preferred Time", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
+            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Lucide.Clock, "Preferred time", tint = DeepTeal, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(8.dp)); Text("Preferred Time", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
             when (val slots = state.rescheduleSlots) {
                 Resource.Loading -> CircularProgressIndicator(color = VibrantTeal)
                 is Resource.Error -> Text(slots.message ?: "Unable to load availability.", color = ErrorRed)
@@ -567,9 +622,9 @@ private fun AppointmentMiniSummary(appointment: AppointmentDTO) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(appointment.doctor, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 Text(appointment.dentistSpecialty ?: "Dental care", color = SlateGray, fontSize = 14.sp)
-                SummaryMetaLine(Icons.Default.CalendarMonth, "Appointment date", DateUtils.formatDisplayDate(appointment.appointmentDate))
-                SummaryMetaLine(Icons.Default.AccessTime, "Appointment time", DateUtils.formatDisplayTime(appointment.startTime))
-                SummaryMetaLine(Icons.Default.LocationOn, "Appointment clinic", appointment.clinicName ?: "Clinexus Dental Clinic")
+                SummaryMetaLine(Lucide.CalendarDays, "Appointment date", DateUtils.formatDisplayDate(appointment.appointmentDate))
+                SummaryMetaLine(Lucide.Clock, "Appointment time", DateUtils.formatDisplayTime(appointment.startTime))
+                SummaryMetaLine(Lucide.MapPin, "Appointment clinic", appointment.clinicName ?: "Clinexus Dental Clinic")
             }
             Box(Modifier.padding(start = 6.dp)) { StatusBadge(statusStyle(mapAppointmentStatus(appointment.appointmentStatus))) }
         }
@@ -598,9 +653,15 @@ private fun SheetDragHandle() {
 @Composable
 private fun AppointmentDetailsDialog(appointment: AppointmentDTO, onDismiss: () -> Unit) {
     val style = statusStyle(mapAppointmentStatus(appointment.appointmentStatus), appointment.needsPatientScheduleChoice)
-    AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }, title = { Text("Appointment details", color = RoyalNavy, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { AppointmentAvatar(appointment, size = 56.dp); Spacer(Modifier.width(12.dp)); Column { Text(appointment.doctor, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold); Text(appointment.dentistSpecialty ?: "Dental care", color = SlateGray, fontSize = 14.sp) } }; StatusBadge(style); DetailLine(Icons.Default.MedicalServices, "Service", appointment.serviceName ?: appointment.treatment); appointment.price?.let { DetailLine(Icons.Default.LocalOffer, "Price", "₱${String.format(Locale.US, "%,.0f", it)}") }; DetailLine(Icons.Default.CalendarMonth, "Date", DateUtils.formatDisplayDate(appointment.appointmentDate)); DetailLine(Icons.Default.AccessTime, "Time", "${DateUtils.formatDisplayTime(appointment.startTime)} – ${DateUtils.formatDisplayTime(appointment.endTime)}"); DetailLine(Icons.Default.LocationOn, "Clinic", appointment.clinicName ?: "Clinexus Dental Clinic"); Text("Booking reference: #${appointment.appointmentId}", color = SlateGray, fontSize = 13.sp); appointment.submittedAt?.let { Text("Submitted: ${DateUtils.formatDisplayDate(it)}", color = SlateGray, fontSize = 13.sp) }; appointment.cancelledBy?.let { Text("Cancelled by: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.cancellationReason?.let { Text("Cancellation reason: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.rescheduleNote?.let { Text("Reschedule note: $it", color = Color(0xFF7C3AED), fontSize = 13.sp) } } })
+    AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }, title = { Text("Appointment details", color = RoyalNavy, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { AppointmentAvatar(appointment, size = 56.dp); Spacer(Modifier.width(12.dp)); Column { Text(appointment.doctor, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold); Text(appointment.dentistSpecialty ?: "Dental care", color = SlateGray, fontSize = 14.sp) } }; StatusBadge(style); DetailLine(dentalServiceIcon(appointment.serviceName ?: appointment.treatment), "Service", appointment.serviceName ?: appointment.treatment); appointment.price?.let { DetailLine(Lucide.Tag, "Price", "₱${String.format(Locale.US, "%,.0f", it)}") }; DetailLine(Lucide.CalendarDays, "Date", DateUtils.formatDisplayDate(appointment.appointmentDate)); DetailLine(Lucide.Clock, "Time", "${DateUtils.formatDisplayTime(appointment.startTime)} – ${DateUtils.formatDisplayTime(appointment.endTime)}"); DetailLine(Lucide.MapPin, "Clinic", appointment.clinicName ?: "Clinexus Dental Clinic"); Text("Booking reference: #${appointment.appointmentId}", color = SlateGray, fontSize = 13.sp); appointment.submittedAt?.let { Text("Submitted: ${DateUtils.formatDisplayDate(it)}", color = SlateGray, fontSize = 13.sp) }; appointment.cancelledBy?.let { Text("Cancelled by: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.cancellationReason?.let { Text("Cancellation reason: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.rescheduleNote?.let { Text("Reschedule note: $it", color = Color(0xFF7C3AED), fontSize = 13.sp) } } })
 }
 
-@Composable private fun EmptyAppointments() { Column(Modifier.fillMaxWidth().padding(vertical = 44.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { Icon(Icons.Default.EventAvailable, "No appointments", tint = TealMuted, modifier = Modifier.size(56.dp)); Text("No appointments in this tab", color = RoyalNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Book a visit when you are ready.", color = SlateGray) } }
-@Composable private fun LoadingState() { Box(Modifier.fillMaxWidth().padding(44.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = VibrantTeal) } }
+@Composable private fun EmptyAppointments() { Column(Modifier.fillMaxWidth().padding(vertical = 44.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { Icon(Lucide.CalendarCheck, "No appointments", tint = TealMuted, modifier = Modifier.size(56.dp)); Text("No appointments in this tab", color = RoyalNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Book a visit when you are ready.", color = SlateGray) } }
+@Composable private fun LoadingState() {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        repeat(3) {
+            Box(Modifier.fillMaxWidth().height(210.dp).clip(AppointmentCardShape).shimmer())
+        }
+    }
+}
 @Composable private fun ErrorState(message: String, retry: () -> Unit) { Column(Modifier.fillMaxWidth().padding(30.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(message, color = ErrorRed); TextButton(onClick = retry) { Text("Retry") } } }

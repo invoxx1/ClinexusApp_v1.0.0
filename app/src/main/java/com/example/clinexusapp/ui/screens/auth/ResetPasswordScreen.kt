@@ -1,8 +1,11 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.KeyRound
+import com.composables.icons.lucide.LockKeyhole
+
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -76,7 +79,7 @@ fun ResetPasswordScreen(
                     value = newPassword,
                     onValueChange = { newPassword = it },
                     label = "New Password",
-                    icon = Icons.Default.Lock,
+                    icon = Lucide.LockKeyhole,
                     isPassword = true
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -84,7 +87,7 @@ fun ResetPasswordScreen(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
                     label = "Confirm Password",
-                    icon = Icons.Default.LockReset,
+                    icon = Lucide.KeyRound,
                     isPassword = true
                 )
             }

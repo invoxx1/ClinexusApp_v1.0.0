@@ -1,5 +1,16 @@
 package com.example.clinexusapp.ui.screens.chat
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.ArrowDown
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.Paperclip
+import com.composables.icons.lucide.Plus
+import com.composables.icons.lucide.Search
+import com.composables.icons.lucide.Send
+import com.composables.icons.lucide.X
+
+
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -13,15 +24,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -182,7 +184,7 @@ fun ChatScreen(
                             currentView = ChatView.CONVERSATIONS
                         }) {
                             Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack, 
+                                Lucide.ArrowLeft,
                                 contentDescription = "Back",
                                 tint = VibrantTeal,
                                 modifier = Modifier.size(28.dp)
@@ -207,7 +209,7 @@ fun ChatScreen(
                     shape = CircleShape,
                     modifier = Modifier.padding(12.dp).size(64.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "New Chat", modifier = Modifier.size(34.dp))
+                    Icon(Lucide.Plus, contentDescription = "New Chat", modifier = Modifier.size(34.dp))
                 }
             }
         },
@@ -440,11 +442,11 @@ fun ChatScreen(
                                         .padding(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.AttachFile, null, tint = VibrantTeal, modifier = Modifier.size(16.dp))
+                                    Icon(Lucide.Paperclip, null, tint = VibrantTeal, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(text = it, color = RoyalNavy, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                     IconButton(onClick = { selectedFileUri = null; selectedFileName = null }, modifier = Modifier.size(24.dp)) {
-                                        Icon(Icons.Default.Close, null, tint = SlateGray, modifier = Modifier.size(16.dp))
+                                        Icon(Lucide.X, null, tint = SlateGray, modifier = Modifier.size(16.dp))
                                     }
                                 }
                             }
@@ -461,7 +463,7 @@ fun ChatScreen(
                                         .size(36.dp)
                                         .background(SoftMist, CircleShape)
                                 ) {
-                                    Icon(Icons.Default.Add, null, tint = RoyalNavy, modifier = Modifier.size(20.dp))
+                                    Icon(Lucide.Plus, null, tint = RoyalNavy, modifier = Modifier.size(20.dp))
                                 }
 
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -515,7 +517,7 @@ fun ChatScreen(
                                         if (sendMessageState is Resource.Loading) {
                                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                                         } else {
-                                            Icon(Icons.AutoMirrored.Filled.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                            Icon(Lucide.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
                                         }
                                     }
                                 }
@@ -565,7 +567,7 @@ private fun ChatListHeader(
     ) {
         if (onBack != null) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart).size(48.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color(0xFF07143C), modifier = Modifier.size(30.dp))
+                Icon(Lucide.ArrowLeft, "Back", tint = Color(0xFF07143C), modifier = Modifier.size(30.dp))
             }
         }
         Text(
@@ -590,9 +592,9 @@ private fun MessageSearchField(
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).height(58.dp),
         placeholder = { Text(placeholder, color = Color(0xFF939AB2), fontSize = 16.sp, maxLines = 1) },
-        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color(0xFF858CA8), modifier = Modifier.size(28.dp)) },
+        leadingIcon = { Icon(Lucide.Search, null, tint = Color(0xFF858CA8), modifier = Modifier.size(28.dp)) },
         trailingIcon = if (value.isNotEmpty()) {
-            { IconButton(onClick = { onValueChange("") }) { Icon(Icons.Default.Close, "Clear search", tint = Color(0xFF858CA8)) } }
+            { IconButton(onClick = { onValueChange("") }) { Icon(Lucide.X, "Clear search", tint = Color(0xFF858CA8)) } }
         } else null,
         singleLine = true,
         shape = RoundedCornerShape(30.dp),
@@ -661,7 +663,7 @@ fun ConversationItem(conversation: ConversationDTO, onClick: () -> Unit) {
                 Text(text = conversation.lastMessage ?: "No messages yet", fontSize = 14.sp, color = Color(0xFF8A90A8), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFF858CA2), modifier = Modifier.size(28.dp))
+            Icon(Lucide.ChevronRight, null, tint = Color(0xFF858CA2), modifier = Modifier.size(28.dp))
         }
     }
 }
@@ -679,7 +681,7 @@ fun ContactItem(contact: ContactDTO, onClick: () -> Unit) {
             Spacer(Modifier.height(3.dp))
             Text(text = contact.role, fontSize = 14.sp, color = Color(0xFF8A90A8), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFF858CA2), modifier = Modifier.size(28.dp))
+        Icon(Lucide.ChevronRight, null, tint = Color(0xFF858CA2), modifier = Modifier.size(28.dp))
     }
 }
 
@@ -827,7 +829,7 @@ fun AttachmentBox(
                 .background(SoftMist.copy(alpha = 0.8f), CircleShape)
         ) {
             Icon(
-                Icons.Default.ArrowDownward, 
+                Lucide.ArrowDown,
                 contentDescription = "Download", 
                 tint = RoyalNavy,
                 modifier = Modifier.size(18.dp)
@@ -856,7 +858,7 @@ fun AttachmentBox(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { (downloadUrl ?: fileUrl)?.let { uriHandler.openUri(it) } }
                 ) {
-                    Icon(Icons.Default.AttachFile, null, tint = contentColor, modifier = Modifier.size(18.dp))
+                    Icon(Lucide.Paperclip, null, tint = contentColor, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = fileName, 

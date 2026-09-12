@@ -1,13 +1,15 @@
 package com.example.clinexusapp.ui.screens.main
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.LockKeyhole
+
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,7 +51,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
             icon = {
                 Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFE0F7F4)) {
                     Icon(
-                        Icons.Default.Lock,
+                        Lucide.LockKeyhole,
                         contentDescription = null,
                         tint = Color(0xFF00A896),
                         modifier = Modifier.padding(12.dp).size(28.dp),

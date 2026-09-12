@@ -1,5 +1,9 @@
 package com.example.clinexusapp.ui.screens.notifications
 
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Bell
+
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,9 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -115,7 +116,7 @@ fun TealNotificationCard(item: NotificationDTO, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.Notifications,
+                    Lucide.Bell,
                     contentDescription = null,
                     tint = if (item.isRead == 0) MaterialTheme.colorScheme.primary else SlateGray,
                     modifier = Modifier.size(20.dp)
