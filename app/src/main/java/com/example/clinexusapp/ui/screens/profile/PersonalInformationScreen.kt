@@ -164,47 +164,55 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                            .clickable { imagePickerLauncher.launch("image/*") },
+                            .size(112.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (profileImageUri != null) {
-                            AsyncImage(
-                                model = profileImageUri,
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else if (!user?.profilePicture.isNullOrEmpty()) {
-                            AsyncImage(
-                                model = user?.profilePicture,
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                Lucide.UserRound,
-                                contentDescription = "Add Photo",
-                                modifier = Modifier.size(60.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                                .clickable { imagePickerLauncher.launch("image/*") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (profileImageUri != null) {
+                                AsyncImage(
+                                    model = profileImageUri,
+                                    contentDescription = "Profile Picture",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else if (!user?.profilePicture.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = user?.profilePicture,
+                                    contentDescription = "Profile Picture",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    Lucide.UserRound,
+                                    contentDescription = "Add Photo",
+                                    modifier = Modifier.size(60.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
 
                         Surface(
+                            onClick = { imagePickerLauncher.launch("image/*") },
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .size(32.dp),
+                                .size(36.dp),
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.primary,
-                            shadowElevation = 4.dp
+                            shadowElevation = 5.dp,
+                            border = androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.background)
                         ) {
                             Icon(
                                 Lucide.Pencil,
-                                contentDescription = null,
-                                modifier = Modifier.padding(6.dp),
+                                contentDescription = "Change profile picture",
+                                modifier = Modifier.padding(8.dp),
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
@@ -281,7 +289,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
     }
 }
 
-private fun uriToMultipart(context: android.content.Context, uri: Uri): MultipartBody.Part? {
+internal fun uriToMultipart(context: android.content.Context, uri: Uri): MultipartBody.Part? {
     return try {
         val contentResolver = context.contentResolver
         val file = File(context.cacheDir, "temp_profile_image_${System.currentTimeMillis()}.jpg")

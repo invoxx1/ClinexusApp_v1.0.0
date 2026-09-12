@@ -72,6 +72,7 @@ interface ApiService {
         @Part("province") province: RequestBody,
         @Part("city") city: RequestBody,
         @Part("barangay") barangay: RequestBody,
+        @Part("removeProfileImage") removeProfileImage: RequestBody,
         @Part file: MultipartBody.Part? = null
     ): Response<GenericResponse>
 

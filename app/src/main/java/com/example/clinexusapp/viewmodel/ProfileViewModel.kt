@@ -158,6 +158,31 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun updateProfilePhoto(profileImage: MultipartBody.Part? = null, remove: Boolean = false) {
+        val patient = SessionManager.currentUser.value ?: run {
+            _updateState.value = Resource.Error("User profile not found")
+            return
+        }
+        val request = UpdateProfileRequest(
+            email = patient.email.orEmpty(),
+            firstName = patient.firstName.orEmpty(),
+            middleName = patient.middleName,
+            lastName = patient.lastName.orEmpty(),
+            phoneNumber = patient.phoneNumber.orEmpty(),
+            dateOfBirth = patient.dateOfBirth.orEmpty().substringBefore('T'),
+            streetAddress = patient.streetAddress.orEmpty(),
+            province = patient.province.orEmpty(),
+            city = patient.city.orEmpty(),
+            barangay = patient.barangay.orEmpty(),
+        )
+        viewModelScope.launch {
+            _updateState.value = Resource.Loading
+            val result = repository.updatePatientProfile(request, profileImage, remove)
+            if (result is Resource.Success) refreshProfile()
+            _updateState.value = result
+        }
+    }
+
 // ---------- Fetch Profile ----------
 
     fun fetchProfile() {

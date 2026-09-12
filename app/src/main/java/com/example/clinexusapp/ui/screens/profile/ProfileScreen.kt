@@ -13,11 +13,17 @@ import com.composables.icons.lucide.Pencil
 import com.composables.icons.lucide.ShieldCheck
 import com.composables.icons.lucide.UserRound
 import com.composables.icons.lucide.UserRoundPlus
+import com.composables.icons.lucide.ImagePlus
+import com.composables.icons.lucide.Trash2
 
 
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -51,6 +58,8 @@ import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.ProfileViewModel
+import com.example.clinexusapp.util.Resource
+import java.io.File
 import kotlinx.coroutines.launch
 
 private val ProfileBackground = Color(0xFFF1FAF9)
@@ -88,13 +97,64 @@ fun ProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showPhotoOptions by remember { mutableStateOf(false) }
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var confirmRemovePhoto by remember { mutableStateOf(false) }
     var showAccountSwitcher by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val updateState by viewModel.updateState.collectAsState()
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        selectedPhotoUri = uri
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        if (saved) selectedPhotoUri = cameraPhotoUri
+    }
+
+    fun launchCamera() {
+        val directory = File(context.cacheDir, "profile_photos").apply { mkdirs() }
+        val file = File(directory, "profile_${System.currentTimeMillis()}.jpg")
+        cameraPhotoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        cameraLauncher.launch(cameraPhotoUri!!)
+    }
 
     LaunchedEffect(user) {
         if (user != null && user?.firstName.isNullOrBlank()) viewModel.fetchProfile()
     }
     ProfileSystemBars()
+
+    LaunchedEffect(updateState) {
+        when (val result = updateState) {
+            is Resource.Success -> {
+                selectedPhotoUri = null
+                showPhotoOptions = false
+                snackbarHostState.showSnackbar("Profile photo updated")
+                viewModel.resetState()
+            }
+            is Resource.Error -> {
+                snackbarHostState.showSnackbar(result.message ?: "Unable to update profile photo")
+                viewModel.resetState()
+            }
+            else -> Unit
+        }
+    }
+
+    if (confirmRemovePhoto) {
+        AlertDialog(
+            onDismissRequest = { confirmRemovePhoto = false },
+            title = { Text("Remove profile photo?", fontWeight = FontWeight.Bold) },
+            text = { Text("Your account will use the default profile icon.") },
+            dismissButton = { TextButton(onClick = { confirmRemovePhoto = false }) { Text("Cancel") } },
+            confirmButton = {
+                Button(
+                    onClick = { confirmRemovePhoto = false; viewModel.updateProfilePhoto(remove = true) },
+                    colors = ButtonDefaults.buttonColors(containerColor = ProfileRed)
+                ) { Text("Remove") }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = Color.White,
+        )
+    }
 
     if (confirmLogout) {
         AlertDialog(
@@ -124,17 +184,48 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text("Profile photo", color = ProfileNavy, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                Text("Manage your photo from Personal Information.", color = ProfileMuted, fontSize = 14.sp)
+                Text("Take a new photo or choose one from your gallery.", color = ProfileMuted, fontSize = 14.sp)
                 Spacer(Modifier.height(4.dp))
+                Surface(
+                    modifier = Modifier.align(Alignment.CenterHorizontally).size(112.dp),
+                    shape = CircleShape,
+                    color = ProfileMint,
+                ) {
+                    val preview = selectedPhotoUri ?: user?.profilePicture
+                    if (preview != null) AsyncImage(preview, "Profile photo preview", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(52.dp)) }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f).heightIn(min = 50.dp),
+                        shape = RoundedCornerShape(15.dp),
+                    ) { Icon(Lucide.Camera, null); Spacer(Modifier.width(6.dp)); Text("Take photo") }
+                    OutlinedButton(
+                        onClick = { galleryPicker.launch("image/*") },
+                        modifier = Modifier.weight(1f).heightIn(min = 50.dp),
+                        shape = RoundedCornerShape(15.dp),
+                    ) { Icon(Lucide.ImagePlus, null); Spacer(Modifier.width(6.dp)); Text("Gallery") }
+                }
                 Button(
-                    onClick = { showPhotoOptions = false; onNavigateToPersonalInformation() },
+                    onClick = { selectedPhotoUri?.let { viewModel.updateProfilePhoto(uriToMultipart(context, it)) } },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
+                    enabled = selectedPhotoUri != null && updateState !is Resource.Loading,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ProfileTeal),
                 ) {
-                    Icon(Lucide.Pencil, null)
+                    if (updateState is Resource.Loading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    else Icon(Lucide.Pencil, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Edit profile photo", fontWeight = FontWeight.Bold)
+                    Text("Save photo", fontWeight = FontWeight.Bold)
+                }
+                if (!user?.profilePicture.isNullOrBlank()) {
+                    TextButton(
+                        onClick = { confirmRemovePhoto = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = updateState !is Resource.Loading,
+                        colors = ButtonDefaults.textButtonColors(contentColor = ProfileRed),
+                    ) { Icon(Lucide.Trash2, null); Spacer(Modifier.width(7.dp)); Text("Remove current photo") }
                 }
             }
         }

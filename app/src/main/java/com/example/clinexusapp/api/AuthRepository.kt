@@ -323,7 +323,8 @@ class AuthRepository @Inject constructor(private val apiService: ApiService) {
 
     suspend fun updatePatientProfile(
         request: UpdateProfileRequest,
-        file: MultipartBody.Part? = null
+        file: MultipartBody.Part? = null,
+        removeProfileImage: Boolean = false,
     ): Resource<GenericResponse> {
         return try {
             val token = getAuthorizationHeader() ?: return Resource.Error("Not authenticated")
@@ -355,6 +356,7 @@ class AuthRepository @Inject constructor(private val apiService: ApiService) {
                 province = request.province.toPart(),
                 city = request.city.toPart(),
                 barangay = request.barangay.toPart(),
+                removeProfileImage = removeProfileImage.toString().toPart(),
                 file = file
             )
 
