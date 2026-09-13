@@ -2,6 +2,9 @@
 <resources>
     <style name="Theme.ClinexusApp" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/logo_background</item>
+        <item name="android:windowSplashScreenBackground">@color/logo_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_placeholder</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/logo_background</item>
         <item name="android:statusBarColor">@color/logo_background</item>
         <item name="android:navigationBarColor">@color/logo_background</item>
         <item name="android:windowLightStatusBar">false</item>

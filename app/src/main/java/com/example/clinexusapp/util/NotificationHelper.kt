@@ -7,7 +7,6 @@ import android.content.Intent
 import android.app.PendingIntent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.example.clinexusapp.R
 import com.example.clinexusapp.MainActivity
 
 object NotificationHelper {

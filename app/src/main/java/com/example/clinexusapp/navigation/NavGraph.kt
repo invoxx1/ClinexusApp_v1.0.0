@@ -63,7 +63,7 @@ import com.example.clinexusapp.ui.theme.SlateGray
 import com.example.clinexusapp.viewmodel.*
 
 @Composable
-fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsViewModel) {
+fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsViewModel, startDestination: String = Screen.Splash.route) {
     val context = LocalContext.current
     var latestAppointmentTicket by remember { mutableStateOf<AppointmentTicket?>(null) }
     val sessionExpired by SessionManager.sessionExpired.collectAsState()
@@ -94,7 +94,7 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Splash.route,
+        startDestination = startDestination,
         enterTransition = { fadeIn(tween(400)) + slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(400)) },
         exitTransition = { fadeOut(tween(400)) + slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(400)) },
         popEnterTransition = { fadeIn(tween(400)) + slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(400)) },
@@ -103,7 +103,10 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
         },
     ) {
         // Splash, Onboarding, Login, Register
-        composable(route = Screen.Splash.route) {
+        composable(
+            route = Screen.Splash.route,
+            enterTransition = { EnterTransition.None }
+        ) {
             SplashScreen(
                 onNavigateToOnboarding = {
                     navController.navigate(Screen.Onboarding.route) {
