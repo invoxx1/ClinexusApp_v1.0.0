@@ -78,12 +78,7 @@ fun VerifyOTPScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             NeumorphicCard {
-                MintTextField(
-                    value = otp,
-                    onValueChange = { otp = it },
-                    label = "OTP Code",
-                    icon = Lucide.BadgeCheck
-                )
+                OtpCodeInput(value = otp, onValueChange = { otp = it }, enabled = otpState !is Resource.Loading)
             }
 
             Spacer(modifier = Modifier.height(32.dp))

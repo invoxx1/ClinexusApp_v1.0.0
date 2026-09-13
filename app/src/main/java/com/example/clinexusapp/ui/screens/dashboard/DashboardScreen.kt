@@ -57,11 +57,11 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 
 internal object DashboardStyle {
-    val Background = Color(0xFFF0FAFA)
-    val Teal = Color(0xFF00A99D)
+    val Background = Color(0xFFE8EEF8)
+    val Teal = Color(0xFF1F3A6D)
     val Navy = Color(0xFF080B36)
     val Muted = Color(0xFF7E87A4)
-    val Mint = Color(0xFFD9F6F3)
+    val Mint = Color(0xFFE8EEF8)
     val Orange = Color(0xFFFF792A)
     val CardShape = RoundedCornerShape(18.dp)
 }
@@ -281,7 +281,7 @@ fun DashboardHeader(
                 clipPath(silhouette) {
                     drawRect(
                         Brush.linearGradient(
-                            colors = listOf(Color(0xFF72DDD5), Color(0xFF09BAB1), Color(0xFF00A59C)),
+                            colors = listOf(Color(0xFF1F3A6D), Color(0xFF1F3A6D), Color(0xFF1F3A6D)),
                             start = Offset.Zero,
                             end = Offset(size.width * 0.82f, size.height),
                         )
@@ -300,7 +300,7 @@ fun DashboardHeader(
                         lineTo(0f, size.height)
                         close()
                     }
-                    drawPath(lowerWave, Color(0xFF008F98).copy(alpha = 0.10f))
+                    drawPath(lowerWave, Color(0xFF1F3A6D).copy(alpha = 0.10f))
                 }
             }
             .statusBarsPadding(),

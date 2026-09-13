@@ -1,5 +1,7 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.example.clinexusapp.util.passwordsMeetRules
+
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.CalendarDays
 import com.composables.icons.lucide.Camera
@@ -96,7 +98,7 @@ fun RegisterScreen(
             (email.isNotBlank()) &&
             isValidPhilippineMobile(phoneNumber) &&
             isValidBirthDate(dateOfBirth) &&
-            (password.isNotBlank()) &&
+            passwordsMeetRules(password, confirmPassword) &&
             (confirmPassword.isNotBlank()) &&
             (streetAddress.isNotBlank()) &&
             (selectedProvince != null) &&
@@ -275,6 +277,8 @@ fun RegisterScreen(
                     MintTextField(value = password, onValueChange = { password = it }, label = "Account Password", icon = Lucide.LockKeyhole, isPassword = true)
                     Spacer(modifier = Modifier.height(16.dp))
                     MintTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, label = "Verify Password", icon = Lucide.KeyRound, isPassword = true)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    PasswordRequirements(password, confirmPassword)
                 }
             }
 

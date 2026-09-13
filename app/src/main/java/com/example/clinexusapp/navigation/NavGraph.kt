@@ -171,8 +171,9 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
                     if (purpose == "reset") {
                         navController.navigate(Screen.ResetPassword.createRoute(resetToken ?: ""))
                     } else {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
                         }
                     }
                 },

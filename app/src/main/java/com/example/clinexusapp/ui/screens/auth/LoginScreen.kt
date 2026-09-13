@@ -346,7 +346,7 @@ fun LoginScreen(
                     FilledTonalButton(
                         onClick = { showManualLogin = true }, modifier = Modifier.fillMaxWidth().height(54.dp),
                         shape = RoundedCornerShape(18.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFFE8EFEE)),
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFFE8EEF8)),
                     ) { Text("Use another account", color = RoyalNavy, fontWeight = FontWeight.Bold) }
                 }
 

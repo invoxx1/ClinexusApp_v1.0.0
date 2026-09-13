@@ -16,6 +16,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.ensureActive
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,7 +34,8 @@ data class HistoryUiState(
     val completedRequest: String? = null,
     val cancellationSubmitting: Boolean = false,
     val rescheduleSubmitting: Boolean = false,
-    val rescheduleSlots: Resource<List<AvailableSlotDTO>> = Resource.Success(emptyList())
+    val rescheduleDates: Map<String, Resource<List<AvailableSlotDTO>>> = emptyMap(),
+    val rescheduleSlots: Resource<List<AvailableSlotDTO>> = Resource.Idle
 )
 
 @HiltViewModel
@@ -74,15 +79,46 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    fun loadRescheduleSlots(appointment: AppointmentDTO, date: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(rescheduleSlots = Resource.Loading)
-            _uiState.value = _uiState.value.copy(rescheduleSlots = appointmentRepository.getAvailableTimeslots(appointment.dentistId, date))
+    private var rescheduleAvailabilityJob: Job? = null
+
+    fun loadRescheduleDates(appointment: AppointmentDTO, dates: List<String>) {
+        rescheduleAvailabilityJob?.cancel()
+        _uiState.value = _uiState.value.copy(
+            rescheduleDates = dates.associateWith { Resource.Loading },
+            rescheduleSlots = Resource.Idle
+        )
+        rescheduleAvailabilityJob = viewModelScope.launch {
+            dates.chunked(4).forEach { batch ->
+                batch.map { date ->
+                    async {
+                        val result = appointmentRepository.getAvailableTimeslots(appointment.dentistId, date)
+                        ensureActive()
+                        val available = if (result is Resource.Success) {
+                            Resource.Success(result.data.filter {
+                                it.startTime != null && it.endTime != null && !isUnchangedReschedule(appointment, date, it)
+                            })
+                        } else result
+                        _uiState.value = _uiState.value.copy(
+                            rescheduleDates = _uiState.value.rescheduleDates + (date to available)
+                        )
+                    }
+                }.awaitAll()
+            }
         }
     }
 
+    fun loadRescheduleSlots(date: String) {
+        val slots = _uiState.value.rescheduleDates[date]
+        if (slots !is Resource.Success || slots.data.isEmpty()) return
+        _uiState.value = _uiState.value.copy(rescheduleSlots = slots)
+    }
     fun requestReschedule(appointment: AppointmentDTO, date: String, slot: AvailableSlotDTO, note: String) {
         if (_uiState.value.rescheduleSubmitting) return
+        val availability = _uiState.value.rescheduleDates[date]
+        if (availability !is Resource.Success || slot !in availability.data) {
+            _uiState.value = _uiState.value.copy(operation = Resource.Error("Choose an available date and time."))
+            return
+        }
         if (note.isBlank() && !appointment.needsPatientScheduleChoice) {
             _uiState.value = _uiState.value.copy(operation = Resource.Error("Please provide a reason for your reschedule request."))
             return

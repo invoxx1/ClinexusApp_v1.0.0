@@ -1,5 +1,7 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.example.clinexusapp.util.passwordsMeetRules
+
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.KeyRound
 import com.composables.icons.lucide.LockKeyhole
@@ -90,6 +92,8 @@ fun ResetPasswordScreen(
                     icon = Lucide.KeyRound,
                     isPassword = true
                 )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    PasswordRequirements(newPassword, confirmPassword)
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -97,7 +101,7 @@ fun ResetPasswordScreen(
             VibrantButton(
                 text = if (otpState is Resource.Loading) "Resetting..." else "Reset Password",
                 onClick = {
-                    if (newPassword == confirmPassword) {
+                    if (passwordsMeetRules(newPassword, confirmPassword)) {
                         viewModel.resetPassword(resetToken, newPassword)
                     } else {
                         coroutineScope.launch {
@@ -105,7 +109,7 @@ fun ResetPasswordScreen(
                         }
                     }
                 },
-                enabled = (newPassword.isNotEmpty()) &&
+                enabled = passwordsMeetRules(newPassword, confirmPassword) &&
                         (newPassword == confirmPassword) &&
                         (otpState !is Resource.Loading)
             )

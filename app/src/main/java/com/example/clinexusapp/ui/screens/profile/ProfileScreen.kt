@@ -73,11 +73,11 @@ import com.example.clinexusapp.util.findFragmentActivity
 import java.io.File
 import kotlinx.coroutines.launch
 
-private val ProfileBackground = Color(0xFFF1FAF9)
-private val ProfileTeal = Color(0xFF009E97)
+private val ProfileBackground = Color(0xFFE8EEF8)
+private val ProfileTeal = Color(0xFF1F3A6D)
 private val ProfileNavy = Color(0xFF07143C)
 private val ProfileMuted = Color(0xFF737C9A)
-private val ProfileMint = Color(0xFFE8F7F5)
+private val ProfileMint = Color(0xFFE8EEF8)
 private val ProfileDivider = Color(0xFFE4E8EF)
 private val ProfileRed = Color(0xFFB90829)
 private val PanelShape = RoundedCornerShape(20.dp)
@@ -479,7 +479,7 @@ private fun ProfileHero(
         ProfileHeader(onBack)
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp).fillMaxWidth().height(235.dp)
-                .shadow(10.dp, PanelShape, ambientColor = Color(0xFFB7D8D5).copy(alpha = 0.35f), spotColor = Color.Transparent),
+                .shadow(10.dp, PanelShape, ambientColor = Color(0xFFE8EEF8).copy(alpha = 0.35f), spotColor = Color.Transparent),
             shape = PanelShape,
             color = Color.White,
         ) {
@@ -491,11 +491,11 @@ private fun ProfileHero(
                 Spacer(Modifier.height(5.dp))
                 Text(email.ifBlank { "Email not available" }, color = ProfileMuted, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(13.dp))
-                Surface(shape = RoundedCornerShape(50), color = Color(0xFFE3F6F3)) {
+                Surface(shape = RoundedCornerShape(50), color = Color(0xFFE8EEF8)) {
                     Row(Modifier.padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Lucide.ShieldCheck, null, tint = Color(0xFF087F7A), modifier = Modifier.size(21.dp))
+                        Icon(Lucide.ShieldCheck, null, tint = Color(0xFF1F3A6D), modifier = Modifier.size(21.dp))
                         Spacer(Modifier.width(9.dp))
-                        Text("Verified Patient", color = Color(0xFF087F7A), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("Verified Patient", color = Color(0xFF1F3A6D), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -519,12 +519,12 @@ private fun ProfileHero(
             modifier = Modifier.align(Alignment.TopCenter).offset(x = 48.dp, y = 218.dp).size(48.dp)
                 .clickable(role = Role.Button, onClick = onPhotoClick),
             shape = CircleShape,
-            color = Color(0xFFDBF4F1),
+            color = Color(0xFFE8EEF8),
             border = BorderStroke(2.dp, Color.White),
             shadowElevation = 3.dp,
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Lucide.Camera, "Edit profile photo", tint = Color(0xFF087F7A), modifier = Modifier.size(23.dp))
+                Icon(Lucide.Camera, "Edit profile photo", tint = Color(0xFF1F3A6D), modifier = Modifier.size(23.dp))
             }
         }
     }
@@ -534,21 +534,21 @@ private fun ProfileHero(
 private fun ProfileHeader(onBack: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxWidth().height(245.dp).drawBehind {
-            drawRect(Brush.linearGradient(listOf(Color(0xFF009D9D), Color(0xFF1CB9B5), Color(0xFF69DAD3)), Offset.Zero, Offset(size.width, size.height)))
+            drawRect(Brush.linearGradient(listOf(Color(0xFF1F3A6D), Color(0xFF36588E), Color(0xFF7895C2)), Offset.Zero, Offset(size.width, size.height)))
             val backWave = Path().apply {
                 moveTo(0f, size.height * 0.66f)
                 cubicTo(size.width * 0.18f, size.height * 0.65f, size.width * 0.25f, size.height * 0.98f, size.width * 0.58f, size.height * 0.97f)
                 cubicTo(size.width * 0.78f, size.height * 0.96f, size.width * 0.9f, size.height * 0.75f, size.width, size.height * 0.72f)
                 lineTo(size.width, size.height); lineTo(0f, size.height); close()
             }
-            drawPath(backWave, Color(0xFF6ADBD4).copy(alpha = 0.72f))
+            drawPath(backWave, Color(0xFF91AAD0).copy(alpha = 0.72f))
             val frontWave = Path().apply {
                 moveTo(0f, size.height * 0.83f)
                 cubicTo(size.width * 0.22f, size.height * 1.06f, size.width * 0.46f, size.height * 1.02f, size.width * 0.65f, size.height * 0.98f)
                 cubicTo(size.width * 0.82f, size.height * 0.94f, size.width * 0.91f, size.height * 0.83f, size.width, size.height * 0.78f)
                 lineTo(size.width, size.height); lineTo(0f, size.height); close()
             }
-            drawPath(frontWave, Color(0xFFB7F0EC).copy(alpha = 0.84f))
+            drawPath(frontWave, Color(0xFFD6E1F2).copy(alpha = 0.84f))
         }.statusBarsPadding(),
     ) {
         IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 7.dp).size(48.dp)) {
@@ -570,7 +570,7 @@ private fun ProfileSection(title: String, entries: List<ProfileMenuEntry>) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
         Text(title, color = ProfileMuted, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 2.dp, bottom = 9.dp).semantics { heading() })
         Surface(
-            modifier = Modifier.fillMaxWidth().shadow(7.dp, PanelShape, ambientColor = Color(0xFFB7D8D5).copy(alpha = 0.28f), spotColor = Color.Transparent),
+            modifier = Modifier.fillMaxWidth().shadow(7.dp, PanelShape, ambientColor = Color(0xFFE8EEF8).copy(alpha = 0.28f), spotColor = Color.Transparent),
             shape = PanelShape,
             color = Color.White,
         ) {
@@ -586,7 +586,7 @@ private fun ProfileSection(title: String, entries: List<ProfileMenuEntry>) {
 
 @Composable
 private fun ProfileMenuRow(entry: ProfileMenuEntry) {
-    val accent = if (entry.destructive) ProfileRed else Color(0xFF087F7A)
+    val accent = if (entry.destructive) ProfileRed else Color(0xFF1F3A6D)
     val background = if (entry.destructive) Color(0xFFFFECEE) else ProfileMint
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 82.dp).clickable(role = Role.Button, onClick = entry.onClick).padding(vertical = 12.dp),

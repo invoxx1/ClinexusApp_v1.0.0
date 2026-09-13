@@ -315,7 +315,7 @@ private fun AppointmentClock() {
             val inset = stroke / 2f
             val arcSize = Size(size.width - stroke, size.height - stroke)
             drawArc(
-                color = Color(0xFF60DDD0),
+                color = Color(0xFF1F3A6D),
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -351,7 +351,7 @@ private fun DashboardPillButton(text: String, onClick: () -> Unit, modifier: Mod
             modifier = Modifier
                 .heightIn(min = 32.dp)
                 .background(
-                    brush = Brush.horizontalGradient(listOf(Color(0xFF00A298), Color(0xFF00B5A6))),
+                    brush = Brush.horizontalGradient(listOf(Color(0xFF1F3A6D), Color(0xFF1F3A6D))),
                     shape = RoundedCornerShape(24.dp)
                 )
                 .padding(horizontal = 16.dp, vertical = 6.dp),

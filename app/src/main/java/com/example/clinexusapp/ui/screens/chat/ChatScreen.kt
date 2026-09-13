@@ -204,7 +204,7 @@ fun ChatScreen(
                         searchQuery = ""
                         currentView = ChatView.CONTACTS
                     },
-                    containerColor = Color(0xFF00BDB2),
+                    containerColor = Color(0xFF1F3A6D),
                     contentColor = Color.White,
                     shape = CircleShape,
                     modifier = Modifier.padding(12.dp).size(64.dp)
@@ -213,7 +213,7 @@ fun ChatScreen(
                 }
             }
         },
-        containerColor = Color(0xFFF5FCFB)
+        containerColor = Color(0xFFE8EEF8)
     ) { padding ->
         Column(
             modifier = Modifier
@@ -318,7 +318,7 @@ fun ChatScreen(
                                     ) {
                                         item {
                                             Surface(
-                                                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0xFFB8DEDB).copy(alpha = 0.28f), spotColor = Color.Transparent),
+                                                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0xFFE8EEF8).copy(alpha = 0.28f), spotColor = Color.Transparent),
                                                 shape = RoundedCornerShape(20.dp),
                                                 color = Color.White,
                                             ) {
@@ -531,7 +531,7 @@ fun ChatScreen(
 }
 
 private fun Modifier.chatScreenBackground(): Modifier = drawBehind {
-    drawRect(Color(0xFFF5FCFB))
+    drawRect(Color(0xFFF5F7FB))
     val topAccent = Path().apply {
         moveTo(size.width * 0.55f, 0f)
         cubicTo(size.width * 0.58f, size.height * 0.11f, size.width * 0.78f, size.height * 0.13f, size.width, size.height * 0.18f)
@@ -541,7 +541,7 @@ private fun Modifier.chatScreenBackground(): Modifier = drawBehind {
     drawPath(
         topAccent,
         Brush.linearGradient(
-            listOf(Color(0xFFEDFDFC), Color(0xFFCDF7F3)),
+            listOf(Color(0xFFEDF2FA), Color(0xFFB6C8E4)),
             Offset(size.width * 0.55f, 0f),
             Offset(size.width, size.height * 0.18f),
         ),
@@ -552,7 +552,7 @@ private fun Modifier.chatScreenBackground(): Modifier = drawBehind {
         lineTo(0f, size.height)
         close()
     }
-    drawPath(lowerAccent, Color(0xFFE5F9F7).copy(alpha = 0.78f))
+    drawPath(lowerAccent, Brush.linearGradient(listOf(Color(0xFFCBD8EC), Color(0xFFE8EEF8)), Offset(0f, size.height * 0.69f), Offset(size.width * 0.76f, size.height)))
 }
 
 @Composable
@@ -599,8 +599,8 @@ private fun MessageSearchField(
         singleLine = true,
         shape = RoundedCornerShape(30.dp),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFEFF9F8).copy(alpha = 0.92f),
-            unfocusedContainerColor = Color(0xFFEFF9F8).copy(alpha = 0.92f),
+            focusedContainerColor = Color(0xFFE8EEF8).copy(alpha = 0.92f),
+            unfocusedContainerColor = Color(0xFFE8EEF8).copy(alpha = 0.92f),
             focusedTextColor = Color(0xFF07143C),
             unfocusedTextColor = Color(0xFF07143C),
             focusedIndicatorColor = Color.Transparent,
@@ -626,17 +626,17 @@ fun ChatAvatar(imageUrl: String?, name: String, size: Dp, fontSize: TextUnit = 1
         AsyncImage(
             model = imageUrl,
             contentDescription = name,
-            modifier = Modifier.size(size).clip(CircleShape).background(Color(0xFFE0F7F4)),
+            modifier = Modifier.size(size).clip(CircleShape).background(Color(0xFFE8EEF8)),
             contentScale = ContentScale.Crop,
             placeholder = painterResource(R.drawable.ic_person_placeholder),
             error = painterResource(R.drawable.ic_person_placeholder)
         )
     } else {
         Box(
-            modifier = Modifier.size(size).background(Color(0xFFE0F7F4), CircleShape),
+            modifier = Modifier.size(size).background(Color(0xFFE8EEF8), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = getInitials(name), color = Color(0xFF009E97), fontWeight = FontWeight.Bold, fontSize = fontSize)
+            Text(text = getInitials(name), color = Color(0xFF1F3A6D), fontWeight = FontWeight.Bold, fontSize = fontSize)
         }
     }
 }
@@ -644,7 +644,7 @@ fun ChatAvatar(imageUrl: String?, name: String, size: Dp, fontSize: TextUnit = 1
 @Composable
 fun ConversationItem(conversation: ConversationDTO, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0xFFB8DEDB).copy(alpha = 0.28f), spotColor = Color.Transparent)
+        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0xFFE8EEF8).copy(alpha = 0.28f), spotColor = Color.Transparent)
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         color = Color.White,

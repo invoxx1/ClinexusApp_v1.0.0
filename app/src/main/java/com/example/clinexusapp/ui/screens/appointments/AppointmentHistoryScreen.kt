@@ -357,7 +357,7 @@ private fun AppointmentTabs(
         (state.appointments as? Resource.Success)?.data.orEmpty()
 
     Surface(
-        color = Color(0xFFEAF3F4),
+        color = Color(0xFFE8EEF8),
         shape = RoundedCornerShape(22.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -585,6 +585,12 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
     var selectedSlot by remember { mutableStateOf<AvailableSlotDTO?>(null) }
     var note by remember { mutableStateOf("") }
     val dates = remember { (1..14).map { Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, it) } } }
+    val dateValues = remember(dates) { dates.map { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(it.time) } }
+    LaunchedEffect(appointment.appointmentId) {
+        date = ""
+        selectedSlot = null
+        viewModel.loadRescheduleDates(appointment, dateValues)
+    }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -603,7 +609,35 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
             )
             AppointmentMiniSummary(appointment)
             Row(verticalAlignment = Alignment.CenterVertically) { Icon(Lucide.CalendarDays, "Preferred date", tint = DeepTeal, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(8.dp)); Text("Preferred Date", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(dates) { calendar -> val value = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time); FilterChip(selected = date == value, onClick = { date = value; selectedSlot = null; viewModel.loadRescheduleSlots(appointment, value) }, label = { Text(SimpleDateFormat("MMM d", Locale.US).format(calendar.time)) }) } }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(dates) { calendar ->
+                    val value = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time)
+                    val availability = state.rescheduleDates[value]
+                    val available = availability is Resource.Success && availability.data.isNotEmpty()
+                    val selected = date == value && available
+                    Surface(
+                        onClick = { date = value; selectedSlot = null; viewModel.loadRescheduleSlots(value) },
+                        enabled = available && !state.rescheduleSubmitting,
+                        modifier = Modifier.widthIn(min = 76.dp).heightIn(min = 90.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (selected) BluePrimary else if (!available) Color(0xFFF1F5F9) else White,
+                        border = BorderStroke(1.dp, if (selected) BluePrimary else Color(0xFFE2E8F0))
+                    ) {
+                        Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            val textColor = if (selected) White else if (available) RoyalNavy else LightSlate
+                            Text(SimpleDateFormat("EEE", Locale.US).format(calendar.time), color = textColor, fontSize = 12.sp)
+                            Text(SimpleDateFormat("MMM d", Locale.US).format(calendar.time), color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            if (!available) Text(
+                                when (availability) {
+                                    is Resource.Success -> "Unavailable"
+                                    is Resource.Error -> "Unavailable"
+                                    else -> "Checking…"
+                                }, color = LightSlate, fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically) { Icon(Lucide.Clock, "Preferred time", tint = DeepTeal, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(8.dp)); Text("Preferred Time", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
             when (val slots = state.rescheduleSlots) {
                 Resource.Loading -> CircularProgressIndicator(color = VibrantTeal)
@@ -622,7 +656,7 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
 
 @Composable
 private fun AppointmentMiniSummary(appointment: AppointmentDTO) {
-    Surface(color = Color(0xFFF9FCFC), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color(0xFFE4EEEF))) {
+    Surface(color = Color(0xFFE8EEF8), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color(0xFFE4EEEF))) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.Top) {
             AppointmentAvatar(appointment, size = 64.dp)
             Spacer(Modifier.width(10.dp))

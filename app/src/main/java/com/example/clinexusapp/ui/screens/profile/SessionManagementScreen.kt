@@ -1,6 +1,8 @@
 package com.example.clinexusapp.ui.screens.profile
 
 import android.os.Build
+import coil.compose.SubcomposeAsyncImage
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,7 +51,7 @@ fun SessionManagementScreen(onBack: () -> Unit, onSignedOut: () -> Unit) {
 
     Scaffold(
         topBar = { ElegantTopAppBar("Sessions & Saved Accounts", onBack) },
-        containerColor = Color(0xFFF1FAF9),
+        containerColor = Color(0xFFE8EEF8),
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
@@ -70,8 +72,17 @@ fun SessionManagementScreen(onBack: () -> Unit, onSignedOut: () -> Unit) {
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(shape = CircleShape, color = Color(0xFFE3F6F3), modifier = Modifier.size(46.dp)) {
-                                Box(contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = DeepTeal) }
+                            Surface(shape = CircleShape, color = Color(0xFFE8EEF8), modifier = Modifier.size(46.dp)) {
+                                                                val photo = account.cachedProfilePicture?.takeIf { it.isNotBlank() }
+                                    ?: patient.profilePicture?.takeIf { it.isNotBlank() }
+                                SubcomposeAsyncImage(
+                                    model = photo,
+                                    contentDescription = "${patient.firstName.orEmpty()} profile picture",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize(),
+                                    loading = { Box(contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = DeepTeal) } },
+                                    error = { Box(contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = DeepTeal) } }
+                                )
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {

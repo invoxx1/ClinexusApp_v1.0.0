@@ -282,7 +282,7 @@ fun WavyTealHeader(
                     quadraticTo(size.width * 0.5f, size.height * 0.82f, 0f, size.height * 0.65f)
                     close()
                 }
-                drawPath(path2, color = Color(0xFFE0F7F4).copy(alpha = 0.15f))
+                drawPath(path2, color = Color(0xFFE8EEF8).copy(alpha = 0.15f))
 
                 // Layer 3: Top Soft Wave
                 val path3 = Path().apply {
@@ -292,7 +292,7 @@ fun WavyTealHeader(
                     quadraticTo(size.width * 0.5f, size.height * 0.72f, 0f, size.height * 0.55f)
                     close()
                 }
-                drawPath(path3, color = Color(0xFF00D2FF).copy(alpha = 0.12f))
+                drawPath(path3, color = Color(0xFF1F3A6D).copy(alpha = 0.12f))
             }
             .padding(horizontal = 24.dp)
     ) {

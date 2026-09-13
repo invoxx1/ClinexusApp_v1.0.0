@@ -174,8 +174,8 @@ class RegisterViewModel @Inject constructor(
             return
         }
 
-        if (password.length < 6) {
-            _validationError.value = "Password must be at least 6 characters"
+        if (!com.example.clinexusapp.util.isValidNewPassword(password)) {
+            _validationError.value = "Use at least 8 characters, at least 1 uppercase letter, and no spaces"
             return
         }
 

@@ -49,11 +49,11 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
         AlertDialog(
             onDismissRequest = { SessionManager.dismissPasswordSave() },
             icon = {
-                Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFE0F7F4)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFE8EEF8)) {
                     Icon(
                         Lucide.LockKeyhole,
                         contentDescription = null,
-                        tint = Color(0xFF00A896),
+                        tint = Color(0xFF1F3A6D),
                         modifier = Modifier.padding(12.dp).size(28.dp),
                     )
                 }
@@ -81,7 +81,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 TealBottomBar(navController = navController)
             }
         },
-        containerColor = Color(0xFFF0FAFA),
+        containerColor = Color(0xFFE8EEF8),
     ) { innerPadding ->
         val contentBottomPadding = PaddingValues(
             bottom = innerPadding.calculateBottomPadding()
@@ -191,8 +191,8 @@ fun TealBottomBar(navController: NavHostController) {
             .shadow(
                 elevation = 8.dp,
                 shape = RoundedCornerShape(22.dp),
-                ambientColor = Color(0xFFB5DAD6),
-                spotColor = Color(0xFFB5DAD6),
+                ambientColor = Color(0xFFE8EEF8),
+                spotColor = Color(0xFFE8EEF8),
             ),
         shape = RoundedCornerShape(22.dp),
         color = Color.White,
@@ -230,8 +230,8 @@ fun TealNavItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val contentColor = if (isSelected) Color(0xFF00A69C) else Color(0xFF969CAC)
-    val highlightColor = Color(0xFFD5F4F0)
+    val contentColor = if (isSelected) Color(0xFF1F3A6D) else Color(0xFF969CAC)
+    val highlightColor = Color(0xFFE8EEF8)
     val label = when (screen) {
         BottomBarScreen.Dashboard -> "Home"
         BottomBarScreen.Appointments -> "Appointments"

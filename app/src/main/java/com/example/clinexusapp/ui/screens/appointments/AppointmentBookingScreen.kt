@@ -1,5 +1,7 @@
 package com.example.clinexusapp.ui.screens.appointments
 
+import com.composables.icons.lucide.CircleAlert
+
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.CalendarDays
@@ -356,10 +358,16 @@ private fun ReviewStep(state: BookingUiState, patient: com.example.clinexusapp.m
             }
         }
     }
-    Surface(color = Color(0xFFE4F3FF), shape = BookingCardShape) { Text("Your appointment request will be sent to the clinic for approval.", Modifier.padding(16.dp), color = RoyalNavy) }
+    Surface(color = Color(0xFFE4F3FF), shape = BookingCardShape) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Lucide.CircleAlert, contentDescription = null, tint = BluePrimary, modifier = Modifier.size(22.dp))
+            Text("Your appointment request will be sent to the clinic for approval.", modifier = Modifier.weight(1f), color = RoyalNavy)
+        }
+    }
     Surface(onClick = { viewModel.setConfirmationChecked(!state.confirmationChecked) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), color = White, shape = BookingCardShape, border = BorderStroke(1.dp, Color(0xFFE4EAEE))) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
             Checkbox(checked = state.confirmationChecked, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = VibrantTeal))
+            Spacer(Modifier.width(12.dp))
             Text("I confirm that the details are correct.", color = RoyalNavy)
         }
     }

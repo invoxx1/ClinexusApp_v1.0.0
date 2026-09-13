@@ -104,8 +104,8 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                             SettingsLinkItem(
                                 title = "Privacy & Security", 
                                 icon = Lucide.ShieldCheck,
-                                iconColor = Color(0xFF00A896),
-                                iconBg = if (isSystemInDarkTheme()) Color(0xFF00A896).copy(alpha = 0.1f) else Color(0xFFE0F7F4)
+                                iconColor = Color(0xFF1F3A6D),
+                                iconBg = if (isSystemInDarkTheme()) Color(0xFF1F3A6D).copy(alpha = 0.1f) else Color(0xFFE8EEF8)
                             ) {
                                 scope.launch { snackbarHostState.showSnackbar("Opening: Privacy Settings") }
                             }

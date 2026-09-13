@@ -1,5 +1,7 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import com.example.clinexusapp.util.passwordsMeetRules
+
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.BadgeCheck
 import com.composables.icons.lucide.KeyRound
@@ -135,12 +137,7 @@ fun ChangePasswordScreen(
                     )
                     Spacer(modifier = Modifier.height(48.dp))
                     NeumorphicCard {
-                        MintTextField(
-                            value = otp,
-                            onValueChange = { otp = it },
-                            label = "OTP Code",
-                            icon = Lucide.BadgeCheck
-                        )
+                        OtpCodeInput(value = otp, onValueChange = { otp = it }, enabled = otpState !is Resource.Loading)
                     }
                     Spacer(modifier = Modifier.height(32.dp))
                     VibrantButton(
@@ -180,12 +177,14 @@ fun ChangePasswordScreen(
                             icon = Lucide.KeyRound,
                             isPassword = true
                         )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    PasswordRequirements(newPassword, confirmPassword)
                     }
                     Spacer(modifier = Modifier.height(32.dp))
                     VibrantButton(
                         text = if (otpState is Resource.Loading) "Changing..." else "Change Password",
                         onClick = {
-                            if (newPassword == confirmPassword) {
+                            if (passwordsMeetRules(newPassword, confirmPassword)) {
                                 confirmChange = true
                             } else {
                                 coroutineScope.launch {
@@ -193,7 +192,7 @@ fun ChangePasswordScreen(
                                 }
                             }
                         },
-                        enabled = (newPassword.isNotEmpty()) &&
+                        enabled = passwordsMeetRules(newPassword, confirmPassword) &&
                                 (newPassword == confirmPassword) &&
                                 (otpState !is Resource.Loading)
                     )
