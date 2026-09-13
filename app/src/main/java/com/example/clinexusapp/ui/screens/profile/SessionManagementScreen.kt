@@ -73,7 +73,7 @@ fun SessionManagementScreen(onBack: () -> Unit, onSignedOut: () -> Unit) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(shape = CircleShape, color = Color(0xFFE8EEF8), modifier = Modifier.size(46.dp)) {
-                                                                val photo = account.cachedProfilePicture?.takeIf { it.isNotBlank() }
+                                val photo = account.cachedProfilePicture?.takeIf { it.isNotBlank() }
                                     ?: patient.profilePicture?.takeIf { it.isNotBlank() }
                                 SubcomposeAsyncImage(
                                     model = photo,
