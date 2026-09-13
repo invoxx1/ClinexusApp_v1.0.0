@@ -2,6 +2,8 @@ package com.example.clinexusapp.ui.screens.profile
 
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.CircleAlert
+import com.composables.icons.lucide.CircleCheck
 import com.composables.icons.lucide.House
 import com.composables.icons.lucide.IdCard
 import com.composables.icons.lucide.Pencil
@@ -11,6 +13,7 @@ import com.composables.icons.lucide.UserRound
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -32,6 +36,9 @@ import com.example.clinexusapp.ui.components.*
 import com.example.clinexusapp.ui.screens.auth.AddressDropdown
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
+import com.example.clinexusapp.util.createProfileImagePart
+import com.example.clinexusapp.util.isValidBirthDate
+import com.example.clinexusapp.util.isValidPhilippineMobile
 import com.example.clinexusapp.viewmodel.ProfileViewModel
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -67,9 +74,22 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
     val provinces by viewModel.provinces.collectAsState()
     val cities by viewModel.cities.collectAsState()
     val barangays by viewModel.barangays.collectAsState()
+    val addressLoading by viewModel.addressLoading.collectAsState()
+    val addressError by viewModel.addressError.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmSave by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+
+    val hasUnsavedChanges = user?.let {
+        firstName != it.firstName.orEmpty() || middleName != it.middleName.orEmpty() ||
+            lastName != it.lastName.orEmpty() || phoneNumber != it.phoneNumber.orEmpty() ||
+            dateOfBirth != normalizeDateOfBirth(it.dateOfBirth) || streetAddress != it.streetAddress.orEmpty() ||
+            province != it.province.orEmpty() || city != it.city.orEmpty() ||
+            barangay != it.barangay.orEmpty() || profileImageUri != null
+    } ?: false
+    val handleBack = { if (hasUnsavedChanges) confirmDiscard = true else onBack() }
+    BackHandler(onBack = handleBack)
 
     val saveProfile = {
         val imagePart = profileImageUri?.let { uri -> uriToMultipart(context, uri) }
@@ -100,12 +120,26 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
             shape = RoundedCornerShape(24.dp)
         )
     }
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("Discard changes?") },
+            text = { Text("Your unsaved profile changes will be lost.") },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") } },
+            confirmButton = {
+                Button(
+                    onClick = { confirmDiscard = false; onBack() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) { Text("Discard") }
+            },
+        )
+    }
 
     // Form validity – all fields including email must be filled
     val isFormValid = (firstName.isNotBlank()) &&
             (lastName.isNotBlank()) &&
-            (phoneNumber.isNotBlank()) &&
-            (dateOfBirth.isNotBlank()) &&
+            isValidPhilippineMobile(phoneNumber) &&
+            isValidBirthDate(dateOfBirth) &&
             (streetAddress.isNotBlank()) &&
             (province.isNotBlank()) &&
             (city.isNotBlank()) &&
@@ -148,8 +182,8 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
     }
 
     Scaffold(
-        topBar = { ElegantTopAppBar(title = "Personal Information", onBack = onBack) },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = { ElegantTopAppBar(title = "Personal Information", onBack = handleBack) },
+        snackbarHost = { ClinexusSnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         LazyColumn(
@@ -229,15 +263,15 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
             item {
                 SectionTitle("Personal Details")
                 NeumorphicCard {
-                    MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Lucide.UserRound)
+                    MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Lucide.UserRound, required = true)
                     Spacer(modifier = Modifier.height(12.dp))
                     MintTextField(value = middleName, onValueChange = { middleName = it }, label = "Middle Name", icon = Lucide.IdCard)
                     Spacer(modifier = Modifier.height(12.dp))
-                    MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Lucide.UserRound)
+                    MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Lucide.UserRound, required = true)
                     Spacer(modifier = Modifier.height(12.dp))
-                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Phone Number", icon = Lucide.Phone)
+                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Phone Number", icon = Lucide.Phone, required = true, errorText = phoneNumber.takeIf { it.isNotBlank() && !isValidPhilippineMobile(it) }?.let { "Use 09XXXXXXXXX or +639XXXXXXXXX" })
                     Spacer(modifier = Modifier.height(12.dp))
-                    MintTextField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, label = "Date of Birth (YYYY-MM-DD)", icon = Lucide.CalendarDays)
+                    DatePickerField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, errorText = dateOfBirth.takeIf { it.isNotBlank() && !isValidBirthDate(it) }?.let { "Choose a valid past date" })
                 }
             }
             item {
@@ -255,7 +289,10 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                             barangay = ""
                             val prov = provinces.find { it.displayName == name }
                             prov?.let { viewModel.onProvinceSelected(it.code) }
-                        }
+                        },
+                        loading = addressLoading == "Province",
+                        errorMessage = addressError?.takeIf { provinces.isEmpty() },
+                        onRetry = { viewModel.retryAddressOptions("Province") },
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     AddressDropdown(
@@ -267,14 +304,22 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                             barangay = ""
                             val c = cities.find { it.displayName == name }
                             c?.let { viewModel.onCitySelected(it.code) }
-                        }
+                        },
+                        enabled = province.isNotBlank(),
+                        loading = addressLoading == "City",
+                        errorMessage = addressError?.takeIf { cities.isEmpty() },
+                        onRetry = { viewModel.retryAddressOptions("City") },
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     AddressDropdown(
                         label = "Barangay",
                         options = barangays.map { it.displayName },
                         selectedOption = barangay,
-                        onOptionSelected = { barangay = it }
+                        onOptionSelected = { barangay = it },
+                        enabled = city.isNotBlank(),
+                        loading = addressLoading == "Barangay",
+                        errorMessage = addressError?.takeIf { barangays.isEmpty() },
+                        onRetry = { viewModel.retryAddressOptions("Barangay") },
                     )
                 }
             }
@@ -290,18 +335,5 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
 }
 
 internal fun uriToMultipart(context: android.content.Context, uri: Uri): MultipartBody.Part? {
-    return try {
-        val contentResolver = context.contentResolver
-        val file = File(context.cacheDir, "temp_profile_image_${System.currentTimeMillis()}.jpg")
-        contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(file).use { output ->
-                input.copyTo(output)
-            }
-        }
-        val requestFile = file.asRequestBody(contentResolver.getType(uri)?.toMediaTypeOrNull())
-        MultipartBody.Part.createFormData("file", file.name, requestFile)
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
-    }
+    return createProfileImagePart(context, uri)
 }

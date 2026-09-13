@@ -51,7 +51,7 @@ fun VerifyOTPScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { com.example.clinexusapp.ui.components.ClinexusSnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(

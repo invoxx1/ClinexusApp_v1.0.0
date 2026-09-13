@@ -87,7 +87,12 @@ private fun statusStyle(status: AppointmentStatus, needsPatientChoice: Boolean =
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit, viewModel: HistoryViewModel) {
+fun AppointmentHistoryScreen(
+    onBack: () -> Unit,
+    onNavigateToBooking: () -> Unit,
+    viewModel: HistoryViewModel,
+    initialAppointmentId: Int? = null,
+) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     var selected by remember { mutableStateOf<AppointmentDTO?>(null) }
@@ -95,6 +100,13 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
     var rescheduleTarget by remember { mutableStateOf<AppointmentDTO?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(initialAppointmentId, state.appointments) {
+        val appointments = (state.appointments as? Resource.Success)?.data.orEmpty()
+        if (initialAppointmentId != null && selected == null) {
+            selected = appointments.firstOrNull { it.appointmentId == initialAppointmentId }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.fetchHistory(clearOperation = false)
@@ -157,18 +169,13 @@ fun AppointmentHistoryScreen(onBack: () -> Unit, onNavigateToBooking: () -> Unit
                 ) {
                     AppointmentHeader(onBack, onNavigateToBooking)
                     AppointmentTabs(state, viewModel)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("${tabLabel(state.selectedTab)} Appointments", color = RoyalNavy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        TextButton(onClick = { viewModel.selectTab(state.selectedTab) }) {
-                            Text("See All", color = DeepTeal, fontSize = 15.sp)
-                        }
-                    }
+                    Text(
+                        "${tabLabel(state.selectedTab)} Appointments",
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        color = RoyalNavy,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
             item {

@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
@@ -37,6 +38,8 @@ import com.example.clinexusapp.ui.components.VibrantButton
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
+import com.example.clinexusapp.util.BiometricGate
+import com.example.clinexusapp.util.findFragmentActivity
 import com.example.clinexusapp.viewmodel.LoginViewModel
 
 @Composable
@@ -46,6 +49,7 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
 ) {
+    val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var selectedPatientID by remember { mutableStateOf(SessionManager.consumeRequestedAccountLogin()) }
@@ -304,9 +308,23 @@ fun LoginScreen(
                                     selectedPatientID = patient.patientID
                                     password = ""
                                 } else {
-                                    autoLoginPatientID = patient.patientID
-                                    password = savedPassword
-                                    viewModel.login(patient.email.orEmpty(), savedPassword, rememberAccount = true)
+                                    val name = listOfNotNull(patient.firstName, patient.lastName).joinToString(" ").ifBlank { "your account" }
+                                    val activity = context.findFragmentActivity()
+                                    if (activity == null) {
+                                        selectedPatientID = patient.patientID
+                                    } else {
+                                        BiometricGate.authenticate(
+                                            activity = activity,
+                                            accountName = name,
+                                            onSuccess = {
+                                                autoLoginPatientID = patient.patientID
+                                                password = savedPassword
+                                                viewModel.login(patient.email.orEmpty(), savedPassword, rememberAccount = true)
+                                            },
+                                            onUnavailable = { selectedPatientID = patient.patientID },
+                                            onError = { loginError = it },
+                                        )
+                                    }
                                 }
                             },
                             shape = RoundedCornerShape(20.dp), color = PureWhite,

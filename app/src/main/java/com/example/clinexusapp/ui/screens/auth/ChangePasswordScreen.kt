@@ -86,7 +86,7 @@ fun ChangePasswordScreen(
         topBar = {
             ElegantTopAppBar(title = "Change Password", onBack = onBack)
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { com.example.clinexusapp.ui.components.ClinexusSnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(

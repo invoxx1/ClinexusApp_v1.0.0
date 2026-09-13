@@ -34,6 +34,7 @@ object SessionManager {
         val token: String,
         val password: String? = null,
         val cachedProfilePicture: String? = null,
+        val lastSignInAt: Long = 0L,
     )
 
     data class PendingPasswordSave(
@@ -87,12 +88,14 @@ object SessionManager {
                 val patientJson = prefs.getString(KEY_PATIENT_INFO, null)
                 val savedAccountsJson = prefs.getString(KEY_SAVED_ACCOUNTS, null)
                 val savedAccountType = object : TypeToken<List<SavedAccount>>() {}.type
-                val parsedAccounts = try {
-                    if (savedAccountsJson.isNullOrBlank()) emptyList() else Gson().fromJson<List<SavedAccount>>(savedAccountsJson, savedAccountType)
+                val restoredAccounts: List<SavedAccount> = try {
+                    if (savedAccountsJson.isNullOrBlank()) emptyList()
+                    else Gson().fromJson<List<SavedAccount>>(savedAccountsJson, savedAccountType) ?: emptyList()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing saved accounts from prefs", e)
                     emptyList()
                 }
+                val parsedAccounts = restoredAccounts.filter(::isValidSavedAccount)
                 // Passwords written before explicit consent was introduced must not be retained.
                 val hasMigratedPasswordConsent = prefs.getBoolean(KEY_PASSWORD_CONSENT_MIGRATED, false)
                 val storedAccounts = if (hasMigratedPasswordConsent) {
@@ -105,12 +108,21 @@ object SessionManager {
                         }
                     }
                 }
+                if (storedAccounts.size != restoredAccounts.size) {
+                    prefs.edit { putString(KEY_SAVED_ACCOUNTS, Gson().toJson(storedAccounts)) }
+                }
                 if (patientJson != null) {
                     try {
                         val patient = Gson().fromJson(patientJson, PatientInfo::class.java)
-                        withContext(Dispatchers.Main) {
-                            _currentUser.value = patient
-                            _savedAccounts.value = mergeAccount(storedAccounts, _token, patient, password = null)
+                        if (_token.isNullOrBlank() || patient.patientID <= 0 || patient.email.isNullOrBlank()) {
+                            _token = null
+                            prefs.edit { remove(KEY_TOKEN); remove(KEY_PATIENT_INFO) }
+                            _savedAccounts.value = storedAccounts
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                _currentUser.value = patient
+                                _savedAccounts.value = mergeAccount(storedAccounts, _token, patient, password = null)
+                            }
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error parsing patient info from prefs", e)
@@ -217,7 +229,9 @@ object SessionManager {
     }
 
     fun requestPasswordSave(patientID: Int, password: String) {
-        _pendingPasswordSave.value = PendingPasswordSave(patientID, password)
+        if (password.isNotBlank()) {
+            _pendingPasswordSave.value = PendingPasswordSave(patientID, password)
+        }
     }
 
     fun confirmPasswordSave() {
@@ -225,9 +239,7 @@ object SessionManager {
         _savedAccounts.value = _savedAccounts.value.map { account ->
             if (account.patient.patientID == pending.patientID) {
                 account.copy(password = pending.password)
-            } else {
-                account
-            }
+            } else account
         }
         sharedPreferences?.edit {
             putString(KEY_SAVED_ACCOUNTS, Gson().toJson(_savedAccounts.value))
@@ -254,6 +266,19 @@ object SessionManager {
         }
     }
 
+    fun signOutAllAccountsOnDevice() {
+        _savedAccounts.value.mapNotNull { it.cachedProfilePicture }.forEach { pictureUri ->
+            runCatching {
+                val cachedFile = pictureUri.toUri().path?.let(::File) ?: return@runCatching
+                val filesDirectory = applicationContext?.filesDir?.canonicalFile ?: return@runCatching
+                if (cachedFile.canonicalFile.parentFile == filesDirectory) cachedFile.delete()
+            }
+        }
+        _savedAccounts.value = emptyList()
+        clearActiveSession()
+        sharedPreferences?.edit { remove(KEY_SAVED_ACCOUNTS) }
+    }
+
     fun requestAccountLogin(patientID: Int) {
         requestedAccountLoginPatientID = patientID
     }
@@ -269,10 +294,25 @@ object SessionManager {
         password: String?,
     ): List<SavedAccount> {
         if (token.isNullOrBlank()) return accounts
-        val existingPassword = accounts.firstOrNull { it.patient.patientID == patient.patientID }?.password
-        val existingPicture = accounts.firstOrNull { it.patient.patientID == patient.patientID }?.cachedProfilePicture
-        return listOf(SavedAccount(patient, token, password ?: existingPassword, existingPicture)) +
+        val existing = accounts.firstOrNull { it.patient.patientID == patient.patientID }
+        return listOf(
+            SavedAccount(
+                patient = patient,
+                token = token,
+                password = password ?: existing?.password,
+                cachedProfilePicture = existing?.cachedProfilePicture,
+                lastSignInAt = System.currentTimeMillis(),
+            ),
+        ) +
             accounts.filterNot { it.patient.patientID == patient.patientID }
+    }
+
+    private fun isValidSavedAccount(account: SavedAccount): Boolean {
+        val patient = account.patient
+        return patient.patientID > 0 &&
+            account.token.isNotBlank() &&
+            !patient.email.isNullOrBlank() &&
+            (!patient.firstName.isNullOrBlank() || !patient.lastName.isNullOrBlank())
     }
 
     private fun mergePatientDetails(previous: PatientInfo?, incoming: PatientInfo): PatientInfo {

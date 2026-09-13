@@ -56,7 +56,7 @@ fun ForgotPasswordScreen(
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(snackbarHostState)
+            com.example.clinexusapp.ui.components.ClinexusSnackbarHost(snackbarHostState)
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->

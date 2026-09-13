@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,8 +50,11 @@ import com.example.clinexusapp.ui.screens.main.MainScreen
 import com.example.clinexusapp.ui.screens.notifications.NotificationScreen
 import com.example.clinexusapp.ui.screens.auth.ChangePasswordScreen
 import com.example.clinexusapp.ui.screens.profile.PersonalInformationScreen
+import com.example.clinexusapp.ui.screens.profile.SessionManagementScreen
 import com.example.clinexusapp.ui.screens.settings.SettingsScreen
 import com.example.clinexusapp.util.SessionManager
+import com.example.clinexusapp.util.AppointmentReminderScheduler
+import com.example.clinexusapp.util.AppNavigationRequests
 import com.example.clinexusapp.ui.theme.DeepTeal
 import com.example.clinexusapp.ui.theme.MintSparkle
 import com.example.clinexusapp.ui.theme.PureWhite
@@ -60,8 +64,20 @@ import com.example.clinexusapp.viewmodel.*
 
 @Composable
 fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsViewModel) {
+    val context = LocalContext.current
     var latestAppointmentTicket by remember { mutableStateOf<AppointmentTicket?>(null) }
     val sessionExpired by SessionManager.sessionExpired.collectAsState()
+    val sessionReady by SessionManager.isInitialized.collectAsState()
+    val currentUser by SessionManager.currentUser.collectAsState()
+    val requestedAppointmentId by AppNavigationRequests.appointmentId.collectAsState()
+
+    LaunchedEffect(requestedAppointmentId, sessionReady, currentUser?.patientID) {
+        val appointmentId = requestedAppointmentId ?: return@LaunchedEffect
+        if (sessionReady && currentUser != null) {
+            navController.navigate(Screen.AppointmentHistory.createRoute(appointmentId)) { launchSingleTop = true }
+            AppNavigationRequests.consumeAppointment()
+        }
+    }
 
     LaunchedEffect(sessionExpired) {
         if (sessionExpired) {
@@ -234,6 +250,7 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
                 doctorName = doctorName,
                 onBack = { navController.popBackStack() },
                 onBookSuccess = { ticket ->
+                    AppointmentReminderScheduler.schedule(context, ticket)
                     latestAppointmentTicket = ticket
                     navController.navigate(Screen.AppointmentTicket.route)
                 },
@@ -260,14 +277,18 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
             }
         }
 
-        composable(route = Screen.AppointmentHistory.route) {
+        composable(
+            route = Screen.AppointmentHistory.pattern,
+            arguments = listOf(navArgument("appointmentId") { type = NavType.IntType; defaultValue = -1 }),
+        ) { entry ->
             val historyViewModel: HistoryViewModel = hiltViewModel()
             AppointmentHistoryScreen(
                 onBack = { navController.popBackStack() },
                 onNavigateToBooking = {
                     navController.navigate(Screen.AppointmentBooking.route)
                 },
-                viewModel = historyViewModel
+                viewModel = historyViewModel,
+                initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
             )
         }
 
@@ -305,6 +326,17 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
                     }
                 },
                 settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable(route = Screen.Sessions.route) {
+            SessionManagementScreen(
+                onBack = { navController.popBackStack() },
+                onSignedOut = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                },
             )
         }
     }

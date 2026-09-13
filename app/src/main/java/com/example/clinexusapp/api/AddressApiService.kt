@@ -9,6 +9,9 @@ interface AddressApiService {
     @GET("regions")
     suspend fun getRegions(): Response<List<Region>>
 
+    @GET("provinces")
+    suspend fun getAllProvinces(): Response<List<Province>>
+
     @GET("regions/{code}/provinces")
     suspend fun getProvinces(@Path("code") regionCode: String): Response<List<Province>>
 

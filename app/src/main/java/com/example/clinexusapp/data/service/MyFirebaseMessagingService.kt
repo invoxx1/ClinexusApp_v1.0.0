@@ -18,7 +18,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             ?: remoteMessage.data["message"]
             ?: remoteMessage.data["body"]
             ?: return
-        NotificationHelper.showNotification(this, title, message)
+        val appointmentId = sequenceOf(
+            remoteMessage.data["appointment_id"],
+            remoteMessage.data["appointmentId"],
+        ).mapNotNull { it?.toIntOrNull() }.firstOrNull()
+        NotificationHelper.showNotification(this, title, message, appointmentId)
     }
 
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")

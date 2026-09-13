@@ -21,11 +21,15 @@ sealed class Screen(val route: String) {
     object AppointmentBooking : Screen("appointment_booking?doctorName={doctorName}") {
         fun createRoute(doctorName: String) = "appointment_booking?doctorName=$doctorName"
     }
-    object AppointmentHistory : Screen("appointment_history")
+    object AppointmentHistory : Screen("appointment_history") {
+        const val pattern = "appointment_history?appointmentId={appointmentId}"
+        fun createRoute(appointmentId: Int) = "appointment_history?appointmentId=$appointmentId"
+    }
     object AppointmentTicket : Screen("appointment_ticket")
     object Chat : Screen("chat")
     object Notifications : Screen("notifications")
     object Settings : Screen("settings")
     object Profile : Screen("profile")
     object PersonalInformation : Screen("personal_information")
+    object Sessions : Screen("sessions")
 }

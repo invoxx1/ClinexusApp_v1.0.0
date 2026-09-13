@@ -14,6 +14,7 @@ import javax.inject.Singleton
 class AppointmentRepository @Inject constructor(
     private val apiService: AppointmentApiService
 ) {
+    private val appointmentCache = mutableMapOf<Int, List<AppointmentDTO>>()
 
     companion object {
         private const val TAG = "AppointmentRepository"
@@ -595,11 +596,9 @@ class AppointmentRepository @Inject constructor(
                 response.isSuccessful
             ) {
 
-                Resource.Success(
-                    response.body()
-                        ?.appointments
-                        ?: emptyList()
-                )
+                val appointments = response.body()?.appointments ?: emptyList()
+                SessionManager.currentUser.value?.patientID?.let { appointmentCache[it] = appointments }
+                Resource.Success(appointments)
 
             } else {
 
@@ -619,9 +618,9 @@ class AppointmentRepository @Inject constructor(
                 e
             )
 
-            Resource.Error(
-                e.localizedMessage
-                    ?: "Network error while fetching appointments."
+            val cached = SessionManager.currentUser.value?.patientID?.let(appointmentCache::get)
+            if (cached != null) Resource.Success(cached) else Resource.Error(
+                e.localizedMessage ?: "Network error while fetching appointments."
             )
         }
     }

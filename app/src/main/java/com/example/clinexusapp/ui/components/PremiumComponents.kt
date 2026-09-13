@@ -4,6 +4,7 @@ import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Bell
 import com.composables.icons.lucide.CircleAlert
+import com.composables.icons.lucide.CalendarDays
 import com.composables.icons.lucide.Eye
 import com.composables.icons.lucide.EyeOff
 
@@ -133,6 +134,7 @@ fun MintTextField(
     icon: ImageVector,
     isPassword: Boolean = false,
     errorText: String? = null,
+    required: Boolean = false,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -141,7 +143,7 @@ fun MintTextField(
     
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = label,
+            text = if (required) "$label *" else label,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             color = if (hasError) MaterialTheme.colorScheme.error else onSurfaceColor.copy(alpha = 0.5f),
@@ -193,6 +195,59 @@ fun MintTextField(
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(fontSize = 15.sp)
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DatePickerField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String = "Date of birth",
+    errorText: String? = null,
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    val initialMillis = remember(value) {
+        runCatching { java.time.LocalDate.parse(value).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull()
+    }
+    val pickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialMillis,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= System.currentTimeMillis()
+        },
+    )
+
+    Box(Modifier.fillMaxWidth()) {
+        MintTextField(
+            value = value,
+            onValueChange = {},
+            label = label,
+            icon = Lucide.CalendarDays,
+            errorText = errorText,
+            required = true,
+        )
+        Box(
+            Modifier.matchParentSize().clickable(
+                role = androidx.compose.ui.semantics.Role.Button,
+                onClickLabel = "Choose $label",
+            ) { showPicker = true },
+        )
+    }
+    if (showPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { millis ->
+                        onValueChange(
+                            java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate().toString(),
+                        )
+                    }
+                    showPicker = false
+                }) { Text("Select") }
+            },
+            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Cancel") } },
+        ) { DatePicker(state = pickerState) }
     }
 }
 

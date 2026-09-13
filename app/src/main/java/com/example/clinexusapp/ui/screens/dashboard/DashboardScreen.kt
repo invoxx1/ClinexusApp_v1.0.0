@@ -111,6 +111,9 @@ fun DashboardScreen(
         hasUnreadNotifications = unreadCount > 0,
         onNotificationClick = onNotificationClick,
         onAppointmentsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
+        onAppointmentDetailsClick = { appointmentId ->
+            rootNavController.navigate(Screen.AppointmentHistory.createRoute(appointmentId))
+        },
         onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
         onRetry = viewModel::fetchDashboardData,
     )
@@ -126,6 +129,7 @@ internal fun DashboardContent(
     hasUnreadNotifications: Boolean,
     onNotificationClick: () -> Unit,
     onAppointmentsClick: () -> Unit,
+    onAppointmentDetailsClick: (Int) -> Unit,
     onBookClick: () -> Unit,
     onRetry: () -> Unit,
 ) {
@@ -205,8 +209,10 @@ internal fun DashboardContent(
                     when (val state = nextAppointmentState) {
                         Resource.Loading, Resource.Idle -> DashboardLoadingCard()
                         is Resource.Error -> DashboardErrorCard(state.message ?: "Unable to load appointments", onRetry)
-                        is Resource.Success -> state.data?.let {
-                            UpcomingAppointmentCard(it, onAppointmentsClick)
+                        is Resource.Success -> state.data?.let { appointment ->
+                            UpcomingAppointmentCard(appointment) {
+                                onAppointmentDetailsClick(appointment.appointmentId)
+                            }
                         } ?: EmptyAppointmentCard(onBookClick)
                     }
                 }

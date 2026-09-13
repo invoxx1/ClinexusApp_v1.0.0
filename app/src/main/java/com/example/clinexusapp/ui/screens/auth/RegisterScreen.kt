@@ -29,6 +29,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +40,8 @@ import com.example.clinexusapp.model.*
 import com.example.clinexusapp.ui.components.*
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.util.Resource
+import com.example.clinexusapp.util.isValidBirthDate
+import com.example.clinexusapp.util.isValidPhilippineMobile
 import com.example.clinexusapp.viewmodel.RegisterViewModel
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -70,6 +75,8 @@ fun RegisterScreen(
     val provinces by viewModel.provinces.collectAsState()
     val cities by viewModel.cities.collectAsState()
     val barangays by viewModel.barangays.collectAsState()
+    val addressLoading by viewModel.addressLoading.collectAsState()
+    val addressError by viewModel.addressError.collectAsState()
 
     val registerState by viewModel.registerState.collectAsState()
     val validationError by viewModel.validationError.collectAsState()
@@ -87,8 +94,8 @@ fun RegisterScreen(
     val isFormValid = (firstName.isNotBlank()) &&
             (lastName.isNotBlank()) &&
             (email.isNotBlank()) &&
-            (phoneNumber.isNotBlank()) &&
-            (dateOfBirth.isNotBlank()) &&
+            isValidPhilippineMobile(phoneNumber) &&
+            isValidBirthDate(dateOfBirth) &&
             (password.isNotBlank()) &&
             (confirmPassword.isNotBlank()) &&
             (streetAddress.isNotBlank()) &&
@@ -115,7 +122,7 @@ fun RegisterScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { ClinexusSnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         LazyColumn(
@@ -195,6 +202,9 @@ fun RegisterScreen(
                             selectedBarangay = null
                             region?.let { viewModel.onRegionSelected(it.code) }
                         },
+                        loading = addressLoading == "Region",
+                        errorMessage = addressError?.takeIf { regions.isEmpty() },
+                        onRetry = { viewModel.retryAddress("Region") },
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -210,6 +220,9 @@ fun RegisterScreen(
                             province?.let { viewModel.onProvinceSelected(it.code) }
                         },
                         enabled = selectedRegion != null,
+                        loading = addressLoading == "Province",
+                        errorMessage = addressError?.takeIf { provinces.isEmpty() },
+                        onRetry = { viewModel.retryAddress("Province") },
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -224,6 +237,9 @@ fun RegisterScreen(
                             city?.let { viewModel.onCitySelected(it.code) }
                         },
                         enabled = selectedProvince != null,
+                        loading = addressLoading == "City / Municipality",
+                        errorMessage = addressError?.takeIf { cities.isEmpty() },
+                        onRetry = { viewModel.retryAddress("City / Municipality") },
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -235,6 +251,9 @@ fun RegisterScreen(
                             selectedBarangay = barangays.find { it.displayName == name }
                         },
                         enabled = selectedCity != null,
+                        loading = addressLoading == "Barangay",
+                        errorMessage = addressError?.takeIf { barangays.isEmpty() },
+                        onRetry = { viewModel.retryAddress("Barangay") },
                     )
                 }
             }
@@ -244,9 +263,9 @@ fun RegisterScreen(
                 NeumorphicCard {
                     MintTextField(value = email, onValueChange = { email = it }, label = "Email Address", icon = Lucide.Mail)
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Mobile Number", icon = Lucide.Phone)
+                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Mobile Number", icon = Lucide.Phone, required = true, errorText = phoneNumber.takeIf { it.isNotBlank() && !isValidPhilippineMobile(it) }?.let { "Use 09XXXXXXXXX or +639XXXXXXXXX" })
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, label = "Birthday (YYYY-MM-DD)", icon = Lucide.CalendarDays)
+                    DatePickerField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, label = "Birthday", errorText = dateOfBirth.takeIf { it.isNotBlank() && !isValidBirthDate(it) }?.let { "Choose a valid past date" })
                 }
             }
 
@@ -291,22 +310,8 @@ fun RegisterScreen(
     }
 }
 
-private fun uriToMultipart(context: android.content.Context, uri: Uri): MultipartBody.Part? {
-    return try {
-        val contentResolver = context.contentResolver
-        val file = File(context.cacheDir, "temp_profile_image_${System.currentTimeMillis()}.jpg")
-        contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(file).use { output ->
-                input.copyTo(output)
-            }
-        }
-        val requestFile = file.asRequestBody(contentResolver.getType(uri)?.toMediaTypeOrNull())
-        MultipartBody.Part.createFormData("file", file.name, requestFile)
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
-    }
-}
+private fun uriToMultipart(context: android.content.Context, uri: Uri): MultipartBody.Part? =
+    com.example.clinexusapp.util.createProfileImagePart(context, uri)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -316,6 +321,9 @@ fun AddressDropdown(
     selectedOption: String,
     onOptionSelected: (String) -> Unit,
     enabled: Boolean = true,
+    loading: Boolean = false,
+    errorMessage: String? = null,
+    onRetry: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(value = false) }
 
@@ -330,14 +338,25 @@ fun AddressDropdown(
         ExposedDropdownMenuBox(
             expanded = expanded && enabled,
             onExpandedChange = { if (enabled) expanded = !expanded },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics {
+                contentDescription = "$label selector"
+                stateDescription = when {
+                    loading -> "Loading"
+                    errorMessage != null -> "Could not load options"
+                    selectedOption.isBlank() -> "No option selected"
+                    else -> selectedOption
+                }
+            },
         ) {
             OutlinedTextField(
                 value = selectedOption,
                 onValueChange = {},
                 readOnly = true,
                 placeholder = { Text("Select $label", fontSize = 14.sp) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                trailingIcon = {
+                    if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    else ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
                 modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
                 enabled = enabled,
@@ -356,6 +375,9 @@ fun AddressDropdown(
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
             ) {
+                if (options.isEmpty() && loading) {
+                    DropdownMenuItem(text = { Text("Loading options…") }, onClick = {}, enabled = false)
+                }
                 options.forEach { selectionOption ->
                     DropdownMenuItem(
                         text = { Text(selectionOption) },
@@ -365,6 +387,24 @@ fun AddressDropdown(
                         },
                         contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                     )
+                }
+            }
+        }
+        if (errorMessage != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Couldn’t load $label",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f),
+                )
+                if (onRetry != null) {
+                    TextButton(onClick = onRetry, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                        Text("Retry", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

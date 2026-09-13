@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: SettingsViewModel) {
     val darkMode by settingsViewModel.isDarkMode.collectAsState()
-    var notificationsEnabled by remember { mutableStateOf(value = true) }
+    val notificationsEnabled by settingsViewModel.appointmentReminders.collectAsState()
     var confirmLogout by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -53,7 +53,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { ClinexusSnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
@@ -78,13 +78,13 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                     NeumorphicCard(modifier = Modifier.fillMaxWidth()) {
                         Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                             SettingsToggleItem(
-                                title = "Notifications",
+                                title = "Appointment reminders",
                                 icon = Lucide.Bell,
                                 iconColor = Color(0xFF0288D1),
                                 iconBg = if (isSystemInDarkTheme()) Color(0xFF0288D1).copy(alpha = 0.1f) else Color(0xFFE1F5FE),
                                 isChecked = notificationsEnabled,
                             ) {
-                                notificationsEnabled = it
+                                settingsViewModel.toggleAppointmentReminders(it)
                             }
                             SettingsToggleItem(
                                 title = "Dark Mode",
@@ -138,11 +138,11 @@ fun SettingsToggleItem(title: String, icon: ImageVector, iconColor: Color, iconB
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .background(iconBg, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
+            Icon(icon, title, tint = iconColor, modifier = Modifier.size(24.dp))
         }
         Spacer(modifier = Modifier.width(18.dp))
         Text(text = title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
@@ -167,14 +167,14 @@ fun SettingsLinkItem(title: String, icon: ImageVector, iconColor: Color, iconBg:
     ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .background(iconBg, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
+            Icon(icon, title, tint = iconColor, modifier = Modifier.size(24.dp))
         }
         Spacer(modifier = Modifier.width(18.dp))
         Text(text = title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp)
-        Icon(Lucide.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(22.dp))
+        Icon(Lucide.ChevronRight, "Open $title", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), modifier = Modifier.size(22.dp))
     }
 }

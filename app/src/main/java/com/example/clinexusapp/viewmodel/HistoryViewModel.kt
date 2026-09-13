@@ -8,6 +8,9 @@ import com.example.clinexusapp.model.AvailableSlotDTO
 import com.example.clinexusapp.model.CancelAppointmentRequest
 import com.example.clinexusapp.model.RescheduleAppointmentRequest
 import com.example.clinexusapp.util.Resource
+import com.example.clinexusapp.util.AppointmentReminderScheduler
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +35,8 @@ data class HistoryUiState(
 
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
-    private val appointmentRepository: AppointmentRepository
+    private val appointmentRepository: AppointmentRepository,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HistoryUiState())
     val uiState = _uiState.asStateFlow()
@@ -44,7 +48,9 @@ class HistoryViewModel @Inject constructor(
                 appointments = if (showLoading) Resource.Loading else _uiState.value.appointments,
                 operation = if (clearOperation) null else _uiState.value.operation
             )
-            _uiState.value = _uiState.value.copy(appointments = appointmentRepository.getPatientAppointments())
+            val result = appointmentRepository.getPatientAppointments()
+            _uiState.value = _uiState.value.copy(appointments = result)
+            if (result is Resource.Success) AppointmentReminderScheduler.sync(context, result.data)
         }
     }
 

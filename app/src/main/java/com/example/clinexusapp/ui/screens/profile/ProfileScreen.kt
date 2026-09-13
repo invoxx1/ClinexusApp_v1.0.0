@@ -27,6 +27,9 @@ import androidx.core.content.FileProvider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -36,7 +39,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -56,9 +63,13 @@ import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import com.example.clinexusapp.ui.components.ClinexusSnackbarHost
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.ProfileViewModel
 import com.example.clinexusapp.util.Resource
+import com.example.clinexusapp.util.createProfileImagePart
+import com.example.clinexusapp.util.BiometricGate
+import com.example.clinexusapp.util.findFragmentActivity
 import java.io.File
 import kotlinx.coroutines.launch
 
@@ -90,6 +101,7 @@ fun ProfileScreen(
     onNavigateToPersonalInformation: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
+    onNavigateToSessions: () -> Unit,
     viewModel: ProfileViewModel,
 ) {
     val user by SessionManager.currentUser.collectAsState()
@@ -98,17 +110,28 @@ fun ProfileScreen(
     val scope = rememberCoroutineScope()
     var showPhotoOptions by remember { mutableStateOf(false) }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedPhotoZoom by remember { mutableFloatStateOf(1f) }
+    var selectedPhotoOffset by remember { mutableStateOf(Offset.Zero) }
+    var cropFrameSizePx by remember { mutableFloatStateOf(1f) }
     var cameraPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var confirmRemovePhoto by remember { mutableStateOf(false) }
     var showAccountSwitcher by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
+    val photoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val accountSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     val updateState by viewModel.updateState.collectAsState()
     val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         selectedPhotoUri = uri
+        selectedPhotoZoom = 1f
+        selectedPhotoOffset = Offset.Zero
     }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
-        if (saved) selectedPhotoUri = cameraPhotoUri
+        if (saved) {
+            selectedPhotoUri = cameraPhotoUri
+            selectedPhotoZoom = 1f
+            selectedPhotoOffset = Offset.Zero
+        }
     }
 
     fun launchCamera() {
@@ -127,6 +150,8 @@ fun ProfileScreen(
         when (val result = updateState) {
             is Resource.Success -> {
                 selectedPhotoUri = null
+                selectedPhotoZoom = 1f
+                selectedPhotoOffset = Offset.Zero
                 showPhotoOptions = false
                 snackbarHostState.showSnackbar("Profile photo updated")
                 viewModel.resetState()
@@ -176,24 +201,69 @@ fun ProfileScreen(
     if (showPhotoOptions) {
         ModalBottomSheet(
             onDismissRequest = { showPhotoOptions = false },
+            sheetState = photoSheetState,
             containerColor = Color.White,
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         ) {
             Column(
-                Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 36.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text("Profile photo", color = ProfileNavy, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                 Text("Take a new photo or choose one from your gallery.", color = ProfileMuted, fontSize = 14.sp)
                 Spacer(Modifier.height(4.dp))
-                Surface(
-                    modifier = Modifier.align(Alignment.CenterHorizontally).size(112.dp),
-                    shape = CircleShape,
-                    color = ProfileMint,
+                Box(
+                    modifier = Modifier.align(Alignment.CenterHorizontally).size(208.dp)
+                        .background(Color.Black.copy(alpha = 0.68f), RoundedCornerShape(20.dp)),
+                    contentAlignment = Alignment.Center,
                 ) {
+                  Surface(
+                    modifier = Modifier.size(180.dp).onSizeChanged { cropFrameSizePx = it.width.toFloat() },
+                    shape = CircleShape, color = ProfileMint,
+                    border = BorderStroke(3.dp, Color.White.copy(alpha = 0.9f)),
+                  ) {
                     val preview = selectedPhotoUri ?: user?.profilePicture
-                    if (preview != null) AsyncImage(preview, "Profile photo preview", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    if (preview != null) AsyncImage(
+                        preview,
+                        "Profile photo preview",
+                        Modifier.fillMaxSize()
+                            .pointerInput(selectedPhotoUri, cropFrameSizePx) {
+                                if (selectedPhotoUri != null) {
+                                    detectTransformGestures { _, pan, zoomChange, _ ->
+                                        val newZoom = (selectedPhotoZoom * zoomChange).coerceIn(1f, 4f)
+                                        val maxPan = cropFrameSizePx * (newZoom - 1f) / 2f
+                                        selectedPhotoZoom = newZoom
+                                        selectedPhotoOffset = if (maxPan <= 0f) Offset.Zero else Offset(
+                                            (selectedPhotoOffset.x + pan.x).coerceIn(-maxPan, maxPan),
+                                            (selectedPhotoOffset.y + pan.y).coerceIn(-maxPan, maxPan),
+                                        )
+                                    }
+                                }
+                            }
+                            .graphicsLayer(
+                            scaleX = selectedPhotoZoom,
+                            scaleY = selectedPhotoZoom,
+                            translationX = selectedPhotoOffset.x,
+                            translationY = selectedPhotoOffset.y,
+                        ),
+                        contentScale = ContentScale.Crop,
+                    )
                     else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(52.dp)) }
+                  }
+                }
+                if (selectedPhotoUri != null) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Drag to reposition • Pinch to zoom", color = ProfileMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                        TextButton(onClick = {
+                            selectedPhotoZoom = 1f
+                            selectedPhotoOffset = Offset.Zero
+                        }) { Text("Reset", color = ProfileTeal, fontWeight = FontWeight.Bold) }
+                    }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(
@@ -208,7 +278,19 @@ fun ProfileScreen(
                     ) { Icon(Lucide.ImagePlus, null); Spacer(Modifier.width(6.dp)); Text("Gallery") }
                 }
                 Button(
-                    onClick = { selectedPhotoUri?.let { viewModel.updateProfilePhoto(uriToMultipart(context, it)) } },
+                    onClick = {
+                        selectedPhotoUri?.let {
+                            viewModel.updateProfilePhoto(
+                                createProfileImagePart(
+                                    context = context,
+                                    uri = it,
+                                    zoom = selectedPhotoZoom,
+                                    panFractionX = selectedPhotoOffset.x / cropFrameSizePx,
+                                    panFractionY = selectedPhotoOffset.y / cropFrameSizePx,
+                                ),
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     enabled = selectedPhotoUri != null && updateState !is Resource.Loading,
                     shape = RoundedCornerShape(16.dp),
@@ -234,11 +316,17 @@ fun ProfileScreen(
     if (showAccountSwitcher) {
         ModalBottomSheet(
             onDismissRequest = { showAccountSwitcher = false },
+            sheetState = accountSheetState,
             containerColor = Color.White,
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         ) {
             Column(
-                Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 36.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text("Switch account", color = ProfileNavy, fontSize = 21.sp, fontWeight = FontWeight.Bold)
@@ -252,8 +340,26 @@ fun ProfileScreen(
                             if (account.password.isNullOrBlank()) {
                                 SessionManager.requestAccountLogin(patient.patientID)
                                 onAddAccount()
-                            } else if (SessionManager.switchAccount(patient.patientID)) {
-                                onSwitchAccount()
+                            } else {
+                                val activity = context.findFragmentActivity()
+                                val accountName = listOfNotNull(patient.firstName, patient.lastName).joinToString(" ").ifBlank { "this account" }
+                                if (activity == null) {
+                                    SessionManager.requestAccountLogin(patient.patientID)
+                                    onAddAccount()
+                                } else {
+                                    BiometricGate.authenticate(
+                                        activity = activity,
+                                        accountName = accountName,
+                                        onSuccess = {
+                                            if (SessionManager.switchAccount(patient.patientID)) onSwitchAccount()
+                                        },
+                                        onUnavailable = {
+                                            SessionManager.requestAccountLogin(patient.patientID)
+                                            onAddAccount()
+                                        },
+                                        onError = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
+                                    )
+                                }
                             }
                         },
                         shape = RoundedCornerShape(16.dp),
@@ -317,7 +423,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { ClinexusSnackbarHost(snackbarHostState) },
         containerColor = ProfileBackground,
     ) { padding ->
         LazyColumn(
@@ -349,6 +455,7 @@ fun ProfileScreen(
                     title = "Security and Session",
                     entries = listOf(
                         ProfileMenuEntry("Change Password", "Update your account password", Lucide.LockKeyhole, onClick = onNavigateToChangePassword),
+                        ProfileMenuEntry("Sessions & Saved Accounts", "Manage sign-ins on this phone", Lucide.ShieldCheck, onClick = onNavigateToSessions),
                         ProfileMenuEntry("Switch Account", "Choose or add another account", Lucide.ArrowLeftRight) { showAccountSwitcher = true },
                         ProfileMenuEntry("Log Out", "Sign out from this account", Lucide.LogOut, destructive = true) { confirmLogout = true },
                     ),

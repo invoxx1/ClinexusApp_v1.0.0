@@ -112,7 +112,13 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     isBottomBarVisible = it
                 }
             }
-            composable(route = Screen.AppointmentHistory.route) {
+            composable(
+                route = Screen.AppointmentHistory.pattern,
+                arguments = listOf(androidx.navigation.navArgument("appointmentId") {
+                    type = androidx.navigation.NavType.IntType
+                    defaultValue = -1
+                }),
+            ) { entry ->
                 val historyViewModel: HistoryViewModel = hiltViewModel()
                 AppointmentHistoryScreen(
                     onBack = { navController.popBackStack() },
@@ -120,6 +126,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                         rootNavController.navigate(Screen.AppointmentBooking.route)
                     },
                     viewModel = historyViewModel,
+                    initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
                 )
             }
             composable(route = Screen.Profile.route) {
@@ -154,6 +161,9 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     // ✅ NEW: Navigate to ChangePassword screen using the root controller
                     onNavigateToChangePassword = {
                         rootNavController.navigate(Screen.ChangePassword.route)
+                    },
+                    onNavigateToSessions = {
+                        rootNavController.navigate(Screen.Sessions.route)
                     },
                     viewModel = profileViewModel,
                 )

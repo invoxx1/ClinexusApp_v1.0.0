@@ -9,9 +9,6 @@ import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,8 +25,6 @@ class ProfileViewModel @Inject constructor(
     val updateState = _updateState.asStateFlow()
 
     // Address dropdown data
-    private val _regions = MutableStateFlow<List<Region>>(emptyList())
-
     private val _provinces = MutableStateFlow<List<Province>>(emptyList())
     val provinces = _provinces.asStateFlow()
 
@@ -39,66 +34,94 @@ class ProfileViewModel @Inject constructor(
     private val _barangays = MutableStateFlow<List<Barangay>>(emptyList())
     val barangays = _barangays.asStateFlow()
 
-    init {
-        loadRegions()
-    }
+    private val _addressLoading = MutableStateFlow<String?>(null)
+    val addressLoading = _addressLoading.asStateFlow()
+    private val _addressError = MutableStateFlow<String?>(null)
+    val addressError = _addressError.asStateFlow()
+    private var lastProvinceCode: String? = null
+    private var lastCityCode: String? = null
 
     // ---------- Address Helpers ----------
-    private fun loadRegions() {
-        viewModelScope.launch {
-            (addressRepository.getRegions() as? Resource.Success)?.let {
-                _regions.value = it.data
-            }
-        }
-    }
-
     fun onProvinceSelected(provinceCode: String) {
+        lastProvinceCode = provinceCode
         viewModelScope.launch {
             _cities.value = emptyList()
             _barangays.value = emptyList()
-            (addressRepository.getCities(provinceCode) as? Resource.Success)?.let {
-                _cities.value = it.data
+            _addressLoading.value = "City"
+            _addressError.value = null
+            when (val result = addressRepository.getCities(provinceCode)) {
+                is Resource.Success -> _cities.value = result.data
+                is Resource.Error -> _addressError.value = result.message ?: "Unable to load cities"
+                else -> Unit
             }
+            _addressLoading.value = null
         }
     }
 
     fun onCitySelected(cityCode: String) {
+        lastCityCode = cityCode
         viewModelScope.launch {
             _barangays.value = emptyList()
-            (addressRepository.getBarangays(cityCode) as? Resource.Success)?.let {
-                _barangays.value = it.data
+            _addressLoading.value = "Barangay"
+            _addressError.value = null
+            when (val result = addressRepository.getBarangays(cityCode)) {
+                is Resource.Success -> _barangays.value = result.data
+                is Resource.Error -> _addressError.value = result.message ?: "Unable to load barangays"
+                else -> Unit
             }
+            _addressLoading.value = null
+        }
+    }
+
+    fun retryAddressOptions(level: String) {
+        when (level) {
+            "Province" -> loadAddressOptionsForProfile(
+                SessionManager.currentUser.value?.province.orEmpty(),
+                SessionManager.currentUser.value?.city.orEmpty(),
+            )
+            "City" -> lastProvinceCode?.let(::onProvinceSelected)
+            "Barangay" -> lastCityCode?.let(::onCitySelected)
         }
     }
 
     fun loadAddressOptionsForProfile(selectedProvince: String, selectedCity: String) {
         viewModelScope.launch {
-            val regionResult = addressRepository.getRegions()
-            val regionList = (regionResult as? Resource.Success)?.data ?: _regions.value
-            if (regionList.isEmpty()) return@launch
-            _regions.value = regionList
-
-            val allProvinces = coroutineScope {
-                regionList.map { region ->
-                    async {
-                        (addressRepository.getProvinces(region.code) as? Resource.Success)?.data.orEmpty()
-                    }
-                }.awaitAll().flatten()
-            }.distinctBy { it.code }
+            _addressLoading.value = "Province"
+            _addressError.value = null
+            val result = addressRepository.getAllProvinces()
+            val allProvinces = (result as? Resource.Success)?.data ?: run {
+                _addressError.value = (result as? Resource.Error)?.message ?: "Unable to load provinces"
+                _addressLoading.value = null
+                return@launch
+            }
             _provinces.value = allProvinces
+            _addressLoading.value = null
 
             val province = allProvinces.firstOrNull {
                 it.displayName.equals(selectedProvince.trim(), ignoreCase = true)
             } ?: return@launch
-            val cityList = (addressRepository.getCities(province.code) as? Resource.Success)?.data ?: return@launch
+            lastProvinceCode = province.code
+            _addressLoading.value = "City"
+            val cityResult = addressRepository.getCities(province.code)
+            val cityList = (cityResult as? Resource.Success)?.data ?: run {
+                _addressError.value = (cityResult as? Resource.Error)?.message ?: "Unable to load cities"
+                _addressLoading.value = null
+                return@launch
+            }
             _cities.value = cityList
+            _addressLoading.value = null
 
             val city = cityList.firstOrNull {
                 it.displayName.equals(selectedCity.trim(), ignoreCase = true)
             } ?: return@launch
-            (addressRepository.getBarangays(city.code) as? Resource.Success)?.data?.let {
-                _barangays.value = it
+            lastCityCode = city.code
+            _addressLoading.value = "Barangay"
+            when (val barangayResult = addressRepository.getBarangays(city.code)) {
+                is Resource.Success -> _barangays.value = barangayResult.data
+                is Resource.Error -> _addressError.value = barangayResult.message ?: "Unable to load barangays"
+                else -> Unit
             }
+            _addressLoading.value = null
         }
     }
 

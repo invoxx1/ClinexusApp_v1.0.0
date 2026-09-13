@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.icons.lucide)
     implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.biometric)
     implementation(libs.coil.compose)
 
 
