@@ -16,7 +16,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -26,7 +28,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -48,6 +54,7 @@ import java.io.FileOutputStream
 
 private fun normalizeDateOfBirth(value: String?): String = value.orEmpty().substringBefore('T')
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
     val user by SessionManager.currentUser.collectAsState()
@@ -55,10 +62,20 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
 
     val context = LocalContext.current
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showPhotoEditor by remember { mutableStateOf(false) }
+    var photoZoom by remember { mutableFloatStateOf(1f) }
+    var photoOffset by remember { mutableStateOf(Offset.Zero) }
+    var cropFrameSizePx by remember { mutableFloatStateOf(1f) }
+    val photoEditorSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
-        profileImageUri = uri
+        uri?.let {
+            profileImageUri = it
+            photoZoom = 1f
+            photoOffset = Offset.Zero
+            showPhotoEditor = true
+        }
     }
 
     var firstName by remember { mutableStateOf(user?.firstName ?: "") }
@@ -92,7 +109,15 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
     BackHandler(onBack = handleBack)
 
     val saveProfile = {
-        val imagePart = profileImageUri?.let { uri -> uriToMultipart(context, uri) }
+        val imagePart = profileImageUri?.let { uri ->
+            createProfileImagePart(
+                context = context,
+                uri = uri,
+                zoom = photoZoom,
+                panFractionX = photoOffset.x / cropFrameSizePx,
+                panFractionY = photoOffset.y / cropFrameSizePx,
+            )
+        }
         viewModel.updateFullProfile(
             UpdateProfileRequest(
                 email = user?.email ?: "",
@@ -133,6 +158,68 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
                 ) { Text("Discard") }
             },
         )
+    }
+
+    if (showPhotoEditor && profileImageUri != null) {
+        ModalBottomSheet(
+            onDismissRequest = { showPhotoEditor = false },
+            sheetState = photoEditorSheetState,
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        ) {
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text("Edit profile photo", style = MaterialTheme.typography.headlineSmall)
+                Text("Drag to reposition and pinch to zoom.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(
+                    modifier = Modifier.size(236.dp).background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(22.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Surface(
+                        modifier = Modifier.size(204.dp).onSizeChanged { cropFrameSizePx = it.width.toFloat() },
+                        shape = CircleShape,
+                        border = BorderStroke(3.dp, Color.White),
+                    ) {
+                        AsyncImage(
+                            model = profileImageUri,
+                            contentDescription = "Profile photo crop preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                                .pointerInput(profileImageUri, cropFrameSizePx) {
+                                    detectTransformGestures { _, pan, zoomChange, _ ->
+                                        val newZoom = (photoZoom * zoomChange).coerceIn(1f, 4f)
+                                        val maxPan = cropFrameSizePx * (newZoom - 1f) / 2f
+                                        photoZoom = newZoom
+                                        photoOffset = if (maxPan <= 0f) Offset.Zero else Offset(
+                                            (photoOffset.x + pan.x).coerceIn(-maxPan, maxPan),
+                                            (photoOffset.y + pan.y).coerceIn(-maxPan, maxPan),
+                                        )
+                                    }
+                                }
+                                .graphicsLayer(
+                                    scaleX = photoZoom,
+                                    scaleY = photoZoom,
+                                    translationX = photoOffset.x,
+                                    translationY = photoOffset.y,
+                                ),
+                        )
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(
+                        onClick = { photoZoom = 1f; photoOffset = Offset.Zero },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                    ) { Text("Reset") }
+                    Button(
+                        onClick = { showPhotoEditor = false },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                    ) { Text("Apply photo") }
+                }
+            }
+        }
     }
 
     // Form validity – all fields including email must be filled

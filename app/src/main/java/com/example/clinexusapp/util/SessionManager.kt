@@ -241,8 +241,9 @@ object SessionManager {
                 account.copy(password = pending.password)
             } else account
         }
-        sharedPreferences?.edit {
+        sharedPreferences?.edit(commit = true) {
             putString(KEY_SAVED_ACCOUNTS, Gson().toJson(_savedAccounts.value))
+            putBoolean(KEY_PASSWORD_CONSENT_MIGRATED, true)
         }
         _pendingPasswordSave.value = null
     }

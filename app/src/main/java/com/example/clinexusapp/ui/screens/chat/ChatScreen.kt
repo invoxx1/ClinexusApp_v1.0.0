@@ -4,6 +4,7 @@ import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ArrowDown
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.ImagePlus
 import com.composables.icons.lucide.Paperclip
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Search
@@ -11,11 +12,15 @@ import com.composables.icons.lucide.Send
 import com.composables.icons.lucide.X
 
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -71,6 +76,7 @@ fun ChatScreen(
     var messageText by remember { mutableStateOf("") }
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var showAttachmentOptions by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val contactsState by viewModel.contactsState.collectAsState()
@@ -96,10 +102,9 @@ fun ChatScreen(
             cursor?.use { c ->
                 val nameIndex = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                 val sizeIndex = c.getColumnIndex(android.provider.OpenableColumns.SIZE)
-                c.moveToFirst()
-                
-                val name = c.getString(nameIndex)
-                val size = c.getLong(sizeIndex)
+                val hasRow = c.moveToFirst()
+                val name = if (hasRow && nameIndex >= 0) c.getString(nameIndex) else null
+                val size = if (hasRow && sizeIndex >= 0 && !c.isNull(sizeIndex)) c.getLong(sizeIndex) else 0L
                 
                 // 10MB limit (10 * 1024 * 1024 bytes)
                 if (size > (10 * 1024 * 1024)) {
@@ -115,17 +120,98 @@ fun ChatScreen(
         }
     }
 
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedFileUri = it
+            selectedFileName = context.contentResolver.query(it, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex) else null
+            } ?: it.path?.substringAfterLast('/') ?: "image"
+        }
+    }
+
+    val galleryPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        if (results.values.any { it }) imagePickerLauncher.launch("image/*")
+        else Toast.makeText(context, "Allow photo access to choose an image.", Toast.LENGTH_LONG).show()
+    }
+
+    fun openGallery() {
+        val permissions = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> arrayOf(
+                Manifest.permission.READ_MEDIA_IMAGES,
+                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+            )
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+            else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        if (permissions.any { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }) {
+            imagePickerLauncher.launch("image/*")
+        } else {
+            galleryPermissionLauncher.launch(permissions)
+        }
+    }
+
+    if (showAttachmentOptions) {
+        ModalBottomSheet(
+            onDismissRequest = { showAttachmentOptions = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        ) {
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Add attachment", color = RoyalNavy, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                Text("Choose a photo from your gallery or attach a file.", color = SlateGray, fontSize = 14.sp)
+                Spacer(Modifier.height(4.dp))
+                Surface(
+                    onClick = { showAttachmentOptions = false; openGallery() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = SoftMist,
+                ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Lucide.ImagePlus, null, tint = VibrantTeal)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Choose image", color = RoyalNavy, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                Surface(
+                    onClick = { showAttachmentOptions = false; filePickerLauncher.launch("*/*") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = SoftMist,
+                ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Lucide.Paperclip, null, tint = VibrantTeal)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Attach file", color = RoyalNavy, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+
     val messagesData = (conversationMessagesState as? Resource.Success)?.data
     val dynamicPartner = messagesData?.otherParticipant
     
-    val chatPartnerName = dynamicPartner?.name 
-        ?: selectedConversation?.name 
-        ?: selectedContact?.name 
-        ?: "Clinic Chat"
-        
-    val chatPartnerProfilePicture = dynamicPartner?.profilePicture 
-        ?: selectedConversation?.profilePicture 
-        ?: selectedContact?.profilePicture
+    val chatPartnerName = if (selectedConversation != null) {
+        dynamicPartner?.name ?: selectedConversation?.name
+    } else {
+        selectedContact?.name
+    } ?: "Clinic Chat"
+
+    val chatPartnerProfilePicture = if (selectedConversation != null) {
+        dynamicPartner?.profilePicture ?: selectedConversation?.profilePicture
+    } else {
+        selectedContact?.profilePicture
+    }
 
     LaunchedEffect(sendMessageState) {
         if (sendMessageState is Resource.Success) {
@@ -458,7 +544,7 @@ fun ChatScreen(
                                     .padding(start = 16.dp, end = 16.dp, bottom = 12.dp, top = 8.dp)
                             ) {
                                 IconButton(
-                                    onClick = { filePickerLauncher.launch("*/*") },
+                                    onClick = { showAttachmentOptions = true },
                                     modifier = Modifier
                                         .size(36.dp)
                                         .background(SoftMist, CircleShape)

@@ -43,8 +43,82 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER") settingsViewModel: SettingsViewModel) {
     val navController = rememberNavController()
     var isBottomBarVisible by remember { mutableStateOf(value = true) }
-    val pendingPasswordSave by SessionManager.pendingPasswordSave.collectAsState()
 
+    Scaffold(
+        bottomBar = {
+            if (isBottomBarVisible) TealBottomBar(navController = navController)
+        },
+        containerColor = Color(0xFFE8EEF8),
+    ) { innerPadding ->
+        val contentBottomPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding())
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Dashboard.route,
+            modifier = Modifier.padding(contentBottomPadding).consumeWindowInsets(contentBottomPadding),
+        ) {
+            composable(route = Screen.Dashboard.route) {
+                val dashboardViewModel: DashboardViewModel = hiltViewModel()
+                DashboardScreen(
+                    viewModel = dashboardViewModel,
+                    rootNavController = rootNavController,
+                    onNotificationClick = { rootNavController.navigate(Screen.Notifications.route) },
+                )
+            }
+            composable(route = Screen.Chat.route) {
+                val chatViewModel: ChatViewModel = hiltViewModel()
+                ChatScreen(
+                    onBack = { navController.popBackStack() },
+                    viewModel = chatViewModel,
+                ) { isBottomBarVisible = it }
+            }
+            composable(
+                route = Screen.AppointmentHistory.pattern,
+                arguments = listOf(androidx.navigation.navArgument("appointmentId") {
+                    type = androidx.navigation.NavType.IntType
+                    defaultValue = -1
+                }),
+            ) { entry ->
+                val historyViewModel: HistoryViewModel = hiltViewModel()
+                AppointmentHistoryScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToBooking = { rootNavController.navigate(Screen.AppointmentBooking.route) },
+                    viewModel = historyViewModel,
+                    initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
+                )
+            }
+            composable(route = Screen.Profile.route) {
+                val profileViewModel: ProfileViewModel = hiltViewModel()
+                ProfileScreen(
+                    onSwitchAccount = {
+                        rootNavController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
+                        }
+                    },
+                    onAddAccount = {
+                        rootNavController.navigate(Screen.Login.route) { launchSingleTop = true }
+                    },
+                    onLogout = {
+                        SessionManager.logout()
+                        rootNavController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
+                        }
+                    },
+                    onBack = { navController.popBackStack() },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToPersonalInformation = { rootNavController.navigate(Screen.PersonalInformation.route) },
+                    onNavigateToHistory = { rootNavController.navigate(Screen.AppointmentHistory.route) },
+                    onNavigateToChangePassword = { rootNavController.navigate(Screen.ChangePassword.route) },
+                    onNavigateToSessions = { rootNavController.navigate(Screen.Sessions.route) },
+                    viewModel = profileViewModel,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun RememberPasswordDialog() {
+    val pendingPasswordSave by SessionManager.pendingPasswordSave.collectAsState()
     if (pendingPasswordSave != null) {
         AlertDialog(
             onDismissRequest = { SessionManager.dismissPasswordSave() },
@@ -73,102 +147,6 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 }
             },
         )
-    }
-
-    Scaffold(
-        bottomBar = { 
-            if (isBottomBarVisible) {
-                TealBottomBar(navController = navController)
-            }
-        },
-        containerColor = Color(0xFFE8EEF8),
-    ) { innerPadding ->
-        val contentBottomPadding = PaddingValues(
-            bottom = innerPadding.calculateBottomPadding()
-        )
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Dashboard.route,
-            modifier = Modifier
-                .padding(contentBottomPadding)
-                .consumeWindowInsets(contentBottomPadding),
-        ) {
-            composable(route = Screen.Dashboard.route) {
-                val dashboardViewModel: DashboardViewModel = hiltViewModel()
-                DashboardScreen(
-                    viewModel = dashboardViewModel,
-                    rootNavController = rootNavController,
-                    onNotificationClick = {
-                        rootNavController.navigate(Screen.Notifications.route)
-                    },
-                )
-            }
-            composable(route = Screen.Chat.route) {
-                val chatViewModel: ChatViewModel = hiltViewModel()
-                ChatScreen(
-                    onBack = { navController.popBackStack() }, 
-                    viewModel = chatViewModel,
-                ) {
-                    isBottomBarVisible = it
-                }
-            }
-            composable(
-                route = Screen.AppointmentHistory.pattern,
-                arguments = listOf(androidx.navigation.navArgument("appointmentId") {
-                    type = androidx.navigation.NavType.IntType
-                    defaultValue = -1
-                }),
-            ) { entry ->
-                val historyViewModel: HistoryViewModel = hiltViewModel()
-                AppointmentHistoryScreen(
-                    onBack = { navController.popBackStack() },
-                    onNavigateToBooking = {
-                        rootNavController.navigate(Screen.AppointmentBooking.route)
-                    },
-                    viewModel = historyViewModel,
-                    initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
-                )
-            }
-            composable(route = Screen.Profile.route) {
-                val profileViewModel: ProfileViewModel = hiltViewModel()
-                ProfileScreen(
-                    onSwitchAccount = {
-                        rootNavController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { inclusive = true }
-                        }
-                    },
-                    onAddAccount = {
-                        rootNavController.navigate(Screen.Login.route) {
-                            launchSingleTop = true
-                        }
-                    },
-                    onLogout = {
-                        SessionManager.logout()
-                        rootNavController.navigate(Screen.Login.route) {
-                            popUpTo(Screen.Home.route) { inclusive = true }
-                        }
-                    },
-                    onBack = { navController.popBackStack() },
-                    onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route)
-                    },
-                    onNavigateToPersonalInformation = {
-                        rootNavController.navigate(Screen.PersonalInformation.route)
-                    },
-                    onNavigateToHistory = {
-                        rootNavController.navigate(Screen.AppointmentHistory.route)
-                    },
-                    // ✅ NEW: Navigate to ChangePassword screen using the root controller
-                    onNavigateToChangePassword = {
-                        rootNavController.navigate(Screen.ChangePassword.route)
-                    },
-                    onNavigateToSessions = {
-                        rootNavController.navigate(Screen.Sessions.route)
-                    },
-                    viewModel = profileViewModel,
-                )
-            }
-        }
     }
 }
 

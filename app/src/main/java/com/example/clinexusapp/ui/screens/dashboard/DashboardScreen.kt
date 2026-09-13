@@ -49,6 +49,7 @@ import com.example.clinexusapp.model.ClinicNewsDTO
 import com.example.clinexusapp.model.HealthInsightDTO
 import com.example.clinexusapp.model.PromotionDTO
 import com.example.clinexusapp.ui.navigation.Screen
+import com.example.clinexusapp.ui.screens.appointments.AppointmentDetailsDialog
 import com.example.clinexusapp.ui.components.shimmer
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
@@ -111,9 +112,6 @@ fun DashboardScreen(
         hasUnreadNotifications = unreadCount > 0,
         onNotificationClick = onNotificationClick,
         onAppointmentsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
-        onAppointmentDetailsClick = { appointmentId ->
-            rootNavController.navigate(Screen.AppointmentHistory.createRoute(appointmentId))
-        },
         onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
         onRetry = viewModel::fetchDashboardData,
     )
@@ -129,15 +127,22 @@ internal fun DashboardContent(
     hasUnreadNotifications: Boolean,
     onNotificationClick: () -> Unit,
     onAppointmentsClick: () -> Unit,
-    onAppointmentDetailsClick: (Int) -> Unit,
     onBookClick: () -> Unit,
     onRetry: () -> Unit,
 ) {
     val listState = rememberLazyListState()
     val headerVisible by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
     var selectedInsight by remember { mutableStateOf<HealthInsightDTO?>(null) }
+    var selectedAppointment by remember { mutableStateOf<AppointmentDTO?>(null) }
     var showPromotions by remember { mutableStateOf(false) }
     val promotions = (promotionsState as? Resource.Success)?.data.orEmpty()
+
+    selectedAppointment?.let { appointment ->
+        AppointmentDetailsDialog(
+            appointment = appointment,
+            onDismiss = { selectedAppointment = null },
+        )
+    }
 
     DashboardSystemBars(headerVisible)
 
@@ -211,7 +216,7 @@ internal fun DashboardContent(
                         is Resource.Error -> DashboardErrorCard(state.message ?: "Unable to load appointments", onRetry)
                         is Resource.Success -> state.data?.let { appointment ->
                             UpcomingAppointmentCard(appointment) {
-                                onAppointmentDetailsClick(appointment.appointmentId)
+                                selectedAppointment = appointment
                             }
                         } ?: EmptyAppointmentCard(onBookClick)
                     }

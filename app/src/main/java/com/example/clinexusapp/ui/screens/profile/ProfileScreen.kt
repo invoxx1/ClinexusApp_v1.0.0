@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
@@ -71,6 +72,7 @@ import com.example.clinexusapp.util.createProfileImagePart
 import com.example.clinexusapp.util.BiometricGate
 import com.example.clinexusapp.util.findFragmentActivity
 import java.io.File
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val ProfileBackground = Color(0xFFE8EEF8)
@@ -116,6 +118,7 @@ fun ProfileScreen(
     var cameraPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var confirmRemovePhoto by remember { mutableStateOf(false) }
     var showAccountSwitcher by remember { mutableStateOf(false) }
+    var switchingAccount by remember { mutableStateOf<SessionManager.SavedAccount?>(null) }
     var confirmLogout by remember { mutableStateOf(false) }
     val photoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val accountSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -141,8 +144,62 @@ fun ProfileScreen(
         cameraLauncher.launch(cameraPhotoUri!!)
     }
 
+    fun switchWithAnimation(account: SessionManager.SavedAccount) {
+        if (switchingAccount != null) return
+        showAccountSwitcher = false
+        switchingAccount = account
+        scope.launch {
+            delay(700)
+            if (SessionManager.switchAccount(account.patient.patientID)) onSwitchAccount()
+            switchingAccount = null
+        }
+    }
+
     LaunchedEffect(user) {
         if (user != null && user?.firstName.isNullOrBlank()) viewModel.fetchProfile()
+    }
+
+    switchingAccount?.let { account ->
+        val patient = account.patient
+        val accountName = listOfNotNull(patient.firstName, patient.lastName)
+            .joinToString(" ")
+            .ifBlank { "Patient" }
+        val accountPhoto = account.cachedProfilePicture ?: patient.profilePicture
+        Dialog(onDismissRequest = {}) {
+            Surface(shape = RoundedCornerShape(26.dp), color = Color.White, shadowElevation = 16.dp) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 42.dp, vertical = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(Modifier.size(104.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.fillMaxSize(),
+                            color = ProfileTeal,
+                            trackColor = ProfileMint,
+                            strokeWidth = 4.dp,
+                        )
+                        Surface(shape = CircleShape, modifier = Modifier.size(84.dp), color = ProfileMint) {
+                            if (accountPhoto.isNullOrBlank()) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(42.dp))
+                                }
+                            } else {
+                                AsyncImage(
+                                    model = accountPhoto,
+                                    contentDescription = "$accountName profile photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Text(accountName, color = ProfileNavy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Switching account…", color = ProfileMuted, fontSize = 14.sp)
+                }
+            }
+        }
     }
     ProfileSystemBars()
 
@@ -344,18 +401,16 @@ fun ProfileScreen(
                                 val activity = context.findFragmentActivity()
                                 val accountName = listOfNotNull(patient.firstName, patient.lastName).joinToString(" ").ifBlank { "this account" }
                                 if (activity == null) {
-                                    SessionManager.requestAccountLogin(patient.patientID)
-                                    onAddAccount()
+                                    switchWithAnimation(account)
                                 } else {
                                     BiometricGate.authenticate(
                                         activity = activity,
                                         accountName = accountName,
                                         onSuccess = {
-                                            if (SessionManager.switchAccount(patient.patientID)) onSwitchAccount()
+                                            switchWithAnimation(account)
                                         },
                                         onUnavailable = {
-                                            SessionManager.requestAccountLogin(patient.patientID)
-                                            onAddAccount()
+                                            switchWithAnimation(account)
                                         },
                                         onError = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
                                     )

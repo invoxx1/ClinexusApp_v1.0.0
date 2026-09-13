@@ -584,12 +584,48 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
     var date by remember { mutableStateOf("") }
     var selectedSlot by remember { mutableStateOf<AvailableSlotDTO?>(null) }
     var note by remember { mutableStateOf("") }
+    var showCalendar by remember { mutableStateOf(false) }
     val dates = remember { (1..14).map { Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, it) } } }
     val dateValues = remember(dates) { dates.map { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(it.time) } }
     LaunchedEffect(appointment.appointmentId) {
         date = ""
         selectedSlot = null
         viewModel.loadRescheduleDates(appointment, dateValues)
+    }
+    if (showCalendar) {
+        val initialMillis = remember(date) {
+            runCatching {
+                java.time.LocalDate.parse(date.ifBlank { java.time.LocalDate.now().plusDays(1).toString() })
+                    .atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+            }.getOrNull()
+        }
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialMillis,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val selectedDate = java.time.Instant.ofEpochMilli(utcTimeMillis)
+                        .atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                    return selectedDate.isAfter(java.time.LocalDate.now()) &&
+                        !selectedDate.isAfter(java.time.LocalDate.now().plusMonths(3))
+                }
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { showCalendar = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { millis ->
+                        val selectedDate = java.time.Instant.ofEpochMilli(millis)
+                            .atZone(java.time.ZoneOffset.UTC).toLocalDate().toString()
+                        date = selectedDate
+                        selectedSlot = null
+                        viewModel.loadCalendarRescheduleDate(appointment, selectedDate)
+                    }
+                    showCalendar = false
+                }) { Text("Select") }
+            },
+            dismissButton = { TextButton(onClick = { showCalendar = false }) { Text("Cancel") } },
+        ) { DatePicker(state = pickerState) }
     }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -608,7 +644,14 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                 lineHeight = 22.sp
             )
             AppointmentMiniSummary(appointment)
-            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Lucide.CalendarDays, "Preferred date", tint = DeepTeal, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(8.dp)); Text("Preferred Date", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Lucide.CalendarDays, "Preferred date", tint = DeepTeal, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Preferred Date", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                TextButton(onClick = { showCalendar = true }, enabled = !state.rescheduleSubmitting) {
+                    Text("View Calendar", color = DeepTeal, fontWeight = FontWeight.Bold)
+                }
+            }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(dates) { calendar ->
                     val value = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time)
@@ -692,7 +735,7 @@ private fun SheetDragHandle() {
 }
 
 @Composable
-private fun AppointmentDetailsDialog(appointment: AppointmentDTO, onDismiss: () -> Unit) {
+internal fun AppointmentDetailsDialog(appointment: AppointmentDTO, onDismiss: () -> Unit) {
     val style = statusStyle(mapAppointmentStatus(appointment.appointmentStatus), appointment.needsPatientScheduleChoice)
     AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }, title = { Text("Appointment details", color = RoyalNavy, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { AppointmentAvatar(appointment, size = 56.dp); Spacer(Modifier.width(12.dp)); Column { Text(appointment.doctor, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold); Text(appointment.dentistSpecialty ?: "Dental care", color = SlateGray, fontSize = 14.sp) } }; StatusBadge(style); DetailLine(dentalServiceIcon(appointment.serviceName ?: appointment.treatment), "Service", appointment.serviceName ?: appointment.treatment); appointment.price?.let { DetailLine(Lucide.Tag, "Price", "₱${String.format(Locale.US, "%,.0f", it)}") }; DetailLine(Lucide.CalendarDays, "Date", DateUtils.formatDisplayDate(appointment.appointmentDate)); DetailLine(Lucide.Clock, "Time", "${DateUtils.formatDisplayTime(appointment.startTime)} – ${DateUtils.formatDisplayTime(appointment.endTime)}"); DetailLine(Lucide.MapPin, "Clinic", appointment.clinicName ?: "Clinexus Dental Clinic"); Text("Booking reference: #${appointment.appointmentId}", color = SlateGray, fontSize = 13.sp); appointment.submittedAt?.let { Text("Submitted: ${DateUtils.formatDisplayDate(it)}", color = SlateGray, fontSize = 13.sp) }; appointment.cancelledBy?.let { Text("Cancelled by: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.cancellationReason?.let { Text("Cancellation reason: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.rescheduleNote?.let { Text("Reschedule note: $it", color = Color(0xFF7C3AED), fontSize = 13.sp) } } })
 }

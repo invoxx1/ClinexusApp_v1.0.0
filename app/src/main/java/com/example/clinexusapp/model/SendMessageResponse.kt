@@ -6,4 +6,5 @@ data class SendMessageResponse(
     val success: Boolean,
     val message: String,
     @SerializedName("message_id") val messageId: Int? = null,
+    @SerializedName("conversation_id") val conversationId: Int? = null,
 )

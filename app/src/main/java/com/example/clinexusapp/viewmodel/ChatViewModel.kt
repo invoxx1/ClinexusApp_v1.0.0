@@ -52,8 +52,10 @@ class ChatViewModel @Inject constructor(
     }
 
     fun selectContact(contact: ContactDTO?) {
+        stopPollingMessages()
         _selectedContact.value = contact
         _selectedConversation.value = null
+        _conversationMessagesState.value = Resource.Idle
     }
 
     fun fetchConversations() {
@@ -110,13 +112,44 @@ class ChatViewModel @Inject constructor(
             )
             _sendMessageState.value = result
             
-            if (result is Resource.Success<*>) {
-                // Refresh messages
-                _selectedConversation.value?.conversationId?.let {
-                    fetchConversationMessages(it)
+            if (result is Resource.Success) {
+                val existingConversation = _selectedConversation.value
+                if (existingConversation != null) {
+                    fetchConversationMessages(existingConversation.conversationId)
+                } else {
+                    val contact = _selectedContact.value
+                    val conversationsResult = repository.getConversations()
+                    _conversationsState.value = conversationsResult
+
+                    val createdConversation = (conversationsResult as? Resource.Success)?.data
+                        ?.firstOrNull { conversation ->
+                            conversation.conversationId == result.data.conversationId ||
+                                (contact != null &&
+                                    conversation.accountId == contact.accountId &&
+                                    conversation.accountType.equals(contact.accountType, ignoreCase = true))
+                        }
+                        ?: if (contact != null && result.data.conversationId != null) {
+                            ConversationDTO(
+                                conversationId = result.data.conversationId,
+                                accountId = contact.accountId,
+                                accountType = contact.accountType,
+                                name = contact.name,
+                                role = contact.role,
+                                lastMessage = messageContent,
+                                lastMessageTime = null,
+                                lastMessageId = result.data.messageId,
+                                profilePicture = contact.profilePicture,
+                            )
+                        } else null
+
+                    if (createdConversation != null) {
+                        _selectedConversation.value = createdConversation
+                        _selectedContact.value = null
+                        fetchConversationMessages(createdConversation.conversationId)
+                        startPollingMessages(createdConversation.conversationId)
+                    }
                 }
-                // Refresh conversations list to update last message
-                fetchConversations()
+                if (existingConversation != null) fetchConversations()
             }
         }
     }
