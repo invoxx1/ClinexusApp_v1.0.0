@@ -47,6 +47,7 @@ import com.example.clinexusapp.ui.screens.appointments.AppointmentTicketScreen
 import com.example.clinexusapp.ui.screens.auth.*
 import com.example.clinexusapp.ui.screens.chat.ChatScreen
 import com.example.clinexusapp.ui.screens.main.MainScreen
+import com.example.clinexusapp.ui.screens.main.RememberPasswordDialog
 import com.example.clinexusapp.ui.screens.notifications.NotificationScreen
 import com.example.clinexusapp.ui.screens.auth.ChangePasswordScreen
 import com.example.clinexusapp.ui.screens.profile.PersonalInformationScreen
@@ -91,6 +92,8 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
     if (sessionExpired) {
         SessionExpiredDialog(onContinue = SessionManager::acknowledgeSessionExpiry)
     }
+
+    RememberPasswordDialog()
 
     NavHost(
         navController = navController,

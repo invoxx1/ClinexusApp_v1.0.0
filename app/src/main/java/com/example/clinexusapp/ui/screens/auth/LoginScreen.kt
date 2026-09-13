@@ -235,7 +235,7 @@ fun LoginScreen(
                     email = submittedEmail,
                     password = password,
                     rememberAccount = true,
-                    offerToSavePassword = matchingAccount?.password.isNullOrBlank(),
+                    offerToSavePassword = matchingAccount?.password != password,
                 )
             }
         }
@@ -311,7 +311,9 @@ fun LoginScreen(
                                     val name = listOfNotNull(patient.firstName, patient.lastName).joinToString(" ").ifBlank { "your account" }
                                     val activity = context.findFragmentActivity()
                                     if (activity == null) {
-                                        selectedPatientID = patient.patientID
+                                        autoLoginPatientID = patient.patientID
+                                        password = savedPassword
+                                        viewModel.login(patient.email.orEmpty(), savedPassword, rememberAccount = true)
                                     } else {
                                         BiometricGate.authenticate(
                                             activity = activity,
@@ -321,7 +323,11 @@ fun LoginScreen(
                                                 password = savedPassword
                                                 viewModel.login(patient.email.orEmpty(), savedPassword, rememberAccount = true)
                                             },
-                                            onUnavailable = { selectedPatientID = patient.patientID },
+                                            onUnavailable = {
+                                                autoLoginPatientID = patient.patientID
+                                                password = savedPassword
+                                                viewModel.login(patient.email.orEmpty(), savedPassword, rememberAccount = true)
+                                            },
                                             onError = { loginError = it },
                                         )
                                     }

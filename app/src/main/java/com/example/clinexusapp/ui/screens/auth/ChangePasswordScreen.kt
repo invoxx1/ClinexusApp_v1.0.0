@@ -136,9 +136,11 @@ fun ChangePasswordScreen(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(48.dp))
-                    NeumorphicCard {
-                        OtpCodeInput(value = otp, onValueChange = { otp = it }, enabled = otpState !is Resource.Loading)
-                    }
+                    OtpCodeInput(
+                        value = otp,
+                        onValueChange = { otp = it },
+                        enabled = otpState !is Resource.Loading,
+                    )
                     Spacer(modifier = Modifier.height(32.dp))
                     VibrantButton(
                         text = if (otpState is Resource.Loading) "Verifying..." else "Verify",

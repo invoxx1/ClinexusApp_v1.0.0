@@ -112,6 +112,25 @@ class HistoryViewModel @Inject constructor(
         if (slots !is Resource.Success || slots.data.isEmpty()) return
         _uiState.value = _uiState.value.copy(rescheduleSlots = slots)
     }
+
+    fun loadCalendarRescheduleDate(appointment: AppointmentDTO, date: String) {
+        _uiState.value = _uiState.value.copy(
+            rescheduleDates = _uiState.value.rescheduleDates + (date to Resource.Loading),
+            rescheduleSlots = Resource.Loading,
+        )
+        viewModelScope.launch {
+            val result = appointmentRepository.getAvailableTimeslots(appointment.dentistId, date)
+            val available = if (result is Resource.Success) {
+                Resource.Success(result.data.filter {
+                    it.startTime != null && it.endTime != null && !isUnchangedReschedule(appointment, date, it)
+                })
+            } else result
+            _uiState.value = _uiState.value.copy(
+                rescheduleDates = _uiState.value.rescheduleDates + (date to available),
+                rescheduleSlots = available,
+            )
+        }
+    }
     fun requestReschedule(appointment: AppointmentDTO, date: String, slot: AvailableSlotDTO, note: String) {
         if (_uiState.value.rescheduleSubmitting) return
         val availability = _uiState.value.rescheduleDates[date]
