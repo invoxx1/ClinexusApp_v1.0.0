@@ -20,7 +20,7 @@ class BookingRulesTest {
     @Test fun eachStepRequiresItsOwnSelection() {
         assertTrue(!BookingRules.canContinue(BookingUiState()))
         assertTrue(BookingRules.canContinue(BookingUiState(step = BookingStep.DENTIST, selectedDentist = dentist)))
-        assertTrue(BookingRules.canContinue(BookingUiState(step = BookingStep.SERVICE, selectedService = service)))
+        assertTrue(BookingRules.canContinue(BookingUiState(step = BookingStep.SERVICE, selectedServices = listOf(service))))
         assertTrue(BookingRules.canContinue(BookingUiState(step = BookingStep.DATE_TIME, selectedDate = "2026-09-10", selectedSlot = slot)))
         assertTrue(!BookingRules.canContinue(BookingUiState(step = BookingStep.REVIEW)))
         assertTrue(BookingRules.canContinue(BookingUiState(step = BookingStep.REVIEW, confirmationChecked = true)))

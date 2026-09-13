@@ -91,7 +91,11 @@ class HistoryViewModel @Inject constructor(
             dates.chunked(4).forEach { batch ->
                 batch.map { date ->
                     async {
-                        val result = appointmentRepository.getAvailableTimeslots(appointment.dentistId, date)
+                        val result = appointmentRepository.getAvailableTimeslots(
+                            appointment.dentistId,
+                            date,
+                            appointment.durationMinutes()
+                        )
                         ensureActive()
                         val available = if (result is Resource.Success) {
                             Resource.Success(result.data.filter {
@@ -119,7 +123,11 @@ class HistoryViewModel @Inject constructor(
             rescheduleSlots = Resource.Loading,
         )
         viewModelScope.launch {
-            val result = appointmentRepository.getAvailableTimeslots(appointment.dentistId, date)
+            val result = appointmentRepository.getAvailableTimeslots(
+                appointment.dentistId,
+                date,
+                appointment.durationMinutes()
+            )
             val available = if (result is Resource.Success) {
                 Resource.Success(result.data.filter {
                     it.startTime != null && it.endTime != null && !isUnchangedReschedule(appointment, date, it)
@@ -213,6 +221,20 @@ fun filterAppointmentsForTab(tab: AppointmentTab, source: List<AppointmentDTO>):
 
 fun isUnchangedReschedule(appointment: AppointmentDTO, date: String, slot: AvailableSlotDTO): Boolean =
     date == appointment.appointmentDate.substringBefore("T") && slot.startTime == appointment.startTime
+
+private fun AppointmentDTO.durationMinutes(): Int {
+    fun toMinutes(value: String): Int? {
+        val parts = value.take(5).split(":")
+        if (parts.size != 2) return null
+        val hours = parts[0].toIntOrNull() ?: return null
+        val minutes = parts[1].toIntOrNull() ?: return null
+        return hours * 60 + minutes
+    }
+
+    val start = toMinutes(startTime)
+    val end = toMinutes(endTime)
+    return if (start != null && end != null && end > start) end - start else 15
+}
 
 fun AppointmentStatus.toTab(): AppointmentTab = when (this) {
     AppointmentStatus.PENDING, AppointmentStatus.RESCHEDULE_REQUESTED, AppointmentStatus.CANCELLATION_REQUESTED -> AppointmentTab.PENDING
