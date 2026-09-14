@@ -29,6 +29,7 @@ import com.example.clinexusapp.R
 import com.example.clinexusapp.util.SessionManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun SplashScreen(animationReady: Boolean = true, onNavigateToOnboarding: () -> Unit, onNavigateToHome: () -> Unit) {
@@ -43,39 +44,56 @@ fun SplashScreen(animationReady: Boolean = true, onNavigateToOnboarding: () -> U
 
     LaunchedEffect(animationReady) {
         if (!animationReady) return@LaunchedEffect
-        // Begin only when the system starting window has released the visible app frame.
-        val textAnimation = launch {
+        
+        // Start text animation immediately without waiting for logo decoding
+        launch {
             textEntrance.animateTo(1f, tween(650, easing = FastOutSlowInEasing))
         }
-        logoDrawable = withContext(Dispatchers.IO) {
+        
+        // Decode logo in parallel
+        val decodedLogo = withContext(Dispatchers.IO) {
             runCatching {
                 ImageDecoder.decodeDrawable(ImageDecoder.createSource(context.resources, R.raw.launch_logo_animation))
             }.getOrNull()
         }
-        textAnimation.join()
-        showLogo = logoDrawable != null
+        
+        logoDrawable = decodedLogo
+        showLogo = decodedLogo != null
+        
         if (showLogo) {
-            launch { logoEntrance.animateTo(1f, tween(450, easing = FastOutSlowInEasing)) }
-            // Keep the combined branding visible until the supplied drawing animation ends.
-            withTimeoutOrNull(5000) { snapshotFlow { logoFinished }.first { it } }
+            launch {
+                logoEntrance.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
+            }
+            // Wait for logo animation to finish, but with a much shorter safety timeout
+            withTimeoutOrNull(2.seconds) { 
+                snapshotFlow { logoFinished }.first { it } 
+            }
+        } else {
+            // If no logo, just a brief pause for branding impact
+            kotlinx.coroutines.delay(1.seconds)
         }
-        SessionManager.isInitialized.first { it }
+        
+        // Ensure SessionManager is ready before proceeding
+        withTimeoutOrNull(2.seconds) {
+            SessionManager.isInitialized.first { it }
+        }
+        
         if (SessionManager.isLoggedIn) navigateHome() else navigateOnboarding()
     }
-    BoxWithConstraints(
+    Box(
         Modifier.fillMaxSize().background(colorResource(R.color.logo_background))
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        val logoSize = minOf(72.dp, maxWidth * 0.20f)
+        val logoSize = 100.dp
         // Center the complete animated group against the full screen, not the system-bar inset area.
         Row(
-            modifier = Modifier.fillMaxWidth().align(Alignment.Center),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             Box(
-                Modifier.width((logoSize + 10.dp) * logoEntrance.value).height(logoSize),
+                Modifier.width((logoSize + 16.dp) * logoEntrance.value).height(logoSize),
                 contentAlignment = Alignment.CenterStart
             ) {
                 if (showLogo) {
@@ -86,12 +104,14 @@ fun SplashScreen(animationReady: Boolean = true, onNavigateToOnboarding: () -> U
                                 scaleType = ImageView.ScaleType.FIT_CENTER
                                 val image = logoDrawable
                                 setImageDrawable(image)
-                                (image as? AnimatedImageDrawable)?.apply {
-                                    registerAnimationCallback(object : Animatable2.AnimationCallback() {
+                                if (image is AnimatedImageDrawable) {
+                                    image.registerAnimationCallback(object : Animatable2.AnimationCallback() {
                                         override fun onAnimationEnd(drawable: Drawable?) { logoFinished = true }
                                     })
-                                    repeatCount = 0
-                                    start()
+                                    image.repeatCount = 0
+                                    image.start()
+                                } else {
+                                    logoFinished = true
                                 }
                             }
                         },
