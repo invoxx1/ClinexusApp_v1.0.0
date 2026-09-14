@@ -1,41 +1,47 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import android.graphics.ImageDecoder
+import android.graphics.drawable.Animatable2
+import android.graphics.drawable.AnimatedImageDrawable
+import android.graphics.drawable.Drawable
+import android.widget.ImageView
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.clinexusapp.R
 import com.example.clinexusapp.util.SessionManager
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
@@ -44,48 +50,59 @@ fun SplashScreen(
     onNavigateToOnboarding: () -> Unit,
     onNavigateToHome: () -> Unit,
 ) {
-    val reveal = remember { Animatable(0.025f) }
-    val logoAlpha = remember { Animatable(0.18f) }
-    val logoScale = remember { Animatable(0.76f) }
-    val logoRotation = remember { Animatable(-4f) }
-    val logoGlow = remember { Animatable(0.08f) }
-    val wordmarkAlpha = remember { Animatable(0.2f) }
-    val wordmarkScale = remember { Animatable(1.1f) }
-    val tracking = remember { Animatable(1f) }
-    val glow = remember { Animatable(0f) }
-    val accent = remember { Animatable(0f) }
+    val context = LocalContext.current
+    val logo = remember(context) {
+        ImageDecoder.decodeDrawable(
+            ImageDecoder.createSource(context.resources, R.raw.launch_logo_animation)
+        ) as AnimatedImageDrawable
+    }
+    val animationFinished = remember(logo) { CompletableDeferred<Unit>() }
+    val slide = remember { Animatable(0f) }
+    val entrance = remember { Animatable(0f) }
+    val textAlpha = remember { Animatable(0f) }
     val taglineAlpha = remember { Animatable(0f) }
+    val atmosphere = remember { Animatable(0f) }
+    val departure = remember { Animatable(0f) }
+    val silkEase = remember { CubicBezierEasing(0.22f, 1f, 0.36f, 1f) }
     val navigateHome by rememberUpdatedState(onNavigateToHome)
     val navigateOnboarding by rememberUpdatedState(onNavigateToOnboarding)
 
-    LaunchedEffect(animationReady) {
+    DisposableEffect(logo) {
+        val callback = object : Animatable2.AnimationCallback() {
+            override fun onAnimationEnd(drawable: Drawable?) {
+                animationFinished.complete(Unit)
+            }
+        }
+        logo.repeatCount = 0
+        logo.registerAnimationCallback(callback)
+        onDispose {
+            logo.unregisterAnimationCallback(callback)
+            logo.stop()
+        }
+    }
+
+    LaunchedEffect(animationReady, logo) {
         if (!animationReady) return@LaunchedEffect
-
-        val motions = listOf(
+        logo.start()
+        coroutineScope {
+            launch { entrance.animateTo(1f, tween(700, easing = silkEase)) }
+            launch { atmosphere.animateTo(1f, tween(1_200, easing = silkEase)) }
+        }
+        animationFinished.await()
+        delay(160)
+        // Finish the logo move before introducing the name and tagline.
+        slide.animateTo(1f, tween(950, easing = silkEase))
+        coroutineScope {
+            launch { textAlpha.animateTo(1f, tween(800, easing = silkEase)) }
             launch {
-                logoScale.animateTo(1.08f, tween(520, easing = FastOutSlowInEasing))
-                logoScale.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
-            },
-            launch { logoAlpha.animateTo(1f, tween(380, easing = FastOutSlowInEasing)) },
-            launch { logoRotation.animateTo(0f, tween(720, easing = FastOutSlowInEasing)) },
-            launch {
-                logoGlow.animateTo(0.34f, tween(460, easing = FastOutSlowInEasing))
-                logoGlow.animateTo(0.1f, tween(520, easing = FastOutSlowInEasing))
-            },
-            launch { reveal.animateTo(1f, tween(1_050, delayMillis = 420, easing = FastOutSlowInEasing)) },
-            launch { wordmarkAlpha.animateTo(1f, tween(420, delayMillis = 390, easing = FastOutSlowInEasing)) },
-            launch { wordmarkScale.animateTo(1f, tween(1_000, delayMillis = 390, easing = FastOutSlowInEasing)) },
-            launch { tracking.animateTo(0f, tween(1_100, delayMillis = 390, easing = FastOutSlowInEasing)) },
-            launch {
-                glow.animateTo(0.8f, tween(430, easing = FastOutSlowInEasing))
-                glow.animateTo(0f, tween(700, easing = FastOutSlowInEasing))
-            },
-            launch { accent.animateTo(1f, tween(560, delayMillis = 1_050, easing = FastOutSlowInEasing)) },
-            launch { taglineAlpha.animateTo(1f, tween(500, delayMillis = 1_180, easing = FastOutSlowInEasing)) },
-        )
-        motions.forEach { it.join() }
-
+                delay(200)
+                taglineAlpha.animateTo(1f, tween(700, easing = silkEase))
+            }
+            launch { atmosphere.animateTo(0.55f, tween(1_100, easing = FastOutSlowInEasing)) }
+        }
+        delay(650)
         SessionManager.isInitialized.first { it }
+        departure.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
         if (SessionManager.isLoggedIn) navigateHome() else navigateOnboarding()
     }
 
@@ -98,103 +115,88 @@ fun SplashScreen(
                     colorResource(R.color.logo_background),
                 )
             )
-        ),
+        ).drawBehind {
+            // Broad, feathered light keeps the backdrop quiet without rings or lines.
+            val lightCenter = Offset(
+                size.width * (0.5f - 0.18f * slide.value),
+                size.height * 0.5f,
+            )
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFF168AC2).copy(alpha = 0.18f * atmosphere.value),
+                        Color(0xFF086298).copy(alpha = 0.06f * atmosphere.value),
+                        Color.Transparent,
+                    ),
+                    center = lightCenter,
+                    radius = size.width * 0.8f,
+                ),
+                alpha = 1f - departure.value,
+            )
+        },
         contentAlignment = Alignment.Center,
     ) {
-        val wordmarkWidth = minOf(340.dp, maxWidth - 32.dp)
-        val revealModifier = Modifier.width(wordmarkWidth).drawWithContent {
-            val halfReveal = size.width * reveal.value / 2f
-            clipRect(
-                left = size.width / 2f - halfReveal,
-                right = size.width / 2f + halfReveal,
-            ) {
-                this@drawWithContent.drawContent()
-            }
-        }
+        val brandWidth = minOf(340.dp, maxWidth - 32.dp)
+        val logoSize = brandWidth * 0.30f
+        val textWidth = brandWidth * 0.60f
+        val logoTextGap = 2.dp
+        // Center the compact pair as a unit, with an explicit gap between them.
+        val logoTravel = (textWidth + logoTextGap) / 2
+        val textOffset = (logoSize + logoTextGap) / 2
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier.width(132.dp).height(118.dp).drawWithContent {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = logoGlow.value),
-                                Color(0xFF4FB9FF).copy(alpha = logoGlow.value * 0.42f),
-                                Color.Transparent,
-                            ),
-                            center = center,
-                            radius = size.maxDimension * 0.72f,
-                        ),
-                        radius = size.maxDimension * 0.72f,
-                    )
-                    drawContent()
+        AndroidView(
+            factory = { imageContext ->
+                ImageView(imageContext).apply {
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    contentDescription = "CliNexus tooth logo"
+                    setImageDrawable(logo)
+                }
+            },
+            modifier = Modifier
+                .offset(x = -logoTravel * slide.value)
+                .size(logoSize)
+                .graphicsLayer {
+                    alpha = entrance.value * (1f - departure.value)
+                    scaleX = (1.52f - 0.52f * slide.value) *
+                        (0.94f + 0.06f * entrance.value)
+                    scaleY = scaleX
+                    translationY = 6.dp.toPx() * (1f - entrance.value) -
+                        4.dp.toPx() * departure.value
                 },
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.launch_tooth_transparent),
-                    contentDescription = "CliNexus tooth logo",
-                    modifier = Modifier.width(104.dp).height(104.dp).graphicsLayer {
-                        alpha = logoAlpha.value
-                        scaleX = logoScale.value
-                        scaleY = logoScale.value
-                        rotationZ = logoRotation.value
-                    },
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Box(
-                modifier = Modifier.width(wordmarkWidth).height(76.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "CliNexus",
-                    modifier = revealModifier.blur(12.dp).graphicsLayer {
-                        alpha = glow.value * 0.5f
-                        scaleX = wordmarkScale.value
-                        scaleY = wordmarkScale.value
-                    },
-                    color = Color(0xFF66C7FF),
-                    fontSize = 58.sp,
-                    lineHeight = 64.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (6f * tracking.value - 0.8f).sp,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = "CliNexus",
-                    modifier = revealModifier.graphicsLayer {
-                        alpha = wordmarkAlpha.value
-                        scaleX = wordmarkScale.value
-                        scaleY = wordmarkScale.value
-                    },
-                    color = Color.White,
-                    fontSize = 58.sp,
-                    lineHeight = 64.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (6f * tracking.value - 0.8f).sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-            Box(
-                Modifier.width(72.dp * accent.value).height(2.dp)
-                    .background(Color(0xFF65D8FF), CircleShape)
+        )
+        Column(
+            modifier = Modifier
+                .offset(x = textOffset)
+                .width(textWidth)
+                .graphicsLayer {
+                    alpha = 1f - departure.value
+                    translationY = -4.dp.toPx() * departure.value
+                },
+        ) {
+            Text(
+                text = "CliNexus",
+                modifier = Modifier.graphicsLayer {
+                    alpha = textAlpha.value
+                    translationX = 12.dp.toPx() * (1f - textAlpha.value)
+                    translationY = 5.dp.toPx() * (1f - textAlpha.value)
+                },
+                color = Color.White,
+                fontSize = (brandWidth.value * 0.125f).sp,
+                lineHeight = (brandWidth.value * 0.15f).sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.8).sp,
             )
-            Spacer(Modifier.height(14.dp))
             Text(
                 text = "TRUSTED DENTAL CARE",
                 modifier = Modifier.graphicsLayer {
                     alpha = taglineAlpha.value
-                    translationY = 8f * (1f - taglineAlpha.value)
+                    translationY = 8.dp.toPx() * (1f - taglineAlpha.value)
                 },
                 color = Color.White.copy(alpha = 0.76f),
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                fontSize = (brandWidth.value * 0.031f).sp,
+                lineHeight = 18.sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 2.1.sp,
-                textAlign = TextAlign.Center,
+                letterSpacing = 1.sp,
             )
         }
     }
