@@ -4,6 +4,7 @@ import com.example.clinexusapp.api.AddressApiService
 import com.example.clinexusapp.api.ApiService
 import com.example.clinexusapp.api.AppointmentApiService
 import com.example.clinexusapp.api.SessionExpiryInterceptor
+import com.example.clinexusapp.BuildConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,7 +29,7 @@ object NetworkModule {
     @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor {
         return HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.ENABLE_NETWORK_LOGS) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
     }
 

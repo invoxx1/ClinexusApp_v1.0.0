@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -30,6 +31,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.clinexusapp.ui.navigation.BottomBarScreen
 import com.example.clinexusapp.ui.navigation.Screen
+import com.example.clinexusapp.ui.components.AppWalkthroughOverlay
+import com.example.clinexusapp.ui.components.WalkthroughTarget
+import com.example.clinexusapp.ui.components.appWalkthroughSteps
 import com.example.clinexusapp.ui.screens.dashboard.DashboardScreen
 import com.example.clinexusapp.ui.screens.notifications.NotificationScreen
 import com.example.clinexusapp.ui.screens.chat.ChatScreen
@@ -46,6 +50,58 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
     var isBottomBarVisible by remember { mutableStateOf(value = true) }
     val dashboardViewModel: DashboardViewModel = hiltViewModel()
     val unreadNotificationsCount by dashboardViewModel.unreadNotificationsCount.collectAsState()
+    val sessionInitialized by SessionManager.isInitialized.collectAsState()
+    val walkthroughCompleted by SessionManager.walkthroughCompleted.collectAsState()
+    val pendingPasswordSave by SessionManager.pendingPasswordSave.collectAsState()
+    val walkthroughBounds = remember { mutableStateMapOf<WalkthroughTarget, Rect>() }
+    var walkthroughStep by remember { mutableIntStateOf(0) }
+    val walkthroughVisible = sessionInitialized && !walkthroughCompleted && pendingPasswordSave == null
+    val activeTarget = appWalkthroughSteps.getOrNull(walkthroughStep)?.target
+    val activeBounds = activeTarget?.let(walkthroughBounds::get)
+    val walkthroughBackStackEntry by navController.currentBackStackEntryAsState()
+    val walkthroughDestination = walkthroughBackStackEntry?.destination
+
+    fun captureWalkthroughTarget(target: WalkthroughTarget, bounds: Rect) {
+        // Freeze each target after its first stable layout. Recomposition and data refreshes
+        // must not move a coach mark that is already visible.
+        if (target == activeTarget && walkthroughBounds[target] == null && bounds.width > 0f && bounds.height > 0f) {
+            walkthroughBounds[target] = bounds
+        }
+    }
+
+    LaunchedEffect(walkthroughVisible, activeTarget) {
+        if (!walkthroughVisible || activeTarget == null) return@LaunchedEffect
+        val route = when (activeTarget) {
+            WalkthroughTarget.APPOINTMENT, WalkthroughTarget.PROMOTIONS, WalkthroughTarget.CLINIC_NEWS -> Screen.Dashboard.route
+            WalkthroughTarget.APPOINTMENT_STATUSES, WalkthroughTarget.BOOK_APPOINTMENT -> Screen.AppointmentHistory.route
+            WalkthroughTarget.MESSAGES -> Screen.Chat.route
+        }
+        val alreadyOnTargetScreen = walkthroughDestination?.hierarchy?.any { it.route == route } == true
+        if (!alreadyOnTargetScreen) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id)
+                launchSingleTop = true
+            }
+        }
+    }
+
+    fun finishWalkthrough() {
+        SessionManager.completeWalkthrough()
+        navController.navigate(Screen.Dashboard.route) {
+            popUpTo(navController.graph.findStartDestination().id)
+            launchSingleTop = true
+        }
+    }
+
+    fun nextWalkthroughStep() {
+        if (walkthroughStep == appWalkthroughSteps.lastIndex) {
+            finishWalkthrough()
+        } else {
+            val nextTarget = appWalkthroughSteps[walkthroughStep + 1].target
+            walkthroughBounds.remove(nextTarget)
+            walkthroughStep++
+        }
+    }
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         bottomBar = {
@@ -68,6 +124,8 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 DashboardScreen(
                     viewModel = dashboardViewModel,
                     rootNavController = rootNavController,
+                    activeWalkthroughTarget = activeTarget,
+                    onWalkthroughTarget = ::captureWalkthroughTarget,
                 )
             }
             composable(route = Screen.Chat.route) {
@@ -75,6 +133,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 ChatScreen(
                     onBack = { navController.popBackStack() },
                     viewModel = chatViewModel,
+                    onWalkthroughTarget = { captureWalkthroughTarget(WalkthroughTarget.MESSAGES, it) },
                 ) { isBottomBarVisible = it }
             }
             composable(route = Screen.Notifications.route) {
@@ -97,6 +156,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     onNavigateToBooking = { rootNavController.navigate(Screen.AppointmentBooking.route) },
                     viewModel = historyViewModel,
                     initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
+                    onWalkthroughTarget = ::captureWalkthroughTarget,
                 )
             }
             composable(route = Screen.Profile.route) {
@@ -127,6 +187,24 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
             }
         }
     }
+        if (walkthroughVisible) {
+            if (activeBounds == null) {
+                // Keep the underlying screen covered while a new screen or lazy-list
+                // target completes its first layout. This prevents a white frame flash.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color(0xC400102A))
+                )
+            } else {
+                AppWalkthroughOverlay(
+                    stepIndex = walkthroughStep,
+                    target = activeBounds,
+                    onNext = ::nextWalkthroughStep,
+                    onSkip = ::finishWalkthrough,
+                )
+            }
+        }
     }
 }
 
@@ -224,8 +302,8 @@ fun TealBottomBar(
 fun TealNavItem(
     screen: BottomBarScreen,
     isSelected: Boolean,
-    badgeCount: Int = 0,
     modifier: Modifier = Modifier,
+    badgeCount: Int = 0,
     onClick: () -> Unit
 ) {
     val contentColor = if (isSelected) Color(0xFF1F3A6D) else Color(0xFF969CAC)

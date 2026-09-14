@@ -181,15 +181,15 @@ fun RegisterScreen(
             item {
                 SectionTitle("Identity Details")
                 NeumorphicCard {
-                    MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Lucide.UserRound)
+                    MintTextField(value = firstName, onValueChange = { firstName = it }, label = "First Name", icon = Lucide.UserRound, placeholder = "Enter your first name")
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = middleName, onValueChange = { middleName = it }, label = "Middle Name", icon = Lucide.IdCard)
+                    MintTextField(value = middleName, onValueChange = { middleName = it }, label = "Middle Name", icon = Lucide.IdCard, placeholder = "Optional")
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Lucide.UserRound)
+                    MintTextField(value = lastName, onValueChange = { lastName = it }, label = "Last Name", icon = Lucide.UserRound, placeholder = "Enter your last name")
 
                     Spacer(modifier = Modifier.height(20.dp))
                     SectionTitle("Address Information")
-                    MintTextField(value = streetAddress, onValueChange = { streetAddress = it }, label = "Street Address", icon = Lucide.House)
+                    MintTextField(value = streetAddress, onValueChange = { streetAddress = it }, label = "Street Address", icon = Lucide.House, placeholder = "House number and street")
 
                     Spacer(modifier = Modifier.height(16.dp))
                     AddressDropdown(
@@ -263,9 +263,9 @@ fun RegisterScreen(
             item {
                 SectionTitle("Network Details")
                 NeumorphicCard {
-                    MintTextField(value = email, onValueChange = { email = it }, label = "Email Address", icon = Lucide.Mail)
+                    MintTextField(value = email, onValueChange = { email = it }, label = "Email", icon = Lucide.Mail, placeholder = "name@example.com")
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Mobile Number", icon = Lucide.Phone, required = true, errorText = phoneNumber.takeIf { it.isNotBlank() && !isValidPhilippineMobile(it) }?.let { "Use 09XXXXXXXXX or +639XXXXXXXXX" })
+                    MintTextField(value = phoneNumber, onValueChange = { phoneNumber = it }, label = "Mobile Number", icon = Lucide.Phone, required = true, placeholder = "09XXXXXXXXX", errorText = phoneNumber.takeIf { it.isNotBlank() && !isValidPhilippineMobile(it) }?.let { "Use 09XXXXXXXXX or +639XXXXXXXXX" })
                     Spacer(modifier = Modifier.height(16.dp))
                     DatePickerField(value = dateOfBirth, onValueChange = { dateOfBirth = it }, label = "Birthday", errorText = dateOfBirth.takeIf { it.isNotBlank() && !isValidBirthDate(it) }?.let { "Choose a valid past date" })
                 }
@@ -274,9 +274,9 @@ fun RegisterScreen(
             item {
                 SectionTitle("Security")
                 NeumorphicCard {
-                    MintTextField(value = password, onValueChange = { password = it }, label = "Account Password", icon = Lucide.LockKeyhole, isPassword = true)
+                    MintTextField(value = password, onValueChange = { password = it }, label = "Password", icon = Lucide.LockKeyhole, isPassword = true, placeholder = "Create a strong password")
                     Spacer(modifier = Modifier.height(16.dp))
-                    MintTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, label = "Verify Password", icon = Lucide.KeyRound, isPassword = true)
+                    MintTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, label = "Confirm Password", icon = Lucide.KeyRound, isPassword = true, placeholder = "Enter the password again")
                     Spacer(modifier = Modifier.height(12.dp))
                     PasswordRequirements(password, confirmPassword)
                 }

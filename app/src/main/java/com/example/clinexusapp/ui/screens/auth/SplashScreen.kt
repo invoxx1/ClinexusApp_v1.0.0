@@ -48,12 +48,17 @@ import kotlinx.coroutines.launch
 fun SplashScreen(
     animationReady: Boolean = true,
     onNavigateToOnboarding: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     onNavigateToHome: () -> Unit,
 ) {
     val context = LocalContext.current
-    val logo = remember(context) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val resources = remember(context, configuration) {
+        context.createConfigurationContext(configuration).resources
+    }
+    val logo = remember(resources) {
         ImageDecoder.decodeDrawable(
-            ImageDecoder.createSource(context.resources, R.raw.launch_logo_animation)
+            ImageDecoder.createSource(resources, R.raw.launch_logo_animation)
         ) as AnimatedImageDrawable
     }
     val animationFinished = remember(logo) { CompletableDeferred<Unit>() }
@@ -66,6 +71,7 @@ fun SplashScreen(
     val silkEase = remember { CubicBezierEasing(0.22f, 1f, 0.36f, 1f) }
     val navigateHome by rememberUpdatedState(onNavigateToHome)
     val navigateOnboarding by rememberUpdatedState(onNavigateToOnboarding)
+    val navigateLogin by rememberUpdatedState(onNavigateToLogin)
 
     DisposableEffect(logo) {
         val callback = object : Animatable2.AnimationCallback() {
@@ -103,7 +109,11 @@ fun SplashScreen(
         delay(650)
         SessionManager.isInitialized.first { it }
         departure.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
-        if (SessionManager.isLoggedIn) navigateHome() else navigateOnboarding()
+        when {
+            SessionManager.isLoggedIn -> navigateHome()
+            SessionManager.onboardingCompleted.value -> navigateLogin()
+            else -> navigateOnboarding()
+        }
     }
 
     BoxWithConstraints(
@@ -153,9 +163,9 @@ fun SplashScreen(
                 }
             },
             modifier = Modifier
-                .offset(x = -logoTravel * slide.value)
                 .size(logoSize)
                 .graphicsLayer {
+                    translationX = (-logoTravel * slide.value).toPx()
                     alpha = entrance.value * (1f - departure.value)
                     scaleX = (1.52f - 0.52f * slide.value) *
                         (0.94f + 0.06f * entrance.value)

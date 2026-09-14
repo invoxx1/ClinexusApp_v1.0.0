@@ -28,6 +28,8 @@ object SessionManager {
     private const val KEY_PATIENT_INFO = "patient_info"
     private const val KEY_SAVED_ACCOUNTS = "saved_accounts"
     private const val KEY_PASSWORD_CONSENT_MIGRATED = "password_consent_migrated_v1"
+    private const val KEY_WALKTHROUGH_COMPLETED = "walkthrough_completed_v2"
+    private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed_v1"
 
     data class SavedAccount(
         val patient: PatientInfo,
@@ -55,6 +57,10 @@ object SessionManager {
 
     private val _isInitialized = MutableStateFlow(value = false)
     val isInitialized = _isInitialized.asStateFlow()
+    private val _walkthroughCompleted = MutableStateFlow(false)
+    val walkthroughCompleted = _walkthroughCompleted.asStateFlow()
+    private val _onboardingCompleted = MutableStateFlow(false)
+    val onboardingCompleted = _onboardingCompleted.asStateFlow()
 
     private val _sessionExpired = MutableStateFlow(value = false)
     val sessionExpired = _sessionExpired.asStateFlow()
@@ -84,6 +90,8 @@ object SessionManager {
             }
 
             sharedPreferences?.let { prefs ->
+                _walkthroughCompleted.value = prefs.getBoolean(KEY_WALKTHROUGH_COMPLETED, false)
+                _onboardingCompleted.value = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
                 _token = prefs.getString(KEY_TOKEN, null)
                 val patientJson = prefs.getString(KEY_PATIENT_INFO, null)
                 val savedAccountsJson = prefs.getString(KEY_SAVED_ACCOUNTS, null)
@@ -136,6 +144,11 @@ object SessionManager {
             Log.d(TAG, "SessionManager initialized in ${duration}ms")
             _isInitialized.value = true
         }
+    }
+
+    fun completeOnboarding() {
+        _onboardingCompleted.value = true
+        sharedPreferences?.edit { putBoolean(KEY_ONBOARDING_COMPLETED, true) }
     }
 
     private fun createSharedPreferences(context: Context): android.content.SharedPreferences {
@@ -250,6 +263,16 @@ object SessionManager {
 
     fun dismissPasswordSave() {
         _pendingPasswordSave.value = null
+    }
+
+    fun completeWalkthrough() {
+        _walkthroughCompleted.value = true
+        sharedPreferences?.edit { putBoolean(KEY_WALKTHROUGH_COMPLETED, true) }
+    }
+
+    fun resetWalkthrough() {
+        _walkthroughCompleted.value = false
+        sharedPreferences?.edit { putBoolean(KEY_WALKTHROUGH_COMPLETED, false) }
     }
 
     fun removeSavedAccount(patientID: Int) {

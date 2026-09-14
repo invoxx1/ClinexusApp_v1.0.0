@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.clinexusapp.api.AuthRepository
 import com.example.clinexusapp.model.GenericResponse
+import com.example.clinexusapp.model.LoginRequest
 import com.example.clinexusapp.util.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +22,21 @@ class OTPViewModel @Inject constructor(private val repository: AuthRepository) :
     // Stores the token returned after OTP verification (for reset or change password)
     private val _resetToken = MutableStateFlow<String?>(null)
     val resetToken = _resetToken.asStateFlow()
+    private val _resendState = MutableStateFlow<Resource<GenericResponse>?>(null)
+    val resendState = _resendState.asStateFlow()
+
+    fun resendOtp(email: String, purpose: String) {
+        viewModelScope.launch {
+            _resendState.value = Resource.Loading
+            _resendState.value = when (purpose) {
+                "reset" -> repository.forgotPassword(email)
+                "change" -> repository.requestPasswordChange()
+                else -> Resource.Error("Registration OTP resend is not supported by the current server")
+            }
+        }
+    }
+
+    fun resetResendState() { _resendState.value = null }
 
     // ---------- Registration Email Verification ----------
     fun verifyEmail(email: String, otp: String) {
@@ -57,6 +73,25 @@ class OTPViewModel @Inject constructor(private val repository: AuthRepository) :
     }
 
     // ---------- Change Password (logged in) ----------
+    fun confirmCurrentPassword(email: String, currentPassword: String) {
+        viewModelScope.launch {
+            _otpState.value = Resource.Loading
+            when (val loginResult = repository.login(LoginRequest(email.trim(), currentPassword))) {
+                is Resource.Success -> _otpState.value = repository.requestPasswordChange()
+                is Resource.Error -> _otpState.value = Resource.Error(
+                    if (
+                        loginResult.message?.contains("credential", ignoreCase = true) == true ||
+                        loginResult.message?.contains("invalid", ignoreCase = true) == true ||
+                        loginResult.message?.contains("password", ignoreCase = true) == true
+                    ) {
+                        "Current password is incorrect"
+                    } else loginResult.message ?: "Unable to verify the current password"
+                )
+                else -> Unit
+            }
+        }
+    }
+
     fun requestPasswordChange() {
         viewModelScope.launch {
             _otpState.value = Resource.Idle

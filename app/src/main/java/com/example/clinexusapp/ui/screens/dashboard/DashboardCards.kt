@@ -154,9 +154,15 @@ fun PromotionCard(
 }
 
 @Composable
-fun InsightCard(title: String, subtitle: String, category: String, onClick: () -> Unit) {
+fun InsightCard(
+    title: String,
+    subtitle: String,
+    category: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     Surface(
-        modifier = Modifier.fillMaxWidth().height(112.dp).shadow(4.dp, DashboardStyle.CardShape),
+        modifier = modifier.fillMaxWidth().height(112.dp).shadow(4.dp, DashboardStyle.CardShape),
         shape = DashboardStyle.CardShape,
         color = Color(0xFFE9FAF5),
     ) {

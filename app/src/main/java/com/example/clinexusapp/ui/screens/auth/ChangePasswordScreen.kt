@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.clinexusapp.ui.components.*
 import com.example.clinexusapp.util.Resource
+import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.OTPViewModel
 import kotlinx.coroutines.launch
 
@@ -29,16 +30,44 @@ fun ChangePasswordScreen(
     onBack: () -> Unit,
     onChangeSuccess: () -> Unit,
 ) {
-    var step by remember { mutableIntStateOf(0) } // 0=Request OTP, 1=Verify, 2=New Password
+    var step by remember { mutableIntStateOf(0) } // 0=Passwords, 1=Verify OTP, 2=Confirm change
+    var currentPassword by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var confirmChange by remember { mutableStateOf(false) }
+    var currentPasswordError by remember { mutableStateOf<String?>(null) }
+    var newPasswordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
 
     val otpState by viewModel.otpState.collectAsState()
     val resetToken by viewModel.resetToken.collectAsState()
+    val resendState by viewModel.resendState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val user by SessionManager.currentUser.collectAsState()
+    val registeredEmail = user?.email.orEmpty()
+    val maskedEmail = remember(registeredEmail) { maskEmailAddress(registeredEmail) }
+    var resendSeconds by remember { mutableIntStateOf(60) }
+
+    LaunchedEffect(resendSeconds, step) {
+        if (step == 1 && resendSeconds > 0) { kotlinx.coroutines.delay(1_000); resendSeconds-- }
+    }
+    LaunchedEffect(resendState) {
+        when (val resend = resendState) {
+            is Resource.Success -> {
+                otp = ""
+                resendSeconds = 60
+                snackbarHostState.showSnackbar("A new OTP was sent to $maskedEmail")
+                viewModel.resetResendState()
+            }
+            is Resource.Error -> {
+                snackbarHostState.showSnackbar(resend.message ?: "Unable to resend OTP")
+                viewModel.resetResendState()
+            }
+            else -> Unit
+        }
+    }
 
     if (confirmChange) {
         AlertDialog(
@@ -76,8 +105,14 @@ fun ChangePasswordScreen(
                 }
             }
             is Resource.Error -> {
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(currentState.message ?: "Operation failed")
+                if (step == 0) {
+                    currentPasswordError = currentState.message
+                        ?.takeUnless { it.equals("Invalid", ignoreCase = true) }
+                        ?: "Current password is incorrect"
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(currentState.message ?: "Operation failed")
+                    }
                 }
             }
             else -> {} // ignore Loading or other states
@@ -102,23 +137,68 @@ fun ChangePasswordScreen(
             when (step) {
                 0 -> {
                     Text(
-                        text = "Request OTP",
+                        text = "Update Password",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "We'll send a verification code to your registered email.",
+                        text = "Enter your current password and choose a new one.",
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(36.dp))
+                    NeumorphicCard {
+                        MintTextField(
+                            value = currentPassword,
+                            onValueChange = { currentPassword = it; currentPasswordError = null },
+                            label = "Current Password",
+                            icon = Lucide.LockKeyhole,
+                            isPassword = true,
+                            placeholder = "Enter your current password",
+                            errorText = currentPasswordError,
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        MintTextField(
+                            value = newPassword,
+                            onValueChange = { newPassword = it; newPasswordError = null; confirmPasswordError = null },
+                            label = "New Password",
+                            icon = Lucide.KeyRound,
+                            isPassword = true,
+                            placeholder = "Create a strong password",
+                            errorText = newPasswordError,
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        MintTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it; confirmPasswordError = null },
+                            label = "Re-enter New Password",
+                            icon = Lucide.KeyRound,
+                            isPassword = true,
+                            placeholder = "Enter the new password again",
+                            errorText = confirmPasswordError,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        PasswordRequirements(newPassword, confirmPassword)
+                    }
+                    Spacer(modifier = Modifier.height(28.dp))
                     VibrantButton(
-                        text = if (otpState is Resource.Loading) "Sending..." else "Send Code",
-                        onClick = { viewModel.requestPasswordChange() },
-                        enabled = otpState !is Resource.Loading
+                        text = if (otpState is Resource.Loading) "Checking..." else "Continue",
+                        onClick = {
+                            currentPasswordError = if (currentPassword.isBlank()) "Enter your current password" else null
+                            newPasswordError = passwordInputError(newPassword)
+                            confirmPasswordError = when {
+                                confirmPassword.isBlank() -> "Re-enter your new password"
+                                confirmPassword != newPassword -> "Passwords do not match"
+                                else -> null
+                            }
+                            if (currentPasswordError == null && newPasswordError == null && confirmPasswordError == null) {
+                                viewModel.confirmCurrentPassword(registeredEmail, currentPassword)
+                            }
+                        },
+                        enabled = registeredEmail.isNotBlank() && otpState !is Resource.Loading
                     )
                 }
                 1 -> {
@@ -130,7 +210,7 @@ fun ChangePasswordScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Enter the 6‑digit code sent to your email.",
+                        text = "The OTP was sent to $maskedEmail",
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center
@@ -141,6 +221,12 @@ fun ChangePasswordScreen(
                         onValueChange = { otp = it },
                         enabled = otpState !is Resource.Loading,
                     )
+                    TextButton(
+                        onClick = { viewModel.resendOtp(registeredEmail, "change") },
+                        enabled = resendSeconds == 0 && resendState !is Resource.Loading,
+                    ) {
+                        Text(if (resendSeconds > 0) "Resend OTP in ${resendSeconds}s" else if (resendState is Resource.Loading) "Sending…" else "Resend OTP")
+                    }
                     Spacer(modifier = Modifier.height(32.dp))
                     VibrantButton(
                         text = if (otpState is Resource.Loading) "Verifying..." else "Verify",
@@ -150,56 +236,47 @@ fun ChangePasswordScreen(
                 }
                 2 -> {
                     Text(
-                        text = "New Password",
+                        text = "Verification Complete",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Set a strong password.",
+                        text = "Your email has been verified. Confirm to update your password.",
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(48.dp))
-                    NeumorphicCard {
-                        MintTextField(
-                            value = newPassword,
-                            onValueChange = { newPassword = it },
-                            label = "New Password",
-                            icon = Lucide.LockKeyhole,
-                            isPassword = true
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        MintTextField(
-                            value = confirmPassword,
-                            onValueChange = { confirmPassword = it },
-                            label = "Confirm Password",
-                            icon = Lucide.KeyRound,
-                            isPassword = true
-                        )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    PasswordRequirements(newPassword, confirmPassword)
-                    }
                     Spacer(modifier = Modifier.height(32.dp))
                     VibrantButton(
-                        text = if (otpState is Resource.Loading) "Changing..." else "Change Password",
-                        onClick = {
-                            if (passwordsMeetRules(newPassword, confirmPassword)) {
-                                confirmChange = true
-                            } else {
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Passwords do not match")
-                                }
-                            }
-                        },
-                        enabled = passwordsMeetRules(newPassword, confirmPassword) &&
-                                (newPassword == confirmPassword) &&
-                                (otpState !is Resource.Loading)
+                        text = if (otpState is Resource.Loading) "Changing..." else "Confirm Change",
+                        onClick = { confirmChange = true },
+                        enabled = resetToken != null && otpState !is Resource.Loading
                     )
                 }
             }
         }
     }
+}
+
+private fun maskEmailAddress(email: String): String {
+    val parts = email.trim().split("@", limit = 2)
+    if (parts.size != 2) return "your registered email"
+    val local = parts[0]
+    val visibleCount = when {
+        local.length >= 4 -> 4
+        local.length >= 2 -> 1
+        else -> 0
+    }
+    val visible = local.take(visibleCount)
+    return "$visible***@${parts[1]}"
+}
+
+private fun passwordInputError(password: String): String? = when {
+    password.isBlank() -> "Enter a new password"
+    password.length < 8 -> "Password must contain at least 8 characters"
+    password.none { it.isUpperCase() } -> "Password must contain at least 1 uppercase letter"
+    password.any { it.isWhitespace() } -> "Password must not contain spaces"
+    else -> null
 }

@@ -135,6 +135,7 @@ fun MintTextField(
     isPassword: Boolean = false,
     errorText: String? = null,
     required: Boolean = false,
+    placeholder: String? = null,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -142,16 +143,18 @@ fun MintTextField(
     var passwordVisible by remember { mutableStateOf(false) }
     
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = if (required) "$label *" else label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (hasError) MaterialTheme.colorScheme.error else onSurfaceColor.copy(alpha = 0.5f),
-            modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
-        )
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
+            label = {
+                Text(
+                    text = if (required) "$label *" else label,
+                    fontWeight = FontWeight.Medium,
+                )
+            },
+            placeholder = placeholder?.let { hint ->
+                { Text(hint, color = onSurfaceColor.copy(alpha = 0.42f)) }
+            },
             leadingIcon = {
                 Icon(
                     icon,
@@ -184,10 +187,12 @@ fun MintTextField(
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = primaryColor.copy(alpha = 0.05f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = primaryColor.copy(alpha = 0.3f),
+                unfocusedBorderColor = onSurfaceColor.copy(alpha = 0.18f),
+                focusedBorderColor = primaryColor,
+                focusedLabelColor = primaryColor,
+                unfocusedLabelColor = onSurfaceColor.copy(alpha = 0.62f),
                 errorBorderColor = MaterialTheme.colorScheme.error,
                 errorLeadingIconColor = MaterialTheme.colorScheme.error,
                 errorSupportingTextColor = MaterialTheme.colorScheme.error,

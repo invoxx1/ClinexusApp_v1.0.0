@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import com.example.clinexusapp.ui.components.*
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.viewmodel.OTPViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun VerifyOTPScreen(
@@ -28,7 +29,28 @@ fun VerifyOTPScreen(
     var otp by remember { mutableStateOf("") }
     val otpState by viewModel.otpState.collectAsState()
     val resetToken by viewModel.resetToken.collectAsState()
+    val resendState by viewModel.resendState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var resendSeconds by remember { mutableIntStateOf(60) }
+
+    LaunchedEffect(resendSeconds) {
+        if (resendSeconds > 0) { delay(1_000); resendSeconds-- }
+    }
+    LaunchedEffect(resendState) {
+        when (val resend = resendState) {
+            is Resource.Success -> {
+                otp = ""
+                resendSeconds = 60
+                snackbarHostState.showSnackbar("A new OTP was sent to your email")
+                viewModel.resetResendState()
+            }
+            is Resource.Error -> {
+                snackbarHostState.showSnackbar(resend.message ?: "Unable to resend OTP")
+                viewModel.resetResendState()
+            }
+            else -> Unit
+        }
+    }
 
     val state = otpState
     LaunchedEffect(state, resetToken) {
@@ -78,6 +100,15 @@ fun VerifyOTPScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             OtpCodeInput(value = otp, onValueChange = { otp = it }, enabled = otpState !is Resource.Loading)
+
+            if (purpose == "reset") {
+                TextButton(
+                    onClick = { viewModel.resendOtp(email, purpose) },
+                    enabled = resendSeconds == 0 && resendState !is Resource.Loading,
+                ) {
+                    Text(if (resendSeconds > 0) "Resend OTP in ${resendSeconds}s" else if (resendState is Resource.Loading) "Sending…" else "Resend OTP")
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 

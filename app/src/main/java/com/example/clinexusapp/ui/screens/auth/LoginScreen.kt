@@ -60,6 +60,8 @@ fun LoginScreen(
     var showManualLogin by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
     var credentialError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var failedCredentialAttempts by rememberSaveable { mutableIntStateOf(0) }
     var showSavedAccountSettings by remember { mutableStateOf(false) }
     var loginTransitionActive by rememberSaveable { mutableStateOf(false) }
     var transitionPhoto by remember { mutableStateOf<String?>(null) }
@@ -80,6 +82,8 @@ fun LoginScreen(
         email = ""
         password = ""
         credentialError = null
+        emailError = null
+        failedCredentialAttempts = 0
     }
 
     BackHandler(enabled = savedAccounts.isNotEmpty() && !showSavedAccounts) { returnToSavedAccounts() }
@@ -217,11 +221,13 @@ fun LoginScreen(
             is Resource.Error -> {
                 loginTransitionActive = false
                 if (isCredentialError(state.message)) {
+                    failedCredentialAttempts++
                     credentialError = if (selectedAccount != null || autoLoginAccount != null) {
                         "The password you entered is incorrect."
                     } else {
                         "The email address or password you entered is incorrect."
                     }
+                    if (selectedAccount == null && autoLoginAccount == null) emailError = credentialError
                 } else loginError = friendlyLoginMessage(state.message)
                 autoLoginPatientID?.let { selectedPatientID = it }
                 autoLoginPatientID = null
@@ -234,7 +240,7 @@ fun LoginScreen(
     val submitLogin = {
         val submittedEmail = selectedAccount?.patient?.email.orEmpty().ifBlank { email }
         when {
-            submittedEmail.isBlank() -> loginError = "Enter the email address for your patient account."
+            submittedEmail.isBlank() -> emailError = "Enter your email address."
             password.isBlank() -> credentialError = "Enter your password to continue."
             else -> {
                 val matchingAccount = selectedAccount ?: savedAccounts.firstOrNull {
@@ -397,30 +403,59 @@ fun LoginScreen(
                     MintTextField(
                         value = password, onValueChange = { password = it; credentialError = null },
                         label = "Password", icon = Lucide.LockKeyhole, isPassword = true, errorText = credentialError,
+                        placeholder = "Enter your password",
                     )
                 }
 
                 else -> {
                     MintTextField(
-                        value = email, onValueChange = { email = it; credentialError = null },
-                        label = "Email address", icon = Lucide.Mail,
+                        value = email, onValueChange = { email = it; emailError = null; credentialError = null },
+                        label = "Email", icon = Lucide.Mail, placeholder = "name@example.com", errorText = emailError,
                     )
                     Spacer(Modifier.height(18.dp))
                     MintTextField(
                         value = password, onValueChange = { password = it; credentialError = null },
                         label = "Password", icon = Lucide.LockKeyhole, isPassword = true, errorText = credentialError,
+                        placeholder = "Enter your password",
                     )
                 }
             }
 
             if (!showSavedAccounts && !showLoginAnimation) {
+                if (failedCredentialAttempts >= 3) {
+                    Spacer(Modifier.height(18.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                    ) {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Text(
+                                "Having trouble signing in?",
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                "You can reset your password using the email linked to your account.",
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontSize = 13.sp,
+                            )
+                            TextButton(
+                                onClick = onNavigateToForgotPassword,
+                                contentPadding = PaddingValues(0.dp),
+                            ) { Text("Reset password") }
+                        }
+                    }
+                }
                 Spacer(Modifier.height(24.dp))
                 VibrantButton(
                     text = if (loginState is Resource.Loading) "Signing in…" else "Sign in",
                     onClick = submitLogin, enabled = loginState !is Resource.Loading,
                 )
-                TextButton(onClick = onNavigateToForgotPassword) {
-                    Text("Forgot password?", color = DeepTeal, fontWeight = FontWeight.Bold)
+                if (failedCredentialAttempts < 3) {
+                    TextButton(onClick = onNavigateToForgotPassword) {
+                        Text("Forgot password?", color = DeepTeal, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 

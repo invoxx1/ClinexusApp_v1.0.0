@@ -26,9 +26,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-    override fun onNewToken(token: String) {
+    override fun onNewToken(@Suppress("UNUSED_PARAMETER") token: String) {
         super.onNewToken(token)
-        Log.d("FCM", "Refreshed token: $token")
-        // TODO: Send token to server
+        // Never log this credential. Backend registration is added with the
+        // server-side device-token endpoint before production push rollout.
     }
 }

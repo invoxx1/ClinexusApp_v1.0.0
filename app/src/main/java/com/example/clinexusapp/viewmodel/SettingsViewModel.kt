@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.core.content.edit
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(@ApplicationContext context: Context) : ViewModel() {
@@ -18,11 +19,11 @@ class SettingsViewModel @Inject constructor(@ApplicationContext context: Context
 
     fun toggleDarkMode(enabled: Boolean) {
         _isDarkMode.value = enabled
-        preferences.edit().putBoolean("dark_mode", enabled).apply()
+        preferences.edit { putBoolean("dark_mode", enabled) }
     }
 
     fun toggleAppointmentReminders(enabled: Boolean) {
         _appointmentReminders.value = enabled
-        preferences.edit().putBoolean("appointment_reminders", enabled).apply()
+        preferences.edit { putBoolean("appointment_reminders", enabled) }
     }
 }

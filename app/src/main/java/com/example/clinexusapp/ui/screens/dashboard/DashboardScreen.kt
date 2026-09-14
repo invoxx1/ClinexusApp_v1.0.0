@@ -25,6 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -51,6 +55,7 @@ import com.example.clinexusapp.model.PromotionDTO
 import com.example.clinexusapp.ui.navigation.Screen
 import com.example.clinexusapp.ui.screens.appointments.AppointmentDetailsDialog
 import com.example.clinexusapp.ui.components.shimmer
+import com.example.clinexusapp.ui.components.WalkthroughTarget
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.DashboardViewModel
@@ -67,12 +72,28 @@ internal object DashboardStyle {
     val CardShape = RoundedCornerShape(18.dp)
 }
 
-private val FallbackHealthInsight = HealthInsightDTO(
-    id = "local-health-insight",
-    title = "Protect your smile today",
-    description = "Brush twice daily, floss gently, and schedule regular check-ups.",
-    category = "Daily tip",
-    iconEmoji = "health",
+private val FallbackHealthInsights = listOf(
+    HealthInsightDTO(
+        id = "local-health-insight-brushing",
+        title = "Protect your smile today",
+        description = "Brush twice daily for two minutes using fluoride toothpaste.",
+        category = "Daily tip",
+        iconEmoji = "health",
+    ),
+    HealthInsightDTO(
+        id = "local-health-insight-flossing",
+        title = "Clean between your teeth",
+        description = "Floss gently once a day to remove plaque your toothbrush cannot reach.",
+        category = "Healthy habit",
+        iconEmoji = "health",
+    ),
+    HealthInsightDTO(
+        id = "local-health-insight-checkup",
+        title = "Keep regular dental visits",
+        description = "Schedule routine check-ups so dental concerns can be found early.",
+        category = "Care reminder",
+        iconEmoji = "health",
+    ),
 )
 
 private val FallbackClinicNews = ClinicNewsDTO(
@@ -86,6 +107,8 @@ private val FallbackClinicNews = ClinicNewsDTO(
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     rootNavController: NavController,
+    activeWalkthroughTarget: WalkthroughTarget? = null,
+    onWalkthroughTarget: (WalkthroughTarget, Rect) -> Unit = { _, _ -> },
 ) {
     val user by SessionManager.currentUser.collectAsState()
     val newsState by viewModel.newsState.collectAsState()
@@ -110,6 +133,8 @@ fun DashboardScreen(
         onAppointmentsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
         onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
         onRetry = viewModel::fetchDashboardData,
+        activeWalkthroughTarget = activeWalkthroughTarget,
+        onWalkthroughTarget = onWalkthroughTarget,
     )
 }
 
@@ -123,6 +148,8 @@ internal fun DashboardContent(
     onAppointmentsClick: () -> Unit,
     onBookClick: () -> Unit,
     onRetry: () -> Unit,
+    activeWalkthroughTarget: WalkthroughTarget?,
+    onWalkthroughTarget: (WalkthroughTarget, Rect) -> Unit,
 ) {
     val listState = rememberLazyListState()
     val headerVisible by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
@@ -130,6 +157,21 @@ internal fun DashboardContent(
     var selectedAppointment by remember { mutableStateOf<AppointmentDTO?>(null) }
     var showPromotions by remember { mutableStateOf(false) }
     val promotions = (promotionsState as? Resource.Success)?.data.orEmpty()
+    val walkthroughTargetReady = remember(activeWalkthroughTarget) { mutableStateOf(false) }
+    LaunchedEffect(activeWalkthroughTarget, promotions.isNotEmpty()) {
+        val promotionOffset = if (promotions.isNotEmpty()) 1 else 0
+        val index = when (activeWalkthroughTarget) {
+            WalkthroughTarget.APPOINTMENT -> null
+            WalkthroughTarget.PROMOTIONS -> if (promotions.isNotEmpty()) 2 else null
+            WalkthroughTarget.CLINIC_NEWS -> 3 + promotionOffset
+            else -> null
+        }
+        // Snap directly before measuring the target; never animate the dashboard list.
+        index?.let { listState.scrollToItem(it) }
+        withFrameNanos { }
+        walkthroughTargetReady.value = true
+    }
+    val walkthroughReady = walkthroughTargetReady.value
 
     selectedAppointment?.let { appointment ->
         AppointmentDetailsDialog(
@@ -197,7 +239,7 @@ internal fun DashboardContent(
                 DashboardHeader(firstName)
             }
             item(key = "appointment") {
-                Column(Modifier.padding(horizontal = 22.dp)) {
+                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.APPOINTMENT, it.boundsInRoot()) }) {
                     DashboardSectionHeader(
                         title = "Upcoming Appointment",
                         icon = Lucide.CalendarDays,
@@ -218,15 +260,24 @@ internal fun DashboardContent(
             }
             if (promotions.isNotEmpty()) {
                 item(key = "promotions") {
-                    Column(Modifier.padding(horizontal = 22.dp)) {
+                    Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.PROMOTIONS, it.boundsInWindow()) }) {
                         DashboardSectionHeader("Promotions", Lucide.Tag, "View All") {
                             showPromotions = true
                         }
                         Spacer(Modifier.height(4.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            items(promotions.take(4), key = { it.promotionId }) { promotion ->
+                        val visiblePromotions = promotions.take(3)
+                        val promotionListState = rememberLazyListState()
+                        val selectedPromotionIndex by remember {
+                            derivedStateOf { promotionListState.firstVisibleItemIndex }
+                        }
+                        LazyRow(
+                            state = promotionListState,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(end = 18.dp),
+                        ) {
+                            items(visiblePromotions, key = { it.promotionId }) { promotion ->
                                 PromotionCard(
-                                    modifier = Modifier.width(250.dp).height(146.dp),
+                                    modifier = Modifier.fillParentMaxWidth(0.94f).height(146.dp),
                                     title = promotion.title,
                                     value = formatDiscount(promotion.discountType, promotion.discountValue ?: 0.0),
                                     description = promotion.description.orEmpty(),
@@ -234,20 +285,75 @@ internal fun DashboardContent(
                                 )
                             }
                         }
+                        if (visiblePromotions.size > 1) {
+                            Spacer(Modifier.height(8.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                                visiblePromotions.indices.forEach { index ->
+                                    val selected = selectedPromotionIndex == index
+                                    Box(
+                                        Modifier
+                                            .padding(horizontal = 3.dp)
+                                            .width(if (selected) 18.dp else 6.dp)
+                                            .height(6.dp)
+                                            .clip(CircleShape)
+                                            .background(if (selected) DashboardStyle.Teal else Color(0xFFD5DEEC))
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
-            val insight = (insightsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackHealthInsight
+            val serverInsights = (insightsState as? Resource.Success)?.data.orEmpty()
+            val insights = (serverInsights + FallbackHealthInsights)
+                .distinctBy { it.id ?: it.title }
+                .take(3)
             item(key = "insights") {
                 Column(Modifier.padding(horizontal = 22.dp)) {
                     DashboardSectionHeader("Health Insights", Lucide.Lightbulb)
                     Spacer(Modifier.height(4.dp))
-                    InsightCard(insight.title, insight.description, insight.category) { selectedInsight = insight }
+                    val insightListState = rememberLazyListState()
+                    val selectedInsightIndex by remember {
+                        derivedStateOf { insightListState.firstVisibleItemIndex }
+                    }
+                    LazyRow(
+                        state = insightListState,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(end = 18.dp),
+                    ) {
+                        items(insights, key = { it.id ?: it.title }) { insight ->
+                            InsightCard(
+                                title = insight.title,
+                                subtitle = insight.description,
+                                category = insight.category,
+                                modifier = Modifier.fillParentMaxWidth(0.94f),
+                            ) { selectedInsight = insight }
+                        }
+                    }
+                    if (insights.size > 1) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            insights.indices.forEach { index ->
+                                val selected = selectedInsightIndex == index
+                                Box(
+                                    Modifier
+                                        .padding(horizontal = 3.dp)
+                                        .width(if (selected) 18.dp else 6.dp)
+                                        .height(6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (selected) DashboardStyle.Teal else Color(0xFFD5DEEC))
+                                )
+                            }
+                        }
+                    }
                 }
             }
             val news = (newsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackClinicNews
             item(key = "news") {
-                Column(Modifier.padding(horizontal = 22.dp)) {
+                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.CLINIC_NEWS, it.boundsInWindow()) }) {
                     DashboardSectionHeader("Clinic News", Lucide.Megaphone)
                     Spacer(Modifier.height(4.dp))
                     NewsCard(news.title, news.description, news.date)

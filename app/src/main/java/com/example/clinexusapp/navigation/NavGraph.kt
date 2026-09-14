@@ -116,6 +116,11 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 },
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    }
+                },
             ) {
                 navController.navigate(Screen.Home.route) {
                     popUpTo(Screen.Splash.route) { inclusive = true }
@@ -124,6 +129,7 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
         }
         composable(route = Screen.Onboarding.route) {
             OnboardingScreen {
+                SessionManager.completeOnboarding()
                 navController.navigate(Screen.Login.route) {
                     popUpTo(Screen.Onboarding.route) { inclusive = true }
                 }
