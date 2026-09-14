@@ -5,18 +5,29 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.app.PendingIntent
+import android.media.AudioAttributes
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.clinexusapp.MainActivity
 
 object NotificationHelper {
-    private const val CHANNEL_ID = "clinexus_notifications"
-    private const val CHANNEL_NAME = "CliNexus Reminders"
+    private const val CHANNEL_ID = "clinexus_alerts_v2"
+    private const val CHANNEL_NAME = "CliNexus Alerts"
 
     fun createNotificationChannel(context: Context) {
-        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val importance = NotificationManager.IMPORTANCE_HIGH
         val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
-            description = "Dental appointment and health reminders"
+            description = "Appointment updates, requests, and dental reminders"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 220, 120, 220)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            setSound(
+                Settings.System.DEFAULT_NOTIFICATION_URI,
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .build()
+            )
         }
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
@@ -46,7 +57,9 @@ object NotificationHelper {
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setContentIntent(openApp)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
             .build()
         try {

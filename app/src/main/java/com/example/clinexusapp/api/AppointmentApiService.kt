@@ -42,6 +42,7 @@ interface AppointmentApiService {
         @Header("Authorization") token: String,
         @Path("dentistID") dentistId: Int,
         @Query("appointmentDate") appointmentDate: String,
+        @Query("estimatedDurationMinutes") estimatedDurationMinutes: Int,
     ): Response<AvailableTimeslotsResponse>
 
     // Create appointment

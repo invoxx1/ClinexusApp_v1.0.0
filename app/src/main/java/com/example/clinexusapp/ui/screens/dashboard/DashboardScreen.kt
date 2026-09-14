@@ -11,6 +11,7 @@ import com.composables.icons.lucide.Tag
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -58,11 +59,11 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 
 internal object DashboardStyle {
-    val Background = Color(0xFFE8EEF8)
+    val Background = Color(0xFFF4F7FC)
     val Teal = Color(0xFF1F3A6D)
     val Navy = Color(0xFF080B36)
     val Muted = Color(0xFF7E87A4)
-    val Mint = Color(0xFFE8EEF8)
+    val Mint = Color(0xFFEAF1FB)
     val Orange = Color(0xFFFF792A)
     val CardShape = RoundedCornerShape(18.dp)
 }
@@ -109,7 +110,7 @@ fun DashboardScreen(
         insightsState = insightsState,
         promotionsState = promotionsState,
         nextAppointmentState = nextApptState,
-        hasUnreadNotifications = unreadCount > 0,
+        unreadNotificationsCount = unreadCount,
         onNotificationClick = onNotificationClick,
         onAppointmentsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
         onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
@@ -124,7 +125,7 @@ internal fun DashboardContent(
     insightsState: Resource<List<HealthInsightDTO>>,
     promotionsState: Resource<List<PromotionDTO>>,
     nextAppointmentState: Resource<AppointmentDTO?>,
-    hasUnreadNotifications: Boolean,
+    unreadNotificationsCount: Int,
     onNotificationClick: () -> Unit,
     onAppointmentsClick: () -> Unit,
     onBookClick: () -> Unit,
@@ -196,11 +197,11 @@ internal fun DashboardContent(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(bottom = 20.dp),
         ) {
             item(key = "header") {
-                DashboardHeader(firstName, hasUnreadNotifications, onNotificationClick)
+                DashboardHeader(firstName, unreadNotificationsCount, onNotificationClick)
             }
             item(key = "appointment") {
                 Column(Modifier.padding(horizontal = 22.dp)) {
@@ -268,7 +269,7 @@ internal fun DashboardContent(
 @Composable
 fun DashboardHeader(
     firstName: String,
-    hasUnreadNotifications: Boolean,
+    unreadNotificationsCount: Int,
     onNotificationClick: () -> Unit,
 ) {
     val fontScale = LocalDensity.current.fontScale
@@ -349,19 +350,36 @@ fun DashboardHeader(
                 )
             }
         }
-        IconButton(
+        Surface(
             onClick = onNotificationClick,
-            modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 12.dp).size(48.dp),
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 7.dp, end = 14.dp).size(48.dp),
+            shape = CircleShape,
+            color = Color.White.copy(alpha = 0.16f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
         ) {
             Box {
                 Icon(
                     Lucide.Bell,
-                    contentDescription = if (hasUnreadNotifications) "Notifications, unread notifications" else "Notifications",
+                    contentDescription = if (unreadNotificationsCount > 0) "$unreadNotificationsCount unread notifications" else "Notifications",
                     tint = Color.White,
-                    modifier = Modifier.size(27.dp),
+                    modifier = Modifier.align(Alignment.Center).size(26.dp),
                 )
-                if (hasUnreadNotifications) {
-                    Box(Modifier.align(Alignment.TopEnd).size(8.dp).background(Color(0xFFFF575D), CircleShape))
+                if (unreadNotificationsCount > 0) {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-3).dp)
+                            .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                            .background(Color(0xFFFF4D5E), CircleShape)
+                            .padding(horizontal = 5.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            if (unreadNotificationsCount > 99) "99+" else unreadNotificationsCount.toString(),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            lineHeight = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
         }

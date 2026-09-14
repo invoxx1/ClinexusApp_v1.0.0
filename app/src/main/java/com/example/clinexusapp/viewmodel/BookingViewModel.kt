@@ -25,7 +25,7 @@ data class BookingUiState(
     val dentists: Resource<List<DentistDTO>> = Resource.Loading,
     val services: Resource<List<BookableServiceDTO>> = Resource.Loading,
     val selectedDentist: DentistDTO? = null,
-    val selectedService: BookableServiceDTO? = null,
+    val selectedServices: List<BookableServiceDTO> = emptyList(),
     val selectedDate: String? = null,
     val selectedSlot: AvailableSlotDTO? = null,
     val schedule: Resource<DentistScheduleDTO>? = null,
@@ -96,10 +96,15 @@ class BookingViewModel @Inject constructor(
         }
     }
 
-    fun selectService(service: BookableServiceDTO) {
+    fun toggleService(service: BookableServiceDTO) {
         update {
+            val services = if (it.selectedServices.any { selected -> selected.serviceId == service.serviceId }) {
+                it.selectedServices.filterNot { selected -> selected.serviceId == service.serviceId }
+            } else {
+                it.selectedServices + service
+            }
             it.copy(
-                selectedService = service,
+                selectedServices = services,
                 selectedDate = null,
                 selectedSlot = null,
                 timeslots = Resource.Success(emptyList()),
@@ -150,10 +155,10 @@ class BookingViewModel @Inject constructor(
         if (state.isSubmitting || !state.confirmationChecked) return
         val patientId = SessionManager.currentUser.value?.patientID
         val dentist = state.selectedDentist
-        val service = state.selectedService
+        val services = state.selectedServices
         val date = state.selectedDate
         val slot = state.selectedSlot
-        if (patientId == null || patientId == 0 || dentist == null || service == null || date == null || slot?.startTime.isNullOrBlank() || slot.endTime.isNullOrBlank()) {
+        if (patientId == null || patientId == 0 || dentist == null || services.isEmpty() || date == null || slot?.startTime.isNullOrBlank() || slot.endTime.isNullOrBlank()) {
             update { it.copy(submission = Resource.Error("Please complete all appointment details.")) }
             return
         }
@@ -167,11 +172,11 @@ class BookingViewModel @Inject constructor(
                     startTime = slot.startTime,
                     endTime = slot.endTime,
                     notes = "Mobile Booking",
-                    selectedServices = listOf(service.serviceId)
+                    selectedServices = services.map { it.serviceId }
                 )
             )
             if (result is Resource.Error && result.message.isSlotConflictMessage()) {
-                val refreshedSlots = getBookableSlots(dentist.dentistId, date)
+                val refreshedSlots = getBookableSlots(dentist.dentistId, date, state.totalEstimatedDurationMinutes)
                 update {
                     it.copy(
                         step = BookingStep.DATE_TIME,
@@ -197,8 +202,9 @@ class BookingViewModel @Inject constructor(
         }
     }
 
-    private suspend fun getBookableSlots(dentistId: Int, date: String): Resource<List<AvailableSlotDTO>> {
-        val availableSlots = appointmentRepository.getAvailableTimeslots(dentistId, date)
+    private suspend fun getBookableSlots(dentistId: Int, date: String, durationMinutes: Int = _uiState.value.totalEstimatedDurationMinutes): Resource<List<AvailableSlotDTO>> {
+        if (durationMinutes <= 0) return Resource.Error("Please select at least one service.")
+        val availableSlots = appointmentRepository.getAvailableTimeslots(dentistId, date, durationMinutes)
         if (availableSlots !is Resource.Success) return availableSlots
         return Resource.Success(availableSlots.data.distinctBy { it.startTime?.take(5) })
     }
@@ -214,8 +220,8 @@ class BookingViewModel @Inject constructor(
             reference = response.data.appointmentId?.toString() ?: "Pending",
             status = BookingRules.statusLabel(response.data.status),
             dentist = state.selectedDentist?.dentistName.orEmpty(),
-            service = state.selectedService?.serviceName.orEmpty(),
-            price = state.selectedService?.price?.let { "₱${String.format(java.util.Locale.US, "%,.0f", it)}" }.orEmpty(),
+            service = state.selectedServices.joinToString(", ") { it.serviceName ?: "Service" },
+            price = "₱${String.format(java.util.Locale.US, "%,.0f", state.selectedServices.sumOf { it.price ?: 0.0 })}",
             date = state.selectedDate.orEmpty(),
             time = listOfNotNull(state.selectedSlot?.startTime, state.selectedSlot?.endTime).joinToString(" – "),
             clinic = "Clinexus Dental Clinic",
@@ -223,6 +229,9 @@ class BookingViewModel @Inject constructor(
         )
     }
 }
+
+val BookingUiState.totalEstimatedDurationMinutes: Int
+    get() = selectedServices.sumOf { it.durationMinutes ?: 0 }
 
 private fun String?.isSlotConflictMessage(): Boolean {
     val value = this?.lowercase().orEmpty()

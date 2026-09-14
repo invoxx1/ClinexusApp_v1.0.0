@@ -17,7 +17,7 @@ object BookingRules {
 
     fun canContinue(state: BookingUiState): Boolean = when (state.step) {
         BookingStep.DENTIST -> state.selectedDentist != null
-        BookingStep.SERVICE -> state.selectedService != null
+        BookingStep.SERVICE -> state.selectedServices.isNotEmpty()
         BookingStep.DATE_TIME -> (state.selectedDate != null) && (state.selectedSlot != null)
         BookingStep.REVIEW -> state.confirmationChecked && !state.isSubmitting
     }

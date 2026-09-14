@@ -42,6 +42,7 @@ import com.example.clinexusapp.model.*
 import com.example.clinexusapp.ui.components.dentalServiceIcon
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.util.NotificationHelper
+import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.viewmodel.*
 import java.text.SimpleDateFormat
@@ -241,8 +242,8 @@ private fun ServiceStep(state: BookingUiState, viewModel: BookingViewModel) {
     ResourceContent(state.services, onRetry = viewModel::retryServices) { services ->
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             services.forEach { service ->
-                val selected = state.selectedService?.serviceId == service.serviceId
-                SelectableCard(selected, { viewModel.selectService(service) }) {
+                val selected = state.selectedServices.any { it.serviceId == service.serviceId }
+                SelectableCard(selected, { viewModel.toggleService(service) }) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = if (selected) DeepTeal.copy(alpha = 0.12f) else MintSparkle,
@@ -264,13 +265,26 @@ private fun ServiceStep(state: BookingUiState, viewModel: BookingViewModel) {
                     Checkmark(selected)
                 }
             }
+            if (state.selectedServices.isNotEmpty()) {
+                Text(
+                    "${state.selectedServices.size} service${if (state.selectedServices.size == 1) "" else "s"} selected • ${state.totalEstimatedDurationMinutes} min total",
+                    color = DeepTeal,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun DateTimeStep(state: BookingUiState, viewModel: BookingViewModel, onCalendar: () -> Unit) {
-    SummaryCard("Appointment", "${state.selectedDentist?.dentistName ?: "Dentist"} • ${state.selectedService?.serviceName ?: "Service"}", "Edit") { viewModel.goTo(BookingStep.SERVICE) }
+    SummaryCard(
+        "Appointment",
+        "${state.selectedDentist?.dentistName ?: "Dentist"} • ${state.selectedServices.size} service${if (state.selectedServices.size == 1) "" else "s"} • ${state.totalEstimatedDurationMinutes} min",
+        "Edit"
+    ) { viewModel.goTo(BookingStep.SERVICE) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(SimpleDateFormat("MMMM yyyy", LocalLocale.current.platformLocale).format(Date()), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = RoyalNavy)
         TextButton(onClick = onCalendar) { Icon(Lucide.CalendarDays, null); Spacer(Modifier.width(4.dp)); Text("View calendar") }
@@ -323,7 +337,7 @@ private fun TimeGrid(slots: List<AvailableSlotDTO>, selected: AvailableSlotDTO?,
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { slot ->
                     val isSelected = selected?.startTime == slot.startTime
-                    Surface(onClick = { onSelect(slot) }, modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 2.dp), shape = BookingCardShape, color = if (isSelected) VibrantTeal else White) { Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp)) { Text(slot.label ?: slot.startTime ?: "Time", color = if (isSelected) White else RoyalNavy, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center) } }
+                    Surface(onClick = { onSelect(slot) }, modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 2.dp), shape = BookingCardShape, color = if (isSelected) VibrantTeal else White) { Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp)) { Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time", color = if (isSelected) White else RoyalNavy, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center) } }
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
@@ -340,8 +354,14 @@ private fun ReviewStep(state: BookingUiState, patient: com.example.clinexusapp.m
                 TextButton(onClick = { viewModel.goTo(BookingStep.DATE_TIME) }) { Text("Edit", color = DeepTeal) }
             }
             DetailRow(Lucide.UserRound, "Dentist", state.selectedDentist?.dentistName.orEmpty(), "Dentist")
-            DetailRow(dentalServiceIcon(state.selectedService?.serviceName), "Service", state.selectedService?.serviceName.orEmpty(), "Service")
-            DetailRow(Lucide.Tag, "Price", formatPrice(state.selectedService?.price), "Price")
+            DetailRow(
+                dentalServiceIcon(state.selectedServices.firstOrNull()?.serviceName),
+                "Services",
+                state.selectedServices.joinToString(", ") { it.serviceName ?: "Service" },
+                "Services"
+            )
+            DetailRow(Lucide.Clock, "Duration", "${state.totalEstimatedDurationMinutes} minutes", "Duration")
+            DetailRow(Lucide.Tag, "Price", formatPrice(state.selectedServices.sumOf { it.price ?: 0.0 }), "Price")
             DetailRow(Lucide.CalendarDays, "Date", formatAppointmentDate(state.selectedDate), "Date")
             DetailRow(Lucide.Clock, "Time", formatTimeRange(state.selectedSlot), "Time")
             DetailRow(Lucide.MapPin, "Clinic", "Clinexus Dental Clinic", "Clinic")
@@ -446,7 +466,11 @@ private fun formatAppointmentDate(value: String?): String = value?.let {
     }.getOrDefault(it)
 } ?: "Date unavailable"
 
-private fun formatTimeRange(slot: AvailableSlotDTO?): String = listOfNotNull(slot?.startTime, slot?.endTime).joinToString(" – ").ifBlank { slot?.label ?: "Time unavailable" }
+private fun formatTimeRange(slot: AvailableSlotDTO?): String =
+    listOfNotNull(slot?.startTime, slot?.endTime)
+        .map(DateUtils::formatDisplayTime)
+        .joinToString(" – ")
+        .ifBlank { "Time unavailable" }
 
 private fun isDentistWorkingDay(days: String?, dayName: String): Boolean {
     if (days.isNullOrBlank()) return true

@@ -64,7 +64,7 @@ data class BookableServiceDTO(
     @SerializedName("status")
     val status: String? = null,
 
-    @SerializedName(value = "duration_minutes", alternate = ["durationMinutes"])
+    @SerializedName(value = "estimated_duration_minutes", alternate = ["duration_minutes", "durationMinutes"])
     val durationMinutes: Int? = null
 )
 
@@ -102,7 +102,10 @@ data class PatientAppointmentsResponse(
 
 data class AvailableTimeslotsResponse(
     @SerializedName("availableSlots")
-    val availableSlots: List<AvailableSlotDTO>
+    val availableSlots: List<AvailableSlotDTO> = emptyList(),
+
+    @SerializedName("availableTimeslots")
+    val availableTimeslots: List<String> = emptyList()
 )
 
 data class DentistScheduleDTO(

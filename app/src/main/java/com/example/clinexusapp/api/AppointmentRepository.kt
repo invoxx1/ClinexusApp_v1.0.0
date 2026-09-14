@@ -445,7 +445,8 @@ class AppointmentRepository @Inject constructor(
 
     suspend fun getAvailableTimeslots(
         dentistId: Int,
-        date: String
+        date: String,
+        estimatedDurationMinutes: Int
     ): Resource<List<AvailableSlotDTO>> {
 
         return try {
@@ -461,7 +462,8 @@ class AppointmentRepository @Inject constructor(
                     .getAvailableTimeslots(
                         token = token,
                         dentistId = dentistId,
-                        appointmentDate = date
+                        appointmentDate = date,
+                        estimatedDurationMinutes = estimatedDurationMinutes
                     )
 
             if (
@@ -471,10 +473,19 @@ class AppointmentRepository @Inject constructor(
                 val body =
                     response.body()
 
-                Resource.Success(
-                    body?.availableSlots
-                        ?: emptyList()
-                )
+                val slots = when {
+                    body == null -> emptyList()
+                    body.availableSlots.isNotEmpty() -> body.availableSlots
+                    else -> body.availableTimeslots.map { startTime ->
+                        AvailableSlotDTO(
+                            label = startTime,
+                            startTime = startTime,
+                            endTime = addMinutesToTime(startTime, estimatedDurationMinutes)
+                        )
+                    }
+                }
+
+                Resource.Success(slots)
 
             } else {
 
@@ -499,6 +510,15 @@ class AppointmentRepository @Inject constructor(
                     ?: "Network error while fetching timeslots."
             )
         }
+    }
+
+    private fun addMinutesToTime(startTime: String, durationMinutes: Int): String {
+        val parts = startTime.take(5).split(":")
+        val startMinutes =
+            (parts.getOrNull(0)?.toIntOrNull() ?: 0) * 60 +
+            (parts.getOrNull(1)?.toIntOrNull() ?: 0)
+        val endMinutes = startMinutes + durationMinutes
+        return "%02d:%02d".format(endMinutes / 60, endMinutes % 60)
     }
 
 
