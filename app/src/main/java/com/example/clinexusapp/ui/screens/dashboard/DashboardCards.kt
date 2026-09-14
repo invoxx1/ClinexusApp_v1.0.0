@@ -66,39 +66,41 @@ fun UpcomingAppointmentCard(
     onDetailsClick: () -> Unit
 ) {
     DashboardCard {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 13.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, DashboardStyle.Teal)
-                    Column(Modifier.weight(1f)) {
-                        DashboardCardTitle(appointment.serviceName ?: appointment.treatment)
-                        Spacer(Modifier.height(4.dp))
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(3.dp),
-                        ) {
-                            AppointmentDetail(Lucide.CalendarDays, DateUtils.formatDisplayDate(appointment.appointmentDate))
-                            AppointmentDetail(Lucide.Clock, DateUtils.formatDisplayTime(appointment.startTime))
-                        }
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 13.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, DashboardStyle.Teal)
+                Column(Modifier.weight(1f)) {
+                    DashboardCardTitle(appointment.serviceName ?: appointment.treatment)
+                    Spacer(Modifier.height(4.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        AppointmentDetail(Lucide.CalendarDays, DateUtils.formatDisplayDate(appointment.appointmentDate))
+                        AppointmentDetail(Lucide.Clock, DateUtils.formatDisplayTime(appointment.startTime))
                     }
-                    AppointmentClock()
+                    AppointmentStatusField(appointment.appointmentStatus)
                 }
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth().padding(start = 70.dp), verticalAlignment = Alignment.Top) {
-                    AppointmentStatusField(appointment.appointmentStatus, Modifier.weight(1f))
-                    DashboardPillButton(
-                        text = "View Details",
-                        onClick = onDetailsClick,
-                        modifier = Modifier.widthIn(min = 116.dp),
-                    )
-                }
+                AppointmentClock()
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                DashboardPillButton(
+                    text = "View Details",
+                    onClick = onDetailsClick,
+                    modifier = Modifier.widthIn(min = 116.dp),
+                )
             }
         }
     }
+
 }
 
 @Composable
