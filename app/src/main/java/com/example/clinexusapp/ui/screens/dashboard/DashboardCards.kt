@@ -1,9 +1,9 @@
 package com.example.clinexusapp.ui.screens.dashboard
 
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Building2
 import com.composables.icons.lucide.CalendarDays
 import com.composables.icons.lucide.Clock
+import com.composables.icons.lucide.Hospital
 import com.composables.icons.lucide.Sparkles
 import com.composables.icons.lucide.Tag
 
@@ -43,16 +43,21 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.viewmodel.AppointmentStatus
 import com.example.clinexusapp.viewmodel.mapAppointmentStatus
+import kotlin.math.cos
+import kotlin.math.sin
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -62,58 +67,34 @@ fun UpcomingAppointmentCard(
 ) {
     DashboardCard {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val expandedLayout = maxWidth < 330.dp || LocalDensity.current.fontScale > 1.15f
-            Row(
-                modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, DashboardStyle.Teal)
-                Column(Modifier.weight(1f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            DashboardCardTitle(appointment.serviceName ?: appointment.treatment)
-                            Spacer(Modifier.height(4.dp))
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                AppointmentDetail(
-                                    Lucide.CalendarDays,
-                                    DateUtils.formatDisplayDate(appointment.appointmentDate)
-                                )
-                                AppointmentDetail(
-                                    Lucide.Clock,
-                                    DateUtils.formatDisplayTime(appointment.startTime)
-                                )
-                            }
-                        }
-                        if (!expandedLayout) AppointmentClock()
-                    }
-                    if (expandedLayout) {
-                        Spacer(Modifier.height(8.dp))
-                        AppointmentStatusPill(appointment.appointmentStatus)
-                        DashboardPillButton(
-                            text = "View Details",
-                            onClick = onDetailsClick,
-                            modifier = Modifier.align(Alignment.End)
-                        )
-                    } else {
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 13.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, DashboardStyle.Teal)
+                    Column(Modifier.weight(1f)) {
+                        DashboardCardTitle(appointment.serviceName ?: appointment.treatment)
+                        Spacer(Modifier.height(4.dp))
                         FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
                         ) {
-                            Box(Modifier.heightIn(min = 48.dp), contentAlignment = Alignment.CenterStart) {
-                                AppointmentStatusPill(appointment.appointmentStatus)
-                            }
-                            DashboardPillButton("View Details", onDetailsClick)
+                            AppointmentDetail(Lucide.CalendarDays, DateUtils.formatDisplayDate(appointment.appointmentDate))
+                            AppointmentDetail(Lucide.Clock, DateUtils.formatDisplayTime(appointment.startTime))
                         }
                     }
+                    AppointmentClock()
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth().padding(start = 70.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AppointmentStatusField(appointment.appointmentStatus, Modifier.weight(1f))
+                    DashboardPillButton(
+                        text = "View Details",
+                        onClick = onDetailsClick,
+                        modifier = Modifier.widthIn(min = 116.dp),
+                    )
                 }
             }
         }
@@ -138,51 +119,63 @@ fun EmptyAppointmentCard(onBookClick: () -> Unit) {
 }
 
 @Composable
-fun PromotionCard(title: String, value: String, description: String) {
-    DashboardCard {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            DashboardCardIcon(Lucide.Tag, Color(0xFFFFEDDF), DashboardStyle.Orange)
-            Column(Modifier.weight(1f)) {
-                DashboardCardTitle(title)
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = value,
-                    color = DashboardStyle.Orange,
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+fun PromotionCard(
+    title: String,
+    value: String,
+    description: String,
+    onBookClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.shadow(4.dp, DashboardStyle.CardShape),
+        shape = DashboardStyle.CardShape,
+        color = Color(0xFFEAF5FF),
+    ) {
+        Box(Modifier.background(Brush.horizontalGradient(listOf(Color(0xFFF3F9FF), Color(0xFFDDEEFF))))) {
+            Column(Modifier.fillMaxSize().padding(start = 14.dp, top = 12.dp, end = 48.dp, bottom = 10.dp)) {
+                Text(title, color = DashboardStyle.Navy, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(value, color = Color(0xFF1769C2), fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
                 if (description.isNotBlank()) {
-                    Spacer(Modifier.height(2.dp))
-                    DashboardCardDescription(description)
+                    Text(description, color = Color(0xFF667085), fontSize = 10.sp, lineHeight = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
+                Spacer(Modifier.weight(1f))
+                DashboardPillButton("Book Now", onBookClick, Modifier.widthIn(min = 108.dp))
             }
+            Text(
+                "✦",
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp),
+                color = Color(0xFF62A7EC),
+                fontSize = 32.sp,
+            )
         }
     }
 }
 
 @Composable
 fun InsightCard(title: String, subtitle: String, category: String, onClick: () -> Unit) {
-    DashboardCard(Modifier.clickable(role = Role.Button, onClick = onClick)) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(112.dp).shadow(4.dp, DashboardStyle.CardShape),
+        shape = DashboardStyle.CardShape,
+        color = Color(0xFFE9FAF5),
+    ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Lucide.Sparkles, Color(0xFFFFE9EA), Color(0xFFFF6468))
+            DashboardCardIcon(Lucide.Sparkles, Color(0xFFD8F5EC), Color(0xFF1769D2))
             Column(Modifier.weight(1f)) {
-                DashboardCardTitle(title)
+                Text(title, color = DashboardStyle.Navy, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (category.isNotBlank()) {
-                    Text(category, color = Color(0xFFFF6468), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(category.uppercase(), color = Color(0xFF16853C), fontSize = 9.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 }
                 if (subtitle.isNotBlank()) {
                     Spacer(Modifier.height(4.dp))
-                    DashboardCardDescription(subtitle)
+                    Text(subtitle, color = DashboardStyle.Muted, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
+            }
+            Surface(onClick = onClick, shape = CircleShape, color = Color(0xFFDCEAFF)) {
+                Text("Read more", Modifier.padding(horizontal = 10.dp, vertical = 8.dp), color = DashboardStyle.Teal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -190,21 +183,28 @@ fun InsightCard(title: String, subtitle: String, category: String, onClick: () -
 
 @Composable
 fun NewsCard(title: String, description: String, date: String) {
-    DashboardCard {
+    DashboardCard(Modifier.height(108.dp)) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Lucide.Building2, Color(0xFFE5F3FF), Color(0xFF70AFD0))
+            DashboardCardIcon(Lucide.Hospital, Color(0xFFE5F3FF), Color(0xFF2479CE))
             Column(Modifier.weight(1f)) {
-                DashboardCardTitle(title)
+                Text(title, color = DashboardStyle.Navy, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (date.isNotBlank()) {
-                    Text(date, color = DashboardStyle.Teal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(date, color = DashboardStyle.Teal, fontSize = 10.sp, lineHeight = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 if (description.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    DashboardCardDescription(description)
+                    Spacer(Modifier.height(2.dp))
+                    Text(description, color = DashboardStyle.Muted, fontSize = 10.sp, lineHeight = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Surface(shape = CircleShape, color = Color(0xFFE1F8E8)) {
+                Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(7.dp).background(Color(0xFF16A53A), CircleShape))
+                    Spacer(Modifier.width(6.dp))
+                    Text("OPEN TODAY", color = Color(0xFF087C29), fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 }
             }
         }
@@ -277,63 +277,76 @@ private fun AppointmentDetail(icon: ImageVector, text: String) {
 }
 
 @Composable
-private fun AppointmentStatusPill(rawStatus: String) {
+private fun AppointmentStatusField(rawStatus: String, modifier: Modifier = Modifier) {
     val status = mapAppointmentStatus(rawStatus)
     val (label, color) = when (status) {
-        AppointmentStatus.PENDING -> "PENDING" to Color(0xFFD97706)
-        AppointmentStatus.CONFIRMED -> "CONFIRMED" to Color(0xFF008A13)
-        AppointmentStatus.RESCHEDULE_REQUESTED -> "RESCHEDULE " to Color(0xFF7C3AED)
-        AppointmentStatus.CANCELLATION_REQUESTED -> "CANCELLATION " to Color(0xFFC2415A)
-        AppointmentStatus.COMPLETED -> "COMPLETED" to Color(0xFF2563EB)
-        AppointmentStatus.CANCELLED -> "CANCELLED" to Color(0xFFD92D38)
-        AppointmentStatus.UNKNOWN -> "UNKNOWN" to Color(0xFF687080)
+        AppointmentStatus.PENDING -> "Pending" to Color(0xFFD97706)
+        AppointmentStatus.CONFIRMED -> "Confirmed" to Color(0xFF008A13)
+        AppointmentStatus.RESCHEDULE_REQUESTED -> "Reschedule requested" to Color(0xFF7C3AED)
+        AppointmentStatus.CANCELLATION_REQUESTED -> "Cancellation requested" to Color(0xFFC2415A)
+        AppointmentStatus.COMPLETED -> "Completed" to Color(0xFF2563EB)
+        AppointmentStatus.CANCELLED -> "Cancelled" to Color(0xFFD92D38)
+        AppointmentStatus.UNKNOWN -> "Unavailable" to Color(0xFF687080)
     }
-    Surface(
-        color = if (status == AppointmentStatus.CONFIRMED) {
-            Color(0xFFDEF7DE)
-        } else {
-            color.copy(alpha = 0.1f)
-        },
-        shape = RoundedCornerShape(20.dp)
+
+    Column(
+        modifier = modifier.semantics { contentDescription = "Appointment status: $label" },
+        verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(6.dp).background(color, CircleShape))
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = "Status",
+                color = DashboardStyle.Muted,
+                fontSize = 9.sp,
+                lineHeight = 12.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
         Text(
+            modifier = Modifier.padding(start = 11.dp),
             text = label,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
             color = color,
             fontSize = 10.sp,
             lineHeight = 13.sp,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
 @Composable
 private fun AppointmentClock() {
-    Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = 4.dp.toPx()
-            val inset = stroke / 2f
-            val arcSize = Size(size.width - stroke, size.height - stroke)
-            drawArc(
-                color = Color(0xFF1F3A6D),
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = Offset(inset, inset),
-                size = arcSize,
-                style = Stroke(width = stroke)
-            )
-            drawArc(
-                color = DashboardStyle.Teal,
-                startAngle = 180f,
-                sweepAngle = 90f,
-                useCenter = false,
-                topLeft = Offset(inset, inset),
-                size = arcSize,
-                style = Stroke(width = stroke)
-            )
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val outerRadius = size.minDimension / 2f
+            drawCircle(Color(0xFFDCE8FF), radius = outerRadius, style = Fill)
+            drawCircle(Color.White, radius = outerRadius - 3.dp.toPx(), style = Fill)
+            drawCircle(DashboardStyle.Teal, radius = outerRadius - 3.dp.toPx(), style = Stroke(2.dp.toPx()))
+
+            repeat(12) { tick ->
+                val angle = Math.toRadians((tick * 30.0) - 90.0)
+                val tickOuter = outerRadius - 7.dp.toPx()
+                val tickInner = tickOuter - if (tick % 3 == 0) 3.dp.toPx() else 1.5.dp.toPx()
+                val start = Offset(
+                    center.x + cos(angle).toFloat() * tickInner,
+                    center.y + sin(angle).toFloat() * tickInner,
+                )
+                val end = Offset(
+                    center.x + cos(angle).toFloat() * tickOuter,
+                    center.y + sin(angle).toFloat() * tickOuter,
+                )
+                drawLine(DashboardStyle.Teal.copy(alpha = if (tick % 3 == 0) 0.9f else 0.45f), start, end, strokeWidth = 1.3.dp.toPx())
+            }
+
+            drawLine(DashboardStyle.Teal, center, Offset(center.x, center.y - 8.dp.toPx()), strokeWidth = 2.dp.toPx())
+            drawLine(DashboardStyle.Teal, center, Offset(center.x + 6.dp.toPx(), center.y + 3.dp.toPx()), strokeWidth = 2.dp.toPx())
+            drawCircle(Color.White, radius = 2.6.dp.toPx(), center = center)
+            drawCircle(DashboardStyle.Teal, radius = 1.7.dp.toPx(), center = center)
         }
-        Icon(Lucide.Clock, contentDescription = null, tint = DashboardStyle.Teal, modifier = Modifier.size(24.dp))
     }
 }
 

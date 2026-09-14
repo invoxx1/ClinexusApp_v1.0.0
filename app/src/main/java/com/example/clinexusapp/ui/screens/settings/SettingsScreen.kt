@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.example.clinexusapp.ui.components.*
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.viewmodel.SettingsViewModel
+import com.example.clinexusapp.util.SessionManager
 import kotlinx.coroutines.launch
 
 @Composable
@@ -116,6 +117,15 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                                 iconBg = if (isSystemInDarkTheme()) Color(0xFF0288D1).copy(alpha = 0.1f) else Color(0xFFE1F5FE)
                             ) {
                                 scope.launch { snackbarHostState.showSnackbar("Redirecting to: Help Center") }
+                            }
+                            SettingsLinkItem(
+                                title = "App walkthrough",
+                                icon = Lucide.CircleQuestionMark,
+                                iconColor = Color(0xFF1F3A6D),
+                                iconBg = Color(0xFFE8EEF8),
+                            ) {
+                                SessionManager.resetWalkthrough()
+                                scope.launch { snackbarHostState.showSnackbar("The walkthrough will open on the dashboard") }
                             }
                         }
                     }

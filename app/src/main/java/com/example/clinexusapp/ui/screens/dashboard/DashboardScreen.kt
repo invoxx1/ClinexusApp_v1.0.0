@@ -1,7 +1,6 @@
 package com.example.clinexusapp.ui.screens.dashboard
 
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Bell
 import com.composables.icons.lucide.CalendarDays
 import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.Megaphone
@@ -11,10 +10,10 @@ import com.composables.icons.lucide.Tag
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +30,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -52,6 +54,7 @@ import com.example.clinexusapp.model.PromotionDTO
 import com.example.clinexusapp.ui.navigation.Screen
 import com.example.clinexusapp.ui.screens.appointments.AppointmentDetailsDialog
 import com.example.clinexusapp.ui.components.shimmer
+import com.example.clinexusapp.ui.components.WalkthroughTarget
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.DashboardViewModel
@@ -71,7 +74,7 @@ internal object DashboardStyle {
 private val FallbackHealthInsight = HealthInsightDTO(
     id = "local-health-insight",
     title = "Protect your smile today",
-    description = "Brush twice a day, floss gently, and schedule a dental check-up when it is due.",
+    description = "Brush twice daily, floss gently, and schedule regular check-ups.",
     category = "Daily tip",
     iconEmoji = "health",
 )
@@ -79,7 +82,7 @@ private val FallbackHealthInsight = HealthInsightDTO(
 private val FallbackClinicNews = ClinicNewsDTO(
     id = "local-clinic-news",
     title = "Clinic hours",
-    description = "Our clinic is open Monday to Saturday for appointments and patient support.",
+    description = "Open for appointments and patient support.",
     date = "Mon-Sat · 8:00 AM - 5:00 PM",
 )
 
@@ -87,14 +90,14 @@ private val FallbackClinicNews = ClinicNewsDTO(
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     rootNavController: NavController,
-    onNotificationClick: () -> Unit,
+    onWalkthroughTargetPositioned: (WalkthroughTarget, Rect) -> Unit = { _, _ -> },
+    activeWalkthroughTarget: WalkthroughTarget? = null,
 ) {
     val user by SessionManager.currentUser.collectAsState()
     val newsState by viewModel.newsState.collectAsState()
     val insightsState by viewModel.insightsState.collectAsState()
     val promotionsState by viewModel.promotionsState.collectAsState()
     val nextApptState by viewModel.nextAppointment.collectAsState()
-    val unreadCount by viewModel.unreadNotificationsCount.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.fetchDashboardData()
@@ -110,11 +113,11 @@ fun DashboardScreen(
         insightsState = insightsState,
         promotionsState = promotionsState,
         nextAppointmentState = nextApptState,
-        unreadNotificationsCount = unreadCount,
-        onNotificationClick = onNotificationClick,
         onAppointmentsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
         onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
         onRetry = viewModel::fetchDashboardData,
+        onWalkthroughTargetPositioned = onWalkthroughTargetPositioned,
+        activeWalkthroughTarget = activeWalkthroughTarget,
     )
 }
 
@@ -125,11 +128,11 @@ internal fun DashboardContent(
     insightsState: Resource<List<HealthInsightDTO>>,
     promotionsState: Resource<List<PromotionDTO>>,
     nextAppointmentState: Resource<AppointmentDTO?>,
-    unreadNotificationsCount: Int,
-    onNotificationClick: () -> Unit,
     onAppointmentsClick: () -> Unit,
     onBookClick: () -> Unit,
     onRetry: () -> Unit,
+    onWalkthroughTargetPositioned: (WalkthroughTarget, Rect) -> Unit,
+    activeWalkthroughTarget: WalkthroughTarget?,
 ) {
     val listState = rememberLazyListState()
     val headerVisible by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
@@ -137,6 +140,20 @@ internal fun DashboardContent(
     var selectedAppointment by remember { mutableStateOf<AppointmentDTO?>(null) }
     var showPromotions by remember { mutableStateOf(false) }
     val promotions = (promotionsState as? Resource.Success)?.data.orEmpty()
+
+    LaunchedEffect(activeWalkthroughTarget, promotions.isNotEmpty()) {
+        val promotionsOffset = if (promotions.isNotEmpty()) 1 else 0
+        val targetIndex = when (activeWalkthroughTarget) {
+            WalkthroughTarget.APPOINTMENT -> 1
+            WalkthroughTarget.PROMOTIONS -> if (promotions.isNotEmpty()) 2 else 1
+            WalkthroughTarget.CLINIC_NEWS -> 3 + promotionsOffset
+            WalkthroughTarget.APPOINTMENT_STATUSES,
+            WalkthroughTarget.BOOK_APPOINTMENT,
+            WalkthroughTarget.MESSAGES,
+            null -> null
+        }
+        targetIndex?.let { listState.animateScrollToItem(it) }
+    }
 
     selectedAppointment?.let { appointment ->
         AppointmentDetailsDialog(
@@ -201,10 +218,10 @@ internal fun DashboardContent(
             contentPadding = PaddingValues(bottom = 20.dp),
         ) {
             item(key = "header") {
-                DashboardHeader(firstName, unreadNotificationsCount, onNotificationClick)
+                DashboardHeader(firstName)
             }
             item(key = "appointment") {
-                Column(Modifier.padding(horizontal = 22.dp)) {
+                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { onWalkthroughTargetPositioned(WalkthroughTarget.APPOINTMENT, it.boundsInWindow()) }) {
                     DashboardSectionHeader(
                         title = "Upcoming Appointment",
                         icon = Lucide.CalendarDays,
@@ -225,17 +242,19 @@ internal fun DashboardContent(
             }
             if (promotions.isNotEmpty()) {
                 item(key = "promotions") {
-                    Column(Modifier.padding(horizontal = 22.dp)) {
+                    Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { onWalkthroughTargetPositioned(WalkthroughTarget.PROMOTIONS, it.boundsInWindow()) }) {
                         DashboardSectionHeader("Promotions", Lucide.Tag, "View All") {
                             showPromotions = true
                         }
                         Spacer(Modifier.height(4.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                            promotions.take(2).forEach { promotion ->
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(promotions.take(4), key = { it.promotionId }) { promotion ->
                                 PromotionCard(
+                                    modifier = Modifier.width(250.dp).height(146.dp),
                                     title = promotion.title,
                                     value = formatDiscount(promotion.discountType, promotion.discountValue ?: 0.0),
                                     description = promotion.description.orEmpty(),
+                                    onBookClick = onBookClick,
                                 )
                             }
                         }
@@ -252,7 +271,7 @@ internal fun DashboardContent(
             }
             val news = (newsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackClinicNews
             item(key = "news") {
-                Column(Modifier.padding(horizontal = 22.dp)) {
+                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { onWalkthroughTargetPositioned(WalkthroughTarget.CLINIC_NEWS, it.boundsInWindow()) }) {
                     DashboardSectionHeader("Clinic News", Lucide.Megaphone)
                     Spacer(Modifier.height(4.dp))
                     NewsCard(news.title, news.description, news.date)
@@ -269,12 +288,11 @@ internal fun DashboardContent(
 @Composable
 fun DashboardHeader(
     firstName: String,
-    unreadNotificationsCount: Int,
-    onNotificationClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val fontScale = LocalDensity.current.fontScale
     BoxWithConstraints(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .drawBehind {
                 val silhouette = Path().apply {
@@ -350,50 +368,31 @@ fun DashboardHeader(
                 )
             }
         }
-        Surface(
-            onClick = onNotificationClick,
-            modifier = Modifier.align(Alignment.TopEnd).padding(top = 7.dp, end = 14.dp).size(48.dp),
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.16f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
-        ) {
-            Box {
-                Icon(
-                    Lucide.Bell,
-                    contentDescription = if (unreadNotificationsCount > 0) "$unreadNotificationsCount unread notifications" else "Notifications",
-                    tint = Color.White,
-                    modifier = Modifier.align(Alignment.Center).size(26.dp),
-                )
-                if (unreadNotificationsCount > 0) {
-                    Box(
-                        Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-3).dp)
-                            .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
-                            .background(Color(0xFFFF4D5E), CircleShape)
-                            .padding(horizontal = 5.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            if (unreadNotificationsCount > 99) "99+" else unreadNotificationsCount.toString(),
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            lineHeight = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-            }
-        }
         if (showSlogan) {
-            Text(
-                "Smile\nBrighter\nToday ◡",
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 17.dp, bottom = 22.dp),
-                color = Color.White.copy(alpha = 0.9f),
-                fontFamily = FontFamily.Cursive,
-                fontStyle = FontStyle.Italic,
-                fontSize = 13.sp,
-                lineHeight = 13.sp,
-                textAlign = TextAlign.Center,
-            )
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 25.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    "Smile\nBrighter\nToday",
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontFamily = FontFamily.Cursive,
+                    fontStyle = FontStyle.Italic,
+                    fontSize = 13.sp,
+                    lineHeight = 12.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    "◡",
+                    modifier = Modifier.offset(y = (-2).dp),
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontSize = 15.sp,
+                    lineHeight = 12.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }

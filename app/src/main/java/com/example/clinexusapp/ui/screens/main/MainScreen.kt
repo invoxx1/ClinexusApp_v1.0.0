@@ -16,6 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -30,7 +33,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.clinexusapp.ui.navigation.BottomBarScreen
 import com.example.clinexusapp.ui.navigation.Screen
+import com.example.clinexusapp.ui.components.AppWalkthroughOverlay
+import com.example.clinexusapp.ui.components.WalkthroughTarget
+import com.example.clinexusapp.ui.components.dashboardWalkthroughSteps
 import com.example.clinexusapp.ui.screens.dashboard.DashboardScreen
+import com.example.clinexusapp.ui.screens.notifications.NotificationScreen
 import com.example.clinexusapp.ui.screens.chat.ChatScreen
 import com.example.clinexusapp.ui.screens.profile.ProfileScreen
 import com.example.clinexusapp.ui.screens.appointments.AppointmentHistoryScreen
@@ -43,10 +50,40 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER") settingsViewModel: SettingsViewModel) {
     val navController = rememberNavController()
     var isBottomBarVisible by remember { mutableStateOf(value = true) }
+    val dashboardViewModel: DashboardViewModel = hiltViewModel()
+    val unreadNotificationsCount by dashboardViewModel.unreadNotificationsCount.collectAsState()
+    val sessionInitialized by SessionManager.isInitialized.collectAsState()
+    val walkthroughCompleted by SessionManager.walkthroughCompleted.collectAsState()
+    val walkthroughBounds = remember { mutableStateMapOf<WalkthroughTarget, Rect>() }
+    var walkthroughStep by remember { mutableIntStateOf(0) }
 
+    LaunchedEffect(walkthroughStep, sessionInitialized, walkthroughCompleted) {
+        if (!sessionInitialized || walkthroughCompleted) return@LaunchedEffect
+        when (dashboardWalkthroughSteps.getOrNull(walkthroughStep)?.target) {
+            WalkthroughTarget.APPOINTMENT,
+            WalkthroughTarget.PROMOTIONS,
+            WalkthroughTarget.CLINIC_NEWS -> Screen.Dashboard.route
+            WalkthroughTarget.APPOINTMENT_STATUSES,
+            WalkthroughTarget.BOOK_APPOINTMENT -> Screen.AppointmentHistory.route
+            WalkthroughTarget.MESSAGES -> Screen.Chat.route
+            null -> null
+        }?.let { route ->
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id)
+                launchSingleTop = true
+            }
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         bottomBar = {
-            if (isBottomBarVisible) TealBottomBar(navController = navController)
+            if (isBottomBarVisible) {
+                TealBottomBar(
+                    navController = navController,
+                    unreadNotificationsCount = unreadNotificationsCount,
+                )
+            }
         },
         containerColor = Color(0xFFE8EEF8),
     ) { innerPadding ->
@@ -57,11 +94,15 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
             modifier = Modifier.padding(contentBottomPadding).consumeWindowInsets(contentBottomPadding),
         ) {
             composable(route = Screen.Dashboard.route) {
-                val dashboardViewModel: DashboardViewModel = hiltViewModel()
                 DashboardScreen(
                     viewModel = dashboardViewModel,
                     rootNavController = rootNavController,
-                    onNotificationClick = { rootNavController.navigate(Screen.Notifications.route) },
+                    onWalkthroughTargetPositioned = { target, bounds -> walkthroughBounds[target] = bounds },
+                    activeWalkthroughTarget = if (sessionInitialized && !walkthroughCompleted) {
+                        dashboardWalkthroughSteps.getOrNull(walkthroughStep)?.target
+                    } else {
+                        null
+                    },
                 )
             }
             composable(route = Screen.Chat.route) {
@@ -69,7 +110,15 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 ChatScreen(
                     onBack = { navController.popBackStack() },
                     viewModel = chatViewModel,
+                    onWalkthroughTargetPositioned = { walkthroughBounds[WalkthroughTarget.MESSAGES] = it },
                 ) { isBottomBarVisible = it }
+            }
+            composable(route = Screen.Notifications.route) {
+                val notificationViewModel: NotificationViewModel = hiltViewModel()
+                NotificationScreen(
+                    onBack = { navController.popBackStack() },
+                    viewModel = notificationViewModel,
+                )
             }
             composable(
                 route = Screen.AppointmentHistory.pattern,
@@ -84,6 +133,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     onNavigateToBooking = { rootNavController.navigate(Screen.AppointmentBooking.route) },
                     viewModel = historyViewModel,
                     initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
+                    onWalkthroughTargetPositioned = { target, bounds -> walkthroughBounds[target] = bounds },
                 )
             }
             composable(route = Screen.Profile.route) {
@@ -112,6 +162,23 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     viewModel = profileViewModel,
                 )
             }
+        }
+    }
+        val activeStep = dashboardWalkthroughSteps.getOrNull(walkthroughStep)
+        val activeBounds = activeStep?.let { walkthroughBounds[it.target] }
+        if (sessionInitialized && !walkthroughCompleted && activeBounds != null) {
+            AppWalkthroughOverlay(
+                stepIndex = walkthroughStep,
+                targetBounds = activeBounds,
+                onSkip = SessionManager::completeWalkthrough,
+                onNext = {
+                    if (walkthroughStep == dashboardWalkthroughSteps.lastIndex) {
+                        SessionManager.completeWalkthrough()
+                    } else {
+                        walkthroughStep++
+                    }
+                },
+            )
         }
     }
 }
@@ -151,10 +218,14 @@ internal fun RememberPasswordDialog() {
 }
 
 @Composable
-fun TealBottomBar(navController: NavHostController) {
+fun TealBottomBar(
+    navController: NavHostController,
+    unreadNotificationsCount: Int,
+) {
     val screens = listOf(
         BottomBarScreen.Dashboard,
         BottomBarScreen.Appointments,
+        BottomBarScreen.Notifications,
         BottomBarScreen.Chat,
         BottomBarScreen.Profile,
     )
@@ -180,8 +251,8 @@ fun TealBottomBar(navController: NavHostController) {
                 .fillMaxWidth()
                 .selectableGroup()
                 .heightIn(min = 60.dp)
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(0.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             screens.forEach { screen ->
@@ -189,6 +260,7 @@ fun TealBottomBar(navController: NavHostController) {
                 TealNavItem(
                     screen = screen,
                     isSelected = isSelected,
+                    badgeCount = if (screen == BottomBarScreen.Notifications) unreadNotificationsCount else 0,
                     modifier = Modifier.weight(1f),
                 ) {
                     navController.navigate(screen.route) {
@@ -205,6 +277,7 @@ fun TealBottomBar(navController: NavHostController) {
 fun TealNavItem(
     screen: BottomBarScreen,
     isSelected: Boolean,
+    badgeCount: Int = 0,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -213,6 +286,7 @@ fun TealNavItem(
     val label = when (screen) {
         BottomBarScreen.Dashboard -> "Home"
         BottomBarScreen.Appointments -> "Appointments"
+        BottomBarScreen.Notifications -> "Notifications"
         BottomBarScreen.Chat -> "Messages"
         BottomBarScreen.Profile -> "Profile"
     }
@@ -223,20 +297,30 @@ fun TealNavItem(
             .clip(RoundedCornerShape(16.dp))
             .background(if (isSelected) highlightColor else Color.Transparent)
             .selectable(selected = isSelected, role = Role.Tab, onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 6.dp),
+            .padding(horizontal = 1.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        val labelSize = if (maxWidth < 76.dp) 10.sp else 11.sp
+        val labelSize = if (maxWidth < 76.dp) 8.sp else 10.sp
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Icon(
-                imageVector = screen.icon,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(24.dp),
-            )
+            BadgedBox(
+                badge = {
+                    if (badgeCount > 0 && !isSelected) {
+                        Badge(containerColor = Color(0xFFE53935)) {
+                            Text(if (badgeCount > 99) "99+" else badgeCount.toString())
+                        }
+                    }
+                },
+            ) {
+                Icon(
+                    imageVector = screen.icon,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
             Text(
                 text = label,
                 color = contentColor,
@@ -244,7 +328,9 @@ fun TealNavItem(
                 lineHeight = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 textAlign = TextAlign.Center,
-                maxLines = 2,
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
             )
         }
     }
