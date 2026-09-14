@@ -138,7 +138,7 @@ fun SplashScreen(
     ) {
         val brandWidth = minOf(340.dp, maxWidth - 32.dp)
         val logoSize = brandWidth * 0.30f
-        val textWidth = brandWidth * 0.60f
+        val textWidth = brandWidth * 0.44f
         val logoTextGap = 2.dp
         // Center the compact pair as a unit, with an explicit gap between them.
         val logoTravel = (textWidth + logoTextGap) / 2
