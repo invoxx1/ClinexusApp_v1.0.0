@@ -54,11 +54,21 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
     val unreadNotificationsCount by dashboardViewModel.unreadNotificationsCount.collectAsState()
     val sessionInitialized by SessionManager.isInitialized.collectAsState()
     val walkthroughCompleted by SessionManager.walkthroughCompleted.collectAsState()
+    val pendingPasswordSave by SessionManager.pendingPasswordSave.collectAsState()
     val walkthroughBounds = remember { mutableStateMapOf<WalkthroughTarget, Rect>() }
     var walkthroughStep by remember { mutableIntStateOf(0) }
+    var walkthroughTransitioning by remember { mutableStateOf(false) }
+    var lastWalkthroughBounds by remember { mutableStateOf<Rect?>(null) }
+    val finishWalkthrough = {
+        SessionManager.completeWalkthrough()
+        navController.navigate(Screen.Dashboard.route) {
+            popUpTo(navController.graph.findStartDestination().id)
+            launchSingleTop = true
+        }
+    }
 
-    LaunchedEffect(walkthroughStep, sessionInitialized, walkthroughCompleted) {
-        if (!sessionInitialized || walkthroughCompleted) return@LaunchedEffect
+    LaunchedEffect(walkthroughStep, sessionInitialized, walkthroughCompleted, pendingPasswordSave) {
+        if (!sessionInitialized || walkthroughCompleted || pendingPasswordSave != null) return@LaunchedEffect
         when (dashboardWalkthroughSteps.getOrNull(walkthroughStep)?.target) {
             WalkthroughTarget.APPOINTMENT,
             WalkthroughTarget.PROMOTIONS,
@@ -71,6 +81,18 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
             navController.navigate(route) {
                 popUpTo(navController.graph.findStartDestination().id)
                 launchSingleTop = true
+            }
+        }
+    }
+
+    val activeWalkthroughTarget = dashboardWalkthroughSteps.getOrNull(walkthroughStep)?.target
+    val activeWalkthroughBounds = activeWalkthroughTarget?.let { walkthroughBounds[it] }
+    LaunchedEffect(walkthroughStep, activeWalkthroughBounds) {
+        if (activeWalkthroughBounds != null) {
+            lastWalkthroughBounds = activeWalkthroughBounds
+            if (walkthroughTransitioning) {
+                kotlinx.coroutines.delay(180)
+                walkthroughTransitioning = false
             }
         }
     }
@@ -164,18 +186,29 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
             }
         }
     }
-        val activeStep = dashboardWalkthroughSteps.getOrNull(walkthroughStep)
-        val activeBounds = activeStep?.let { walkthroughBounds[it.target] }
-        if (sessionInitialized && !walkthroughCompleted && activeBounds != null) {
+        val displayBounds = activeWalkthroughBounds ?: lastWalkthroughBounds
+        if (sessionInitialized && !walkthroughCompleted && pendingPasswordSave == null && displayBounds != null) {
             AppWalkthroughOverlay(
                 stepIndex = walkthroughStep,
-                targetBounds = activeBounds,
-                onSkip = SessionManager::completeWalkthrough,
+                targetBounds = displayBounds,
+                transitioning = walkthroughTransitioning,
+                animationsEnabled = activeWalkthroughTarget != WalkthroughTarget.APPOINTMENT &&
+                    activeWalkthroughTarget != WalkthroughTarget.PROMOTIONS &&
+                    activeWalkthroughTarget != WalkthroughTarget.CLINIC_NEWS,
+                onSkip = finishWalkthrough,
                 onNext = {
                     if (walkthroughStep == dashboardWalkthroughSteps.lastIndex) {
-                        SessionManager.completeWalkthrough()
+                        finishWalkthrough()
                     } else {
-                        walkthroughStep++
+                        val nextIndex = walkthroughStep + 1
+                        val nextTarget = dashboardWalkthroughSteps[nextIndex].target
+                        val requiresPrivateReposition = nextTarget == WalkthroughTarget.APPOINTMENT_STATUSES ||
+                            nextTarget == WalkthroughTarget.MESSAGES
+                        if (requiresPrivateReposition) {
+                            walkthroughTransitioning = true
+                            walkthroughBounds.remove(nextTarget)
+                        }
+                        walkthroughStep = nextIndex
                     }
                 },
             )

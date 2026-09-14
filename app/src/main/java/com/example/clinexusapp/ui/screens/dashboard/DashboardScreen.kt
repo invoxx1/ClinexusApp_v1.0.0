@@ -152,7 +152,9 @@ internal fun DashboardContent(
             WalkthroughTarget.MESSAGES,
             null -> null
         }
-        targetIndex?.let { listState.animateScrollToItem(it) }
+        // Dashboard coach marks intentionally reposition without animation to
+        // stay responsive on lower-powered devices.
+        targetIndex?.let { listState.scrollToItem(it) }
     }
 
     selectedAppointment?.let { appointment ->
@@ -333,7 +335,7 @@ fun DashboardHeader(
         Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 22.dp, top = 20.dp, bottom = 25.dp)) {
             Row(Modifier.fillMaxWidth().padding(end = 42.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_dashboard_tooth),
+                    painter = painterResource(R.drawable.clinexus_logo),
                     contentDescription = null,
                     tint = Color.Unspecified,
                     modifier = Modifier.size(42.dp),

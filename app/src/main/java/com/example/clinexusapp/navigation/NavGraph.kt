@@ -271,7 +271,10 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
                 AppointmentTicketScreen(
                     ticket = ticket,
                     onViewAppointments = {
-                        navController.navigate(Screen.AppointmentHistory.route)
+                        navController.navigate(Screen.AppointmentHistory.route) {
+                            popUpTo(Screen.AppointmentBooking.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
                         latestAppointmentTicket = null
                     },
                     onBackHome = {
@@ -281,6 +284,13 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
                         latestAppointmentTicket = null
                     }
                 )
+            } else {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Screen.AppointmentHistory.route) {
+                        popUpTo(Screen.AppointmentTicket.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             }
         }
 

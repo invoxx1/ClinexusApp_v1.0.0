@@ -88,7 +88,7 @@ fun UpcomingAppointmentCard(
                     AppointmentClock()
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth().padding(start = 70.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(start = 70.dp), verticalAlignment = Alignment.Top) {
                     AppointmentStatusField(appointment.appointmentStatus, Modifier.weight(1f))
                     DashboardPillButton(
                         text = "View Details",
@@ -289,23 +289,23 @@ private fun AppointmentStatusField(rawStatus: String, modifier: Modifier = Modif
         AppointmentStatus.UNKNOWN -> "Unavailable" to Color(0xFF687080)
     }
 
-    Column(
-        modifier = modifier.semantics { contentDescription = "Appointment status: $label" },
-        verticalArrangement = Arrangement.spacedBy(1.dp),
+    Row(
+        modifier = modifier
+            .padding(top = 8.dp)
+            .semantics { contentDescription = "Appointment status: $label" },
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(6.dp).background(color, CircleShape))
-            Spacer(Modifier.width(5.dp))
-            Text(
-                text = "Status",
-                color = DashboardStyle.Muted,
-                fontSize = 9.sp,
-                lineHeight = 12.sp,
-                fontWeight = FontWeight.Medium,
-            )
-        }
+        Box(Modifier.size(6.dp).background(color, CircleShape))
+        Spacer(Modifier.width(5.dp))
         Text(
-            modifier = Modifier.padding(start = 11.dp),
+            text = "Status",
+            color = DashboardStyle.Muted,
+            fontSize = 9.sp,
+            lineHeight = 13.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
             text = label,
             color = color,
             fontSize = 10.sp,

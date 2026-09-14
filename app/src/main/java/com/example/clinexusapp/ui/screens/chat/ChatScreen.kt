@@ -311,13 +311,18 @@ fun ChatScreen(
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .chatScreenBackground()
-                .onGloballyPositioned { onWalkthroughTargetPositioned(it.boundsInWindow()) }
         ) {
             when (currentView) {
                 ChatView.CONVERSATIONS -> {
                     Column(modifier = Modifier.weight(1f)) {
-                        ChatListHeader(title = "Messages")
-                        MessageSearchField(searchQuery, { searchQuery = it }, "Search conversations...")
+                        Column(
+                            Modifier.onGloballyPositioned {
+                                onWalkthroughTargetPositioned(it.boundsInWindow())
+                            },
+                        ) {
+                            ChatListHeader(title = "Messages")
+                            MessageSearchField(searchQuery, { searchQuery = it }, "Search conversations...")
+                        }
                         Spacer(Modifier.height(26.dp))
                         Box(modifier = Modifier.weight(1f)) {
                         when (val convState = conversationsState) {

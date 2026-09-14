@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,9 +31,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.Dialog
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import com.example.clinexusapp.R
 import com.example.clinexusapp.ui.components.MintTextField
 import com.example.clinexusapp.ui.components.VibrantButton
 import com.example.clinexusapp.ui.theme.*
@@ -58,13 +61,18 @@ fun LoginScreen(
     var loginError by remember { mutableStateOf<String?>(null) }
     var credentialError by remember { mutableStateOf<String?>(null) }
     var showSavedAccountSettings by remember { mutableStateOf(false) }
+    var loginTransitionActive by rememberSaveable { mutableStateOf(false) }
+    var transitionPhoto by remember { mutableStateOf<String?>(null) }
+    var transitionName by remember { mutableStateOf("") }
 
     val loginState by viewModel.loginState.collectAsState()
     val savedAccounts by SessionManager.savedAccounts.collectAsState()
+    val currentUser by SessionManager.currentUser.collectAsState()
     val selectedAccount = savedAccounts.firstOrNull { it.patient.patientID == selectedPatientID }
     val autoLoginAccount = savedAccounts.firstOrNull { it.patient.patientID == autoLoginPatientID }
     val showSavedAccounts = savedAccounts.isNotEmpty() && selectedAccount == null && !showManualLogin
     val showAutoLoginAnimation = autoLoginAccount != null && loginState is Resource.Loading
+    val showLoginAnimation = loginTransitionActive || showAutoLoginAnimation
 
     val returnToSavedAccounts = {
         selectedPatientID = null
@@ -207,6 +215,7 @@ fun LoginScreen(
                 viewModel.resetState()
             }
             is Resource.Error -> {
+                loginTransitionActive = false
                 if (isCredentialError(state.message)) {
                     credentialError = if (selectedAccount != null || autoLoginAccount != null) {
                         "The password you entered is incorrect."
@@ -231,6 +240,11 @@ fun LoginScreen(
                 val matchingAccount = selectedAccount ?: savedAccounts.firstOrNull {
                     it.patient.email.equals(submittedEmail.trim(), ignoreCase = true)
                 }
+                transitionPhoto = matchingAccount?.cachedProfilePicture ?: matchingAccount?.patient?.profilePicture
+                transitionName = matchingAccount?.patient?.let {
+                    listOf(it.firstName, it.lastName).filterNotNull().joinToString(" ").trim()
+                }.orEmpty().ifBlank { submittedEmail.trim() }
+                loginTransitionActive = true
                 viewModel.login(
                     email = submittedEmail,
                     password = password,
@@ -247,7 +261,7 @@ fun LoginScreen(
                 .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (showAutoLoginAnimation) {
+            if (showLoginAnimation) {
                 Spacer(Modifier.height(150.dp))
             } else {
                 if (!showSavedAccounts && savedAccounts.isNotEmpty()) {
@@ -271,10 +285,10 @@ fun LoginScreen(
             }
 
             when {
-                showAutoLoginAnimation -> {
-                    val account = autoLoginAccount
-                    val patient = account.patient
-                    val photo = account.cachedProfilePicture ?: patient.profilePicture
+                showLoginAnimation -> {
+                    val account = autoLoginAccount ?: selectedAccount
+                    val patient = currentUser ?: account?.patient
+                    val photo = transitionPhoto ?: account?.cachedProfilePicture ?: patient?.profilePicture
                     Box(modifier = Modifier.size(116.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(
                             modifier = Modifier.fillMaxSize(),
@@ -282,11 +296,20 @@ fun LoginScreen(
                             trackColor = MintSparkle,
                             strokeWidth = 4.dp,
                         )
-                        AccountAvatar(photo, patient.firstName.orEmpty(), 96.dp)
+                        AccountAvatar(
+                            photo = photo,
+                            name = patient?.firstName.orEmpty().ifBlank { transitionName },
+                            size = 96.dp,
+                        )
                     }
                     Spacer(Modifier.height(22.dp))
+                    val displayedTransitionName = transitionName.ifBlank { patient?.let {
+                        listOf(it.firstName, it.lastName).filterNotNull().joinToString(" ").trim()
+                    }.orEmpty() }.ifBlank {
+                        patient?.email.orEmpty().ifBlank { email.trim() }.ifBlank { "Signing in securely" }
+                    }
                     Text(
-                        listOf(patient.firstName, patient.lastName).filterNotNull().joinToString(" ").ifBlank { "Patient" },
+                        displayedTransitionName,
                         color = RoyalNavy,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
@@ -303,6 +326,8 @@ fun LoginScreen(
                             modifier = Modifier.fillMaxWidth().clickable(enabled = loginState !is Resource.Loading) {
                                 credentialError = null
                                 email = patient.email.orEmpty()
+                                transitionPhoto = account.cachedProfilePicture ?: patient.profilePicture
+                                transitionName = listOf(patient.firstName, patient.lastName).filterNotNull().joinToString(" ").trim()
                                 val savedPassword = account.password
                                 if (savedPassword.isNullOrBlank()) {
                                     selectedPatientID = patient.patientID
@@ -313,6 +338,7 @@ fun LoginScreen(
                                     if (activity == null) {
                                         autoLoginPatientID = patient.patientID
                                         password = savedPassword
+                                        loginTransitionActive = true
                                         viewModel.login(patient.email.orEmpty(), savedPassword, rememberAccount = true)
                                     } else {
                                         BiometricGate.authenticate(
@@ -321,11 +347,13 @@ fun LoginScreen(
                                             onSuccess = {
                                                 autoLoginPatientID = patient.patientID
                                                 password = savedPassword
+                                                loginTransitionActive = true
                                                 viewModel.login(patient.email.orEmpty(), savedPassword, rememberAccount = true)
                                             },
                                             onUnavailable = {
                                                 autoLoginPatientID = patient.patientID
                                                 password = savedPassword
+                                                loginTransitionActive = true
                                                 viewModel.login(patient.email.orEmpty(), savedPassword, rememberAccount = true)
                                             },
                                             onError = { loginError = it },
@@ -385,7 +413,7 @@ fun LoginScreen(
                 }
             }
 
-            if (!showSavedAccounts && !showAutoLoginAnimation) {
+            if (!showSavedAccounts && !showLoginAnimation) {
                 Spacer(Modifier.height(24.dp))
                 VibrantButton(
                     text = if (loginState is Resource.Loading) "Signing in…" else "Sign in",
@@ -396,7 +424,7 @@ fun LoginScreen(
                 }
             }
 
-            if (!showAutoLoginAnimation) {
+            if (!showLoginAnimation) {
                 Spacer(Modifier.height(54.dp))
                 OutlinedButton(
                     onClick = onNavigateToRegister, modifier = Modifier.fillMaxWidth().height(54.dp),
@@ -411,9 +439,19 @@ fun LoginScreen(
 @Composable
 private fun LoginBrand() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(shape = CircleShape, color = MintSparkle, modifier = Modifier.size(72.dp)) {
+        Surface(
+            shape = CircleShape,
+            color = DeepTeal,
+            modifier = Modifier.size(72.dp),
+            shadowElevation = 6.dp,
+        ) {
             Box(contentAlignment = Alignment.Center) {
-                Text("C", color = DeepTeal, fontSize = 42.sp, fontWeight = FontWeight.Black)
+                Icon(
+                    painter = painterResource(R.drawable.clinexus_logo),
+                    contentDescription = "CliNexus logo",
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(50.dp),
+                )
             }
         }
         Spacer(Modifier.height(12.dp))

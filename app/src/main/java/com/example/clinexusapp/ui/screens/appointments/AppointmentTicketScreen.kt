@@ -4,6 +4,7 @@ import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.CircleCheck
 
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +28,8 @@ fun AppointmentTicketScreen(
     onViewAppointments: () -> Unit,
     onBackHome: () -> Unit,
 ) {
+    BackHandler(onBack = onViewAppointments)
+
     val status = BookingRules.statusLabel(ticket.status)
     val pending = status == "Awaiting clinic approval"
     val heading = if (pending) "Booking complete" else "Appointment confirmed"
