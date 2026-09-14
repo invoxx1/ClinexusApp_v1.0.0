@@ -16,9 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,9 +30,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.clinexusapp.ui.navigation.BottomBarScreen
 import com.example.clinexusapp.ui.navigation.Screen
-import com.example.clinexusapp.ui.components.AppWalkthroughOverlay
-import com.example.clinexusapp.ui.components.WalkthroughTarget
-import com.example.clinexusapp.ui.components.dashboardWalkthroughSteps
 import com.example.clinexusapp.ui.screens.dashboard.DashboardScreen
 import com.example.clinexusapp.ui.screens.notifications.NotificationScreen
 import com.example.clinexusapp.ui.screens.chat.ChatScreen
@@ -52,51 +46,6 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
     var isBottomBarVisible by remember { mutableStateOf(value = true) }
     val dashboardViewModel: DashboardViewModel = hiltViewModel()
     val unreadNotificationsCount by dashboardViewModel.unreadNotificationsCount.collectAsState()
-    val sessionInitialized by SessionManager.isInitialized.collectAsState()
-    val walkthroughCompleted by SessionManager.walkthroughCompleted.collectAsState()
-    val pendingPasswordSave by SessionManager.pendingPasswordSave.collectAsState()
-    val walkthroughBounds = remember { mutableStateMapOf<WalkthroughTarget, Rect>() }
-    var walkthroughStep by remember { mutableIntStateOf(0) }
-    var walkthroughTransitioning by remember { mutableStateOf(false) }
-    var lastWalkthroughBounds by remember { mutableStateOf<Rect?>(null) }
-    val finishWalkthrough = {
-        SessionManager.completeWalkthrough()
-        navController.navigate(Screen.Dashboard.route) {
-            popUpTo(navController.graph.findStartDestination().id)
-            launchSingleTop = true
-        }
-    }
-
-    LaunchedEffect(walkthroughStep, sessionInitialized, walkthroughCompleted, pendingPasswordSave) {
-        if (!sessionInitialized || walkthroughCompleted || pendingPasswordSave != null) return@LaunchedEffect
-        when (dashboardWalkthroughSteps.getOrNull(walkthroughStep)?.target) {
-            WalkthroughTarget.APPOINTMENT,
-            WalkthroughTarget.PROMOTIONS,
-            WalkthroughTarget.CLINIC_NEWS -> Screen.Dashboard.route
-            WalkthroughTarget.APPOINTMENT_STATUSES,
-            WalkthroughTarget.BOOK_APPOINTMENT -> Screen.AppointmentHistory.route
-            WalkthroughTarget.MESSAGES -> Screen.Chat.route
-            null -> null
-        }?.let { route ->
-            navController.navigate(route) {
-                popUpTo(navController.graph.findStartDestination().id)
-                launchSingleTop = true
-            }
-        }
-    }
-
-    val activeWalkthroughTarget = dashboardWalkthroughSteps.getOrNull(walkthroughStep)?.target
-    val activeWalkthroughBounds = activeWalkthroughTarget?.let { walkthroughBounds[it] }
-    LaunchedEffect(walkthroughStep, activeWalkthroughBounds) {
-        if (activeWalkthroughBounds != null) {
-            lastWalkthroughBounds = activeWalkthroughBounds
-            if (walkthroughTransitioning) {
-                kotlinx.coroutines.delay(180)
-                walkthroughTransitioning = false
-            }
-        }
-    }
-
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         bottomBar = {
@@ -119,12 +68,6 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 DashboardScreen(
                     viewModel = dashboardViewModel,
                     rootNavController = rootNavController,
-                    onWalkthroughTargetPositioned = { target, bounds -> walkthroughBounds[target] = bounds },
-                    activeWalkthroughTarget = if (sessionInitialized && !walkthroughCompleted) {
-                        dashboardWalkthroughSteps.getOrNull(walkthroughStep)?.target
-                    } else {
-                        null
-                    },
                 )
             }
             composable(route = Screen.Chat.route) {
@@ -132,7 +75,6 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 ChatScreen(
                     onBack = { navController.popBackStack() },
                     viewModel = chatViewModel,
-                    onWalkthroughTargetPositioned = { walkthroughBounds[WalkthroughTarget.MESSAGES] = it },
                 ) { isBottomBarVisible = it }
             }
             composable(route = Screen.Notifications.route) {
@@ -155,7 +97,6 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     onNavigateToBooking = { rootNavController.navigate(Screen.AppointmentBooking.route) },
                     viewModel = historyViewModel,
                     initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
-                    onWalkthroughTargetPositioned = { target, bounds -> walkthroughBounds[target] = bounds },
                 )
             }
             composable(route = Screen.Profile.route) {
@@ -186,33 +127,6 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
             }
         }
     }
-        val displayBounds = activeWalkthroughBounds ?: lastWalkthroughBounds
-        if (sessionInitialized && !walkthroughCompleted && pendingPasswordSave == null && displayBounds != null) {
-            AppWalkthroughOverlay(
-                stepIndex = walkthroughStep,
-                targetBounds = displayBounds,
-                transitioning = walkthroughTransitioning,
-                animationsEnabled = activeWalkthroughTarget != WalkthroughTarget.APPOINTMENT &&
-                    activeWalkthroughTarget != WalkthroughTarget.PROMOTIONS &&
-                    activeWalkthroughTarget != WalkthroughTarget.CLINIC_NEWS,
-                onSkip = finishWalkthrough,
-                onNext = {
-                    if (walkthroughStep == dashboardWalkthroughSteps.lastIndex) {
-                        finishWalkthrough()
-                    } else {
-                        val nextIndex = walkthroughStep + 1
-                        val nextTarget = dashboardWalkthroughSteps[nextIndex].target
-                        val requiresPrivateReposition = nextTarget == WalkthroughTarget.APPOINTMENT_STATUSES ||
-                            nextTarget == WalkthroughTarget.MESSAGES
-                        if (requiresPrivateReposition) {
-                            walkthroughTransitioning = true
-                            walkthroughBounds.remove(nextTarget)
-                        }
-                        walkthroughStep = nextIndex
-                    }
-                },
-            )
-        }
     }
 }
 

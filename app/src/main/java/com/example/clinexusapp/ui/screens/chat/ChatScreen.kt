@@ -37,13 +37,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -74,7 +71,6 @@ import java.io.FileOutputStream
 fun ChatScreen(
     onBack: () -> Unit, 
     viewModel: ChatViewModel,
-    onWalkthroughTargetPositioned: (Rect) -> Unit = {},
     onVisibilityChange: (Boolean) -> Unit = {},
 ) {
     var messageText by remember { mutableStateOf("") }
@@ -315,11 +311,7 @@ fun ChatScreen(
             when (currentView) {
                 ChatView.CONVERSATIONS -> {
                     Column(modifier = Modifier.weight(1f)) {
-                        Column(
-                            Modifier.onGloballyPositioned {
-                                onWalkthroughTargetPositioned(it.boundsInWindow())
-                            },
-                        ) {
+                        Column {
                             ChatListHeader(title = "Messages")
                             MessageSearchField(searchQuery, { searchQuery = it }, "Search conversations...")
                         }

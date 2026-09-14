@@ -30,9 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -54,7 +51,6 @@ import com.example.clinexusapp.model.PromotionDTO
 import com.example.clinexusapp.ui.navigation.Screen
 import com.example.clinexusapp.ui.screens.appointments.AppointmentDetailsDialog
 import com.example.clinexusapp.ui.components.shimmer
-import com.example.clinexusapp.ui.components.WalkthroughTarget
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.viewmodel.DashboardViewModel
@@ -90,8 +86,6 @@ private val FallbackClinicNews = ClinicNewsDTO(
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     rootNavController: NavController,
-    onWalkthroughTargetPositioned: (WalkthroughTarget, Rect) -> Unit = { _, _ -> },
-    activeWalkthroughTarget: WalkthroughTarget? = null,
 ) {
     val user by SessionManager.currentUser.collectAsState()
     val newsState by viewModel.newsState.collectAsState()
@@ -116,8 +110,6 @@ fun DashboardScreen(
         onAppointmentsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
         onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
         onRetry = viewModel::fetchDashboardData,
-        onWalkthroughTargetPositioned = onWalkthroughTargetPositioned,
-        activeWalkthroughTarget = activeWalkthroughTarget,
     )
 }
 
@@ -131,8 +123,6 @@ internal fun DashboardContent(
     onAppointmentsClick: () -> Unit,
     onBookClick: () -> Unit,
     onRetry: () -> Unit,
-    onWalkthroughTargetPositioned: (WalkthroughTarget, Rect) -> Unit,
-    activeWalkthroughTarget: WalkthroughTarget?,
 ) {
     val listState = rememberLazyListState()
     val headerVisible by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
@@ -140,22 +130,6 @@ internal fun DashboardContent(
     var selectedAppointment by remember { mutableStateOf<AppointmentDTO?>(null) }
     var showPromotions by remember { mutableStateOf(false) }
     val promotions = (promotionsState as? Resource.Success)?.data.orEmpty()
-
-    LaunchedEffect(activeWalkthroughTarget, promotions.isNotEmpty()) {
-        val promotionsOffset = if (promotions.isNotEmpty()) 1 else 0
-        val targetIndex = when (activeWalkthroughTarget) {
-            WalkthroughTarget.APPOINTMENT -> 1
-            WalkthroughTarget.PROMOTIONS -> if (promotions.isNotEmpty()) 2 else 1
-            WalkthroughTarget.CLINIC_NEWS -> 3 + promotionsOffset
-            WalkthroughTarget.APPOINTMENT_STATUSES,
-            WalkthroughTarget.BOOK_APPOINTMENT,
-            WalkthroughTarget.MESSAGES,
-            null -> null
-        }
-        // Dashboard coach marks intentionally reposition without animation to
-        // stay responsive on lower-powered devices.
-        targetIndex?.let { listState.scrollToItem(it) }
-    }
 
     selectedAppointment?.let { appointment ->
         AppointmentDetailsDialog(
@@ -223,7 +197,7 @@ internal fun DashboardContent(
                 DashboardHeader(firstName)
             }
             item(key = "appointment") {
-                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { onWalkthroughTargetPositioned(WalkthroughTarget.APPOINTMENT, it.boundsInWindow()) }) {
+                Column(Modifier.padding(horizontal = 22.dp)) {
                     DashboardSectionHeader(
                         title = "Upcoming Appointment",
                         icon = Lucide.CalendarDays,
@@ -244,7 +218,7 @@ internal fun DashboardContent(
             }
             if (promotions.isNotEmpty()) {
                 item(key = "promotions") {
-                    Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { onWalkthroughTargetPositioned(WalkthroughTarget.PROMOTIONS, it.boundsInWindow()) }) {
+                    Column(Modifier.padding(horizontal = 22.dp)) {
                         DashboardSectionHeader("Promotions", Lucide.Tag, "View All") {
                             showPromotions = true
                         }
@@ -273,7 +247,7 @@ internal fun DashboardContent(
             }
             val news = (newsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackClinicNews
             item(key = "news") {
-                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { onWalkthroughTargetPositioned(WalkthroughTarget.CLINIC_NEWS, it.boundsInWindow()) }) {
+                Column(Modifier.padding(horizontal = 22.dp)) {
                     DashboardSectionHeader("Clinic News", Lucide.Megaphone)
                     Spacer(Modifier.height(4.dp))
                     NewsCard(news.title, news.description, news.date)

@@ -118,15 +118,6 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                             ) {
                                 scope.launch { snackbarHostState.showSnackbar("Redirecting to: Help Center") }
                             }
-                            SettingsLinkItem(
-                                title = "App walkthrough",
-                                icon = Lucide.CircleQuestionMark,
-                                iconColor = Color(0xFF1F3A6D),
-                                iconBg = Color(0xFFE8EEF8),
-                            ) {
-                                SessionManager.resetWalkthrough()
-                                scope.launch { snackbarHostState.showSnackbar("The walkthrough will open on the dashboard") }
-                            }
                         }
                     }
                 }
