@@ -163,38 +163,38 @@ fun ChatScreen(
         ModalBottomSheet(
             onDismissRequest = { showAttachmentOptions = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         ) {
             Column(
                 Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Add attachment", color = RoyalNavy, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                Text("Choose a photo from your gallery or attach a file.", color = SlateGray, fontSize = 14.sp)
+                Text("Add attachment", color = MaterialTheme.colorScheme.onSurface, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                Text("Choose a photo from your gallery or attach a file.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 Spacer(Modifier.height(4.dp))
                 Surface(
                     onClick = { showAttachmentOptions = false; openGallery() },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = SoftMist,
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Lucide.ImagePlus, null, tint = VibrantTeal)
+                        Icon(Lucide.ImagePlus, null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(12.dp))
-                        Text("Choose image", color = RoyalNavy, fontWeight = FontWeight.SemiBold)
+                        Text("Choose image", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 Surface(
                     onClick = { showAttachmentOptions = false; filePickerLauncher.launch("*/*") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = SoftMist,
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Lucide.Paperclip, null, tint = VibrantTeal)
+                        Icon(Lucide.Paperclip, null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(12.dp))
-                        Text("Attach file", color = RoyalNavy, fontWeight = FontWeight.SemiBold)
+                        Text("Attach file", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -259,7 +259,7 @@ fun ChatScreen(
                                 text = chatPartnerName,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = RoyalNavy,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontSize = 11.sp
                                 ),
                                 maxLines = 1,
@@ -276,13 +276,13 @@ fun ChatScreen(
                             Icon(
                                 Lucide.ArrowLeft,
                                 contentDescription = "Back",
-                                tint = VibrantTeal,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White.copy(alpha = 0.95f),
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                     )
                 )
             }
@@ -303,7 +303,7 @@ fun ChatScreen(
                 }
             }
         },
-        containerColor = Color(0xFFE8EEF8)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { padding ->
         Column(
             modifier = Modifier
@@ -326,7 +326,7 @@ fun ChatScreen(
                         when (val convState = conversationsState) {
                             is Resource.Loading -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(color = VibrantTeal)
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                                 }
                             }
                             is Resource.Error -> {
@@ -341,7 +341,7 @@ fun ChatScreen(
                                 }
                                 if (conversations.isEmpty()) {
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(text = if (searchQuery.isBlank()) "No active conversations" else "No conversations found", color = SlateGray)
+                                        Text(text = if (searchQuery.isBlank()) "No active conversations" else "No conversations found", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 } else {
                                     LazyColumn(
@@ -378,7 +378,7 @@ fun ChatScreen(
                         Spacer(Modifier.height(30.dp))
                         Text(
                             "Available Contacts",
-                            color = Color(0xFF7D839D),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
@@ -388,7 +388,7 @@ fun ChatScreen(
                         when (val cState = contactsState) {
                             is Resource.Loading -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(color = VibrantTeal)
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                                 }
                             }
                             is Resource.Error -> {
@@ -403,7 +403,7 @@ fun ChatScreen(
                                 }
                                 if (contacts.isEmpty()) {
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(text = if (searchQuery.isBlank()) "No contacts available" else "No contacts found", color = SlateGray)
+                                        Text(text = if (searchQuery.isBlank()) "No contacts available" else "No contacts found", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 } else {
                                     LazyColumn(
@@ -412,9 +412,9 @@ fun ChatScreen(
                                     ) {
                                         item {
                                             Surface(
-                                                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0xFFE8EEF8).copy(alpha = 0.28f), spotColor = Color.Transparent),
+                                                modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f), spotColor = Color.Transparent),
                                                 shape = RoundedCornerShape(20.dp),
-                                                color = Color.White,
+                                                color = MaterialTheme.colorScheme.surface,
                                             ) {
                                                 Column(Modifier.padding(horizontal = 14.dp)) {
                                                     contacts.forEachIndexed { index, contact ->
@@ -422,7 +422,7 @@ fun ChatScreen(
                                                             viewModel.selectContact(contact)
                                                             currentView = ChatView.MESSAGES
                                                         }
-                                                        if (index < contacts.lastIndex) HorizontalDivider(color = Color(0xFFE8EBF0))
+                                                        if (index < contacts.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                                                     }
                                                 }
                                             }
@@ -447,14 +447,14 @@ fun ChatScreen(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     ChatAvatar(imageUrl = chatPartnerProfilePicture, name = chatPartnerName, size = 80.dp, fontSize = 32.sp)
                                     Spacer(modifier = Modifier.height(16.dp))
-                                    Text(text = "Message with $chatPartnerName", color = SlateGray, fontSize = 13.sp)
+                                    Text(text = "Message with $chatPartnerName", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                                 }
                             }
                         } else {
                             when (val messagesState = conversationMessagesState) {
                                 is Resource.Loading -> {
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator(color = VibrantTeal)
+                                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                                     }
                                 }
                                 is Resource.Error -> {
@@ -523,7 +523,7 @@ fun ChatScreen(
                     // Floating Pill Input area
                     Surface(
                         modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding(),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 0.dp
                     ) {
                         Column {
@@ -532,15 +532,15 @@ fun ChatScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 20.dp, vertical = 4.dp)
-                                        .background(SoftMist, RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp))
                                         .padding(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Lucide.Paperclip, null, tint = VibrantTeal, modifier = Modifier.size(16.dp))
+                                    Icon(Lucide.Paperclip, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = it, color = RoyalNavy, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                    Text(text = it, color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                     IconButton(onClick = { selectedFileUri = null; selectedFileName = null }, modifier = Modifier.size(24.dp)) {
-                                        Icon(Lucide.X, null, tint = SlateGray, modifier = Modifier.size(16.dp))
+                                        Icon(Lucide.X, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                                     }
                                 }
                             }
@@ -555,9 +555,9 @@ fun ChatScreen(
                                     onClick = { showAttachmentOptions = true },
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .background(SoftMist, CircleShape)
+                                        .background(MaterialTheme.colorScheme.background, CircleShape)
                                 ) {
-                                    Icon(Lucide.Plus, null, tint = RoyalNavy, modifier = Modifier.size(20.dp))
+                                    Icon(Lucide.Plus, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
                                 }
 
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -565,13 +565,13 @@ fun ChatScreen(
                                 Surface(
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(24.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, SoftMist),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.background),
                                     color = Color.Transparent
                                 ) {
                                     OutlinedTextField(
                                         value = messageText,
                                         onValueChange = { messageText = it },
-                                        placeholder = { Text("Type a message", color = SlateGray, fontSize = 15.sp) },
+                                        placeholder = { Text("Type a message", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp) },
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = OutlinedTextFieldDefaults.colors(
                                             unfocusedContainerColor = Color.Transparent,
@@ -624,8 +624,12 @@ fun ChatScreen(
     }
 }
 
-private fun Modifier.chatScreenBackground(): Modifier = drawBehind {
-    drawRect(Color(0xFFF5F7FB))
+@Composable
+private fun Modifier.chatScreenBackground(): Modifier {
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val accentColor = MaterialTheme.colorScheme.surfaceVariant
+    return drawBehind {
+    drawRect(backgroundColor)
     val topAccent = Path().apply {
         moveTo(size.width * 0.55f, 0f)
         cubicTo(size.width * 0.58f, size.height * 0.11f, size.width * 0.78f, size.height * 0.13f, size.width, size.height * 0.18f)
@@ -635,7 +639,7 @@ private fun Modifier.chatScreenBackground(): Modifier = drawBehind {
     drawPath(
         topAccent,
         Brush.linearGradient(
-            listOf(Color(0xFFEDF2FA), Color(0xFFB6C8E4)),
+            listOf(backgroundColor, accentColor),
             Offset(size.width * 0.55f, 0f),
             Offset(size.width, size.height * 0.18f),
         ),
@@ -646,7 +650,8 @@ private fun Modifier.chatScreenBackground(): Modifier = drawBehind {
         lineTo(0f, size.height)
         close()
     }
-    drawPath(lowerAccent, Brush.linearGradient(listOf(Color(0xFFCBD8EC), Color(0xFFE8EEF8)), Offset(0f, size.height * 0.69f), Offset(size.width * 0.76f, size.height)))
+    drawPath(lowerAccent, Brush.linearGradient(listOf(accentColor, backgroundColor), Offset(0f, size.height * 0.69f), Offset(size.width * 0.76f, size.height)))
+}
 }
 
 @Composable
@@ -661,12 +666,12 @@ private fun ChatListHeader(
     ) {
         if (onBack != null) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart).size(48.dp)) {
-                Icon(Lucide.ArrowLeft, "Back", tint = Color(0xFF07143C), modifier = Modifier.size(30.dp))
+                Icon(Lucide.ArrowLeft, "Back", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(30.dp))
             }
         }
         Text(
             text = title,
-            color = Color(0xFF07143C),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = if (centered) 24.sp else 22.sp,
             lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
@@ -685,18 +690,18 @@ private fun MessageSearchField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).height(58.dp),
-        placeholder = { Text(placeholder, color = Color(0xFF939AB2), fontSize = 16.sp, maxLines = 1) },
-        leadingIcon = { Icon(Lucide.Search, null, tint = Color(0xFF858CA8), modifier = Modifier.size(28.dp)) },
+        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp, maxLines = 1) },
+        leadingIcon = { Icon(Lucide.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp)) },
         trailingIcon = if (value.isNotEmpty()) {
-            { IconButton(onClick = { onValueChange("") }) { Icon(Lucide.X, "Clear search", tint = Color(0xFF858CA8)) } }
+            { IconButton(onClick = { onValueChange("") }) { Icon(Lucide.X, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant) } }
         } else null,
         singleLine = true,
         shape = RoundedCornerShape(30.dp),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFE8EEF8).copy(alpha = 0.92f),
-            unfocusedContainerColor = Color(0xFFE8EEF8).copy(alpha = 0.92f),
-            focusedTextColor = Color(0xFF07143C),
-            unfocusedTextColor = Color(0xFF07143C),
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
         ),
@@ -720,14 +725,14 @@ fun ChatAvatar(imageUrl: String?, name: String, size: Dp, fontSize: TextUnit = 1
         AsyncImage(
             model = imageUrl,
             contentDescription = name,
-            modifier = Modifier.size(size).clip(CircleShape).background(Color(0xFFE8EEF8)),
+            modifier = Modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
             contentScale = ContentScale.Crop,
             placeholder = painterResource(R.drawable.ic_person_placeholder),
             error = painterResource(R.drawable.ic_person_placeholder)
         )
     } else {
         Box(
-            modifier = Modifier.size(size).background(Color(0xFFE8EEF8), CircleShape),
+            modifier = Modifier.size(size).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(text = getInitials(name), color = Color(0xFF1F3A6D), fontWeight = FontWeight.Bold, fontSize = fontSize)
@@ -738,26 +743,26 @@ fun ChatAvatar(imageUrl: String?, name: String, size: Dp, fontSize: TextUnit = 1
 @Composable
 fun ConversationItem(conversation: ConversationDTO, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = Color(0xFFE8EEF8).copy(alpha = 0.28f), spotColor = Color.Transparent)
+        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f), spotColor = Color.Transparent)
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
             ChatAvatar(imageUrl = conversation.profilePicture, name = conversation.name, size = 58.dp, fontSize = 20.sp)
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = conversation.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF07143C), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(text = conversation.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     conversation.lastMessageTime?.let {
-                        Text(text = DateUtils.formatChatTime(it), fontSize = 13.sp, color = Color(0xFF8A90A8), maxLines = 1)
+                        Text(text = DateUtils.formatChatTime(it), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(text = conversation.lastMessage ?: "No messages yet", fontSize = 14.sp, color = Color(0xFF8A90A8), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = conversation.lastMessage ?: "No messages yet", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))
-            Icon(Lucide.ChevronRight, null, tint = Color(0xFF858CA2), modifier = Modifier.size(28.dp))
+            Icon(Lucide.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
         }
     }
 }
@@ -771,11 +776,11 @@ fun ContactItem(contact: ContactDTO, onClick: () -> Unit) {
         ChatAvatar(imageUrl = contact.profilePicture, name = contact.name, size = 58.dp, fontSize = 21.sp)
         Spacer(modifier = Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(text = contact.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF07143C), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = contact.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(3.dp))
-            Text(text = contact.role, fontSize = 14.sp, color = Color(0xFF8A90A8), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = contact.role, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Icon(Lucide.ChevronRight, null, tint = Color(0xFF858CA2), modifier = Modifier.size(28.dp))
+        Icon(Lucide.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
     }
 }
 
@@ -791,12 +796,12 @@ fun DateHeader(date: String) {
             text = DateUtils.formatSeparatorDate(date),
             style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Medium,
-                color = SlateGray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             ),
             textAlign = TextAlign.Center,
             modifier = Modifier
-                .background(SoftMist.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 4.dp)
         )
     }
@@ -813,8 +818,8 @@ fun TealChatBubble(
     val hasAttachment = message.attachmentId != null && message.attachmentId != 0
     val hasText = message.messageContent.isNotEmpty()
     
-    val bubbleColor = if (isFromMe) RoyalNavy else SoftMist
-    val textColor = if (isFromMe) Color.White else RoyalNavy
+    val bubbleColor = if (isFromMe) VibrantTeal else MaterialTheme.colorScheme.background
+    val textColor = if (isFromMe) Color.White else MaterialTheme.colorScheme.onSurface
     
     val shape = if (isFromMe) {
         RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = if (isLastInGroup) 4.dp else 20.dp)
@@ -866,7 +871,7 @@ fun TealChatBubble(
             Text(
                 text = if (status.isNotEmpty()) "$time · $status" else time,
                 fontSize = 10.sp,
-                color = SlateGray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = if (isFromMe) TextAlign.End else TextAlign.Start
             )
         }
@@ -884,7 +889,7 @@ fun AttachmentBox(
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
-    val contentColor = if (isFromMe && !isStandalone) Color.White else RoyalNavy
+    val contentColor = if (isFromMe && !isStandalone) Color.White else MaterialTheme.colorScheme.onSurface
     val isImage = fileType?.startsWith("image/", ignoreCase = true) == true
 
     // Use the base URL (before query parameters) as the stable key to prevent blinking during polling
@@ -920,12 +925,12 @@ fun AttachmentBox(
             modifier = Modifier
                 .padding(end = 12.dp)
                 .size(36.dp)
-                .background(SoftMist.copy(alpha = 0.8f), CircleShape)
+                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.8f), CircleShape)
         ) {
             Icon(
                 Lucide.ArrowDown,
                 contentDescription = "Download", 
-                tint = RoyalNavy,
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(18.dp)
             )
         }

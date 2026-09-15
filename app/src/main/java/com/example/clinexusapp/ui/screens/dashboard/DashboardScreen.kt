@@ -63,11 +63,15 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 
 internal object DashboardStyle {
-    val Background = Color(0xFFF4F7FC)
+    val Background: Color
+        @Composable get() = MaterialTheme.colorScheme.background
     val Teal = Color(0xFF1F3A6D)
-    val Navy = Color(0xFF080B36)
-    val Muted = Color(0xFF7E87A4)
-    val Mint = Color(0xFFEAF1FB)
+    val Navy: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurface
+    val Muted: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val Mint: Color
+        @Composable get() = MaterialTheme.colorScheme.surfaceVariant
     val Orange = Color(0xFFFF792A)
     val CardShape = RoundedCornerShape(18.dp)
 }
@@ -100,7 +104,7 @@ private val FallbackClinicNews = ClinicNewsDTO(
     id = "local-clinic-news",
     title = "Clinic hours",
     description = "Open for appointments and patient support.",
-    date = "Mon-Sat · 8:00 AM - 5:00 PM",
+    date = "Mon-Sat\n8:00 AM - 5:00 PM",
 )
 
 @Composable
@@ -187,14 +191,14 @@ internal fun DashboardContent(
             onDismissRequest = { selectedInsight = null },
             confirmButton = {
                 TextButton(onClick = { selectedInsight = null }) {
-                    Text("Done", color = DashboardStyle.Teal, fontWeight = FontWeight.Bold)
+                    Text("Done", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             },
             title = { Text(insight.title, color = DashboardStyle.Navy, fontWeight = FontWeight.Bold) },
             text = {
                 LazyColumn { item { Text(insight.description, color = DashboardStyle.Muted) } }
             },
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(24.dp),
         )
     }
@@ -204,7 +208,7 @@ internal fun DashboardContent(
             onDismissRequest = { showPromotions = false },
             confirmButton = {
                 TextButton(onClick = { showPromotions = false }) {
-                    Text("Done", color = DashboardStyle.Teal, fontWeight = FontWeight.Bold)
+                    Text("Done", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             },
             title = { Text("Promotions", color = DashboardStyle.Navy, fontWeight = FontWeight.Bold) },
@@ -223,7 +227,7 @@ internal fun DashboardContent(
                     }
                 }
             },
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(24.dp),
         )
     }
@@ -439,7 +443,7 @@ fun DashboardHeader(
                 modifier = Modifier.padding(start = 56.dp, end = if (showSlogan) 62.dp else 0.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(Modifier.width(18.dp).height(1.dp).background(Color.White.copy(alpha = 0.85f)))
+                Box(Modifier.width(18.dp).height(1.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)))
                 Spacer(Modifier.width(7.dp))
                 Text(
                     "HEALTHY SMILES BRIGHTER TOMORROWS",
@@ -488,7 +492,7 @@ fun DashboardSectionHeader(
 ) {
     Row(Modifier.fillMaxWidth().heightIn(min = 38.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(34.dp).background(DashboardStyle.Mint, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = DashboardStyle.Teal, modifier = Modifier.size(21.dp))
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
         }
         Spacer(Modifier.width(10.dp))
         Text(
@@ -502,7 +506,7 @@ fun DashboardSectionHeader(
         )
         if (actionText != null && onActionClick != null) {
             TextButton(onClick = onActionClick, contentPadding = PaddingValues(start = 8.dp)) {
-                Text(actionText, color = DashboardStyle.Teal, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(actionText, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -510,7 +514,7 @@ fun DashboardSectionHeader(
 
 @Composable
 private fun DashboardLoadingCard() {
-    Surface(shape = DashboardStyle.CardShape, color = Color.White, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = DashboardStyle.CardShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.height(112.dp).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.fillMaxWidth(0.55f).height(20.dp).clip(RoundedCornerShape(8.dp)).shimmer())
             Box(Modifier.fillMaxWidth(0.8f).height(16.dp).clip(RoundedCornerShape(8.dp)).shimmer())
@@ -521,10 +525,10 @@ private fun DashboardLoadingCard() {
 
 @Composable
 private fun DashboardErrorCard(message: String, onRetry: () -> Unit) {
-    Surface(shape = DashboardStyle.CardShape, color = Color.White, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = DashboardStyle.CardShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(message, color = DashboardStyle.Muted, textAlign = TextAlign.Center)
-            TextButton(onClick = onRetry) { Text("Try again", color = DashboardStyle.Teal) }
+            TextButton(onClick = onRetry) { Text("Try again", color = MaterialTheme.colorScheme.primary) }
         }
     }
 }

@@ -60,8 +60,6 @@ fun LoginScreen(
     var showManualLogin by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
     var credentialError by remember { mutableStateOf<String?>(null) }
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var failedCredentialAttempts by rememberSaveable { mutableIntStateOf(0) }
     var showSavedAccountSettings by remember { mutableStateOf(false) }
     var loginTransitionActive by rememberSaveable { mutableStateOf(false) }
     var transitionPhoto by remember { mutableStateOf<String?>(null) }
@@ -82,8 +80,6 @@ fun LoginScreen(
         email = ""
         password = ""
         credentialError = null
-        emailError = null
-        failedCredentialAttempts = 0
     }
 
     BackHandler(enabled = savedAccounts.isNotEmpty() && !showSavedAccounts) { returnToSavedAccounts() }
@@ -101,7 +97,7 @@ fun LoginScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(26.dp),
-                color = PureWhite,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 12.dp,
             ) {
                 Column(Modifier.padding(22.dp)) {
@@ -118,22 +114,22 @@ fun LoginScreen(
                         Text(
                             "Couldn't sign in",
                             modifier = Modifier.weight(1f),
-                            color = RoyalNavy,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         IconButton(onClick = { loginError = null }) {
-                            Icon(Lucide.X, "Close", tint = SlateGray)
+                            Icon(Lucide.X, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Spacer(Modifier.height(16.dp))
-                    Text(message, color = SlateGray, fontSize = 15.sp, lineHeight = 21.sp)
+                    Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp, lineHeight = 21.sp)
                     Spacer(Modifier.height(22.dp))
                     Button(
                         onClick = { loginError = null },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = DeepTeal),
+                        colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = DeepTeal),
                     ) {
                         Text("Try again", fontWeight = FontWeight.Bold)
                     }
@@ -147,7 +143,7 @@ fun LoginScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(26.dp),
-                color = PureWhite,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 12.dp,
             ) {
                 Column(Modifier.padding(20.dp)) {
@@ -155,12 +151,12 @@ fun LoginScreen(
                         Text(
                             "Remove saved accounts",
                             modifier = Modifier.weight(1f),
-                            color = RoyalNavy,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         IconButton(onClick = { showSavedAccountSettings = false }) {
-                            Icon(Lucide.X, "Close", tint = SlateGray)
+                            Icon(Lucide.X, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Spacer(Modifier.height(10.dp))
@@ -176,10 +172,10 @@ fun LoginScreen(
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     listOf(patient.firstName, patient.lastName).filterNotNull().joinToString(" ").ifBlank { "Patient" },
-                                    color = RoyalNavy,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Bold,
                                 )
-                                Text(patient.email.orEmpty(), color = SlateGray, fontSize = 12.sp, maxLines = 1)
+                                Text(patient.email.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
                             }
                             FilledTonalButton(
                                 onClick = {
@@ -198,12 +194,12 @@ fun LoginScreen(
                                 Text("Remove", fontWeight = FontWeight.Bold)
                             }
                         }
-                        if (account != savedAccounts.last()) HorizontalDivider(color = Color(0xFFE8ECEF))
+                        if (account != savedAccounts.last()) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "This removes login information only from this phone. The patient account will not be deleted.",
-                        color = SlateGray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp,
                         lineHeight = 18.sp,
                     )
@@ -221,13 +217,11 @@ fun LoginScreen(
             is Resource.Error -> {
                 loginTransitionActive = false
                 if (isCredentialError(state.message)) {
-                    failedCredentialAttempts++
                     credentialError = if (selectedAccount != null || autoLoginAccount != null) {
                         "The password you entered is incorrect."
                     } else {
                         "The email address or password you entered is incorrect."
                     }
-                    if (selectedAccount == null && autoLoginAccount == null) emailError = credentialError
                 } else loginError = friendlyLoginMessage(state.message)
                 autoLoginPatientID?.let { selectedPatientID = it }
                 autoLoginPatientID = null
@@ -240,7 +234,7 @@ fun LoginScreen(
     val submitLogin = {
         val submittedEmail = selectedAccount?.patient?.email.orEmpty().ifBlank { email }
         when {
-            submittedEmail.isBlank() -> emailError = "Enter your email address."
+            submittedEmail.isBlank() -> loginError = "Enter the email address for your patient account."
             password.isBlank() -> credentialError = "Enter your password to continue."
             else -> {
                 val matchingAccount = selectedAccount ?: savedAccounts.firstOrNull {
@@ -261,7 +255,7 @@ fun LoginScreen(
         }
     }
 
-    Scaffold(containerColor = SoftMist) { padding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).imePadding()
                 .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 24.dp),
@@ -272,13 +266,13 @@ fun LoginScreen(
             } else {
                 if (!showSavedAccounts && savedAccounts.isNotEmpty()) {
                     IconButton(onClick = returnToSavedAccounts, modifier = Modifier.align(Alignment.Start)) {
-                        Icon(Lucide.ArrowLeft, "Back to saved accounts", tint = RoyalNavy)
+                        Icon(Lucide.ArrowLeft, "Back to saved accounts", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 } else {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         if (showSavedAccounts) {
                             IconButton(onClick = { showSavedAccountSettings = true }) {
-                                Icon(Lucide.Settings, "Manage saved accounts", tint = RoyalNavy)
+                                Icon(Lucide.Settings, "Manage saved accounts", tint = MaterialTheme.colorScheme.onSurface)
                             }
                         } else {
                             Spacer(Modifier.height(48.dp))
@@ -298,8 +292,8 @@ fun LoginScreen(
                     Box(modifier = Modifier.size(116.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(
                             modifier = Modifier.fillMaxSize(),
-                            color = DeepTeal,
-                            trackColor = MintSparkle,
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
                             strokeWidth = 4.dp,
                         )
                         AccountAvatar(
@@ -316,12 +310,12 @@ fun LoginScreen(
                     }
                     Text(
                         displayedTransitionName,
-                        color = RoyalNavy,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text("Signing in…", color = SlateGray, fontSize = 14.sp)
+                    Text("Signing in…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
 
                 showSavedAccounts -> {
@@ -367,16 +361,16 @@ fun LoginScreen(
                                     }
                                 }
                             },
-                            shape = RoundedCornerShape(20.dp), color = PureWhite,
-                            border = BorderStroke(1.dp, Color(0xFFDDE7E6)), shadowElevation = 1.dp,
+                            shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant), shadowElevation = 1.dp,
                         ) {
                             Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 AccountAvatar(photo, patient.firstName.orEmpty(), 58.dp)
                                 Spacer(Modifier.width(14.dp))
                                 Column(Modifier.weight(1f)) {
                                     val name = listOf(patient.firstName, patient.lastName).filterNotNull().joinToString(" ").ifBlank { "Patient" }
-                                    Text(name, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                                    Text(patient.email.orEmpty(), color = SlateGray, fontSize = 13.sp, maxLines = 1)
+                                    Text(name, color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                    Text(patient.email.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, maxLines = 1)
                                 }
                                 Icon(Lucide.ChevronRight, null, tint = LightSlate)
                             }
@@ -386,8 +380,8 @@ fun LoginScreen(
                     FilledTonalButton(
                         onClick = { showManualLogin = true }, modifier = Modifier.fillMaxWidth().height(54.dp),
                         shape = RoundedCornerShape(18.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFFE8EEF8)),
-                    ) { Text("Use another account", color = RoyalNavy, fontWeight = FontWeight.Bold) }
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    ) { Text("Use another account", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) }
                 }
 
                 selectedAccount != null -> {
@@ -396,66 +390,37 @@ fun LoginScreen(
                     Spacer(Modifier.height(14.dp))
                     Text(
                         listOf(patient.firstName, patient.lastName).filterNotNull().joinToString(" ").ifBlank { "Patient" },
-                        color = RoyalNavy, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Bold,
                     )
-                    Text(patient.email.orEmpty(), color = SlateGray, fontSize = 14.sp)
+                    Text(patient.email.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                     Spacer(Modifier.height(30.dp))
                     MintTextField(
                         value = password, onValueChange = { password = it; credentialError = null },
                         label = "Password", icon = Lucide.LockKeyhole, isPassword = true, errorText = credentialError,
-                        placeholder = "Enter your password",
                     )
                 }
 
                 else -> {
                     MintTextField(
-                        value = email, onValueChange = { email = it; emailError = null; credentialError = null },
-                        label = "Email", icon = Lucide.Mail, placeholder = "name@example.com", errorText = emailError,
+                        value = email, onValueChange = { email = it; credentialError = null },
+                        label = "Email address", icon = Lucide.Mail,
                     )
                     Spacer(Modifier.height(18.dp))
                     MintTextField(
                         value = password, onValueChange = { password = it; credentialError = null },
                         label = "Password", icon = Lucide.LockKeyhole, isPassword = true, errorText = credentialError,
-                        placeholder = "Enter your password",
                     )
                 }
             }
 
             if (!showSavedAccounts && !showLoginAnimation) {
-                if (failedCredentialAttempts >= 3) {
-                    Spacer(Modifier.height(18.dp))
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                    ) {
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                            Text(
-                                "Having trouble signing in?",
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                "You can reset your password using the email linked to your account.",
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                fontSize = 13.sp,
-                            )
-                            TextButton(
-                                onClick = onNavigateToForgotPassword,
-                                contentPadding = PaddingValues(0.dp),
-                            ) { Text("Reset password") }
-                        }
-                    }
-                }
                 Spacer(Modifier.height(24.dp))
                 VibrantButton(
                     text = if (loginState is Resource.Loading) "Signing in…" else "Sign in",
                     onClick = submitLogin, enabled = loginState !is Resource.Loading,
                 )
-                if (failedCredentialAttempts < 3) {
-                    TextButton(onClick = onNavigateToForgotPassword) {
-                        Text("Forgot password?", color = DeepTeal, fontWeight = FontWeight.Bold)
-                    }
+                TextButton(onClick = onNavigateToForgotPassword) {
+                    Text("Forgot password?", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -464,7 +429,7 @@ fun LoginScreen(
                 OutlinedButton(
                     onClick = onNavigateToRegister, modifier = Modifier.fillMaxWidth().height(54.dp),
                     shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, DeepTeal),
-                ) { Text("Create new account", color = DeepTeal, fontWeight = FontWeight.Bold) }
+                ) { Text("Create new account", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) }
                 Spacer(Modifier.height(20.dp))
             }
         }
@@ -476,7 +441,7 @@ private fun LoginBrand() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             shape = CircleShape,
-            color = DeepTeal,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(72.dp),
             shadowElevation = 6.dp,
         ) {
@@ -490,16 +455,16 @@ private fun LoginBrand() {
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text("CliNexus", color = DeepTeal, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp)
+        Text("CliNexus", color = MaterialTheme.colorScheme.primary, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp)
     }
 }
 
 @Composable
 private fun AccountAvatar(photo: String?, name: String, size: Dp) {
-    Surface(modifier = Modifier.size(size), shape = CircleShape, color = MintSparkle) {
+    Surface(modifier = Modifier.size(size), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
         if (photo.isNullOrBlank()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(Lucide.UserRound, null, tint = DeepTeal, modifier = Modifier.size(size * 0.56f))
+                Icon(Lucide.UserRound, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(size * 0.56f))
             }
         } else {
             SubcomposeAsyncImage(
@@ -507,12 +472,12 @@ private fun AccountAvatar(photo: String?, name: String, size: Dp) {
                 modifier = Modifier.fillMaxSize(),
                 loading = {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(size * 0.38f), color = DeepTeal, strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(size * 0.38f), color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp)
                     }
                 },
                 error = {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Lucide.UserRound, null, tint = DeepTeal, modifier = Modifier.size(size * 0.56f))
+                        Icon(Lucide.UserRound, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(size * 0.56f))
                     }
                 },
                 success = { SubcomposeAsyncImageContent() },

@@ -1,5 +1,6 @@
 package com.example.clinexusapp.navigation
 
+import androidx.compose.material3.MaterialTheme
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ShieldAlert
 
@@ -371,32 +372,32 @@ private fun SessionExpiredDialog(onContinue: () -> Unit) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            color = PureWhite,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 12.dp,
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 22.dp, vertical = 22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Surface(shape = CircleShape, color = MintSparkle) {
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
                     Icon(
                         imageVector = Lucide.ShieldAlert,
                         contentDescription = null,
-                        tint = DeepTeal,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(11.dp).size(27.dp),
                     )
                 }
                 Spacer(Modifier.height(14.dp))
                 Text(
                     text = "Session expired",
-                    color = RoyalNavy,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.height(7.dp))
                 Text(
                     text = "Your session ended. Please sign in again.",
-                    color = SlateGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                     textAlign = TextAlign.Center,

@@ -51,14 +51,14 @@ fun NotificationScreen(
                 onBack = onBack
             )
         },
-        containerColor = SoftMist
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         when (val state = notificationState) {
             Resource.Loading -> Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = VibrantTeal)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             is Resource.Error -> Box(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
@@ -78,7 +78,7 @@ fun NotificationScreen(
                     }
                     if (state.data.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No notifications yet", color = SlateGray)
+                            Text("No notifications yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         LazyColumn(
@@ -118,7 +118,7 @@ fun TealNotificationCard(item: NotificationDTO, onClick: () -> Unit) {
                 Icon(
                     Lucide.Bell,
                     contentDescription = null,
-                    tint = if (item.isRead == 0) MaterialTheme.colorScheme.primary else SlateGray,
+                    tint = if (item.isRead == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -133,7 +133,7 @@ fun TealNotificationCard(item: NotificationDTO, onClick: () -> Unit) {
                         text = item.title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = RoyalNavy
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (item.isRead == 0) {
                         Box(modifier = Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
@@ -142,14 +142,14 @@ fun TealNotificationCard(item: NotificationDTO, onClick: () -> Unit) {
                 Text(
                     text = formatNotificationTime(item.createdAt),
                     fontSize = 12.sp,
-                    color = SlateGray.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = cleanNotificationMessage(item.message),
                     fontSize = 14.sp,
-                    color = SlateGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
             }

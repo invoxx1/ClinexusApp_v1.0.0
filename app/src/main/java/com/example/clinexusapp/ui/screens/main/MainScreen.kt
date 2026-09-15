@@ -112,7 +112,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 )
             }
         },
-        containerColor = Color(0xFFE8EEF8),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
     ) { innerPadding ->
         val contentBottomPadding = PaddingValues(bottom = innerPadding.calculateBottomPadding())
         NavHost(
@@ -156,7 +156,6 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     onNavigateToBooking = { rootNavController.navigate(Screen.AppointmentBooking.route) },
                     viewModel = historyViewModel,
                     initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
-                    onWalkthroughTarget = ::captureWalkthroughTarget,
                 )
             }
             composable(route = Screen.Profile.route) {
@@ -215,7 +214,7 @@ internal fun RememberPasswordDialog() {
         AlertDialog(
             onDismissRequest = { SessionManager.dismissPasswordSave() },
             icon = {
-                Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFE8EEF8)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                     Icon(
                         Lucide.LockKeyhole,
                         contentDescription = null,
@@ -265,11 +264,11 @@ fun TealBottomBar(
             .shadow(
                 elevation = 8.dp,
                 shape = RoundedCornerShape(22.dp),
-                ambientColor = Color(0xFFE8EEF8),
-                spotColor = Color(0xFFE8EEF8),
+                ambientColor = MaterialTheme.colorScheme.surfaceVariant,
+                spotColor = MaterialTheme.colorScheme.surfaceVariant,
             ),
         shape = RoundedCornerShape(22.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier
@@ -306,8 +305,8 @@ fun TealNavItem(
     badgeCount: Int = 0,
     onClick: () -> Unit
 ) {
-    val contentColor = if (isSelected) Color(0xFF1F3A6D) else Color(0xFF969CAC)
-    val highlightColor = Color(0xFFE8EEF8)
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val highlightColor = MaterialTheme.colorScheme.surfaceVariant
     val label = when (screen) {
         BottomBarScreen.Dashboard -> "Home"
         BottomBarScreen.Appointments -> "Appointments"

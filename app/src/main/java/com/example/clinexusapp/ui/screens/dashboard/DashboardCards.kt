@@ -1,5 +1,6 @@
 package com.example.clinexusapp.ui.screens.dashboard
 
+import androidx.compose.material3.MaterialTheme
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.CalendarDays
 import com.composables.icons.lucide.Clock
@@ -72,7 +73,7 @@ fun UpcomingAppointmentCard(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, DashboardStyle.Teal)
+                DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f)) {
                     DashboardCardTitle(appointment.serviceName ?: appointment.treatment)
                     Spacer(Modifier.height(4.dp))
@@ -111,7 +112,7 @@ fun EmptyAppointmentCard(onBookClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, DashboardStyle.Teal)
+            DashboardCardIcon(Lucide.CalendarDays, DashboardStyle.Mint, MaterialTheme.colorScheme.primary)
             Column(Modifier.weight(1f)) {
                 DashboardCardTitle("No upcoming appointment")
                 DashboardPillButton("Book appointment", onBookClick)
@@ -131,14 +132,14 @@ fun PromotionCard(
     Surface(
         modifier = modifier.shadow(4.dp, DashboardStyle.CardShape),
         shape = DashboardStyle.CardShape,
-        color = Color(0xFFEAF5FF),
+        color = MaterialTheme.colorScheme.surface,
     ) {
-        Box(Modifier.background(Brush.horizontalGradient(listOf(Color(0xFFF3F9FF), Color(0xFFDDEEFF))))) {
+        Box(Modifier.background(Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)))) {
             Column(Modifier.fillMaxSize().padding(start = 14.dp, top = 12.dp, end = 48.dp, bottom = 10.dp)) {
                 Text(title, color = DashboardStyle.Navy, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(value, color = Color(0xFF1769C2), fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
                 if (description.isNotBlank()) {
-                    Text(description, color = Color(0xFF667085), fontSize = 10.sp, lineHeight = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 Spacer(Modifier.weight(1f))
                 DashboardPillButton("Book Now", onBookClick, Modifier.widthIn(min = 108.dp))
@@ -164,14 +165,14 @@ fun InsightCard(
     Surface(
         modifier = modifier.fillMaxWidth().height(112.dp).shadow(4.dp, DashboardStyle.CardShape),
         shape = DashboardStyle.CardShape,
-        color = Color(0xFFE9FAF5),
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Lucide.Sparkles, Color(0xFFD8F5EC), Color(0xFF1769D2))
+            DashboardCardIcon(Lucide.Sparkles, MaterialTheme.colorScheme.surfaceVariant, Color(0xFF1769D2))
             Column(Modifier.weight(1f)) {
                 Text(title, color = DashboardStyle.Navy, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (category.isNotBlank()) {
@@ -182,8 +183,8 @@ fun InsightCard(
                     Text(subtitle, color = DashboardStyle.Muted, fontSize = 11.sp, lineHeight = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
-            Surface(onClick = onClick, shape = CircleShape, color = Color(0xFFDCEAFF)) {
-                Text("Read more", Modifier.padding(horizontal = 10.dp, vertical = 8.dp), color = DashboardStyle.Teal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Surface(onClick = onClick, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
+                Text("Read more", Modifier.padding(horizontal = 10.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -197,11 +198,11 @@ fun NewsCard(title: String, description: String, date: String) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardCardIcon(Lucide.Hospital, Color(0xFFE5F3FF), Color(0xFF2479CE))
+            DashboardCardIcon(Lucide.Hospital, MaterialTheme.colorScheme.surfaceVariant, Color(0xFF2479CE))
             Column(Modifier.weight(1f)) {
                 Text(title, color = DashboardStyle.Navy, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (date.isNotBlank()) {
-                    Text(date, color = DashboardStyle.Teal, fontSize = 10.sp, lineHeight = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(date, color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, lineHeight = 13.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 if (description.isNotBlank()) {
                     Spacer(Modifier.height(2.dp))
@@ -230,12 +231,12 @@ internal fun DashboardCard(
             .shadow(
                 elevation = 8.dp,
                 shape = DashboardStyle.CardShape,
-                ambientColor = DashboardStyle.Teal.copy(alpha = 0.06f),
-                spotColor = DashboardStyle.Teal.copy(alpha = 0.08f)
+                ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
             )
             .clip(DashboardStyle.CardShape)
             .then(modifier),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shape = DashboardStyle.CardShape
     ) {
         Column(content = content)
