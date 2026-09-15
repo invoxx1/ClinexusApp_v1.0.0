@@ -121,7 +121,7 @@ fun AppointmentBookingScreen(
     }
 
     Scaffold(
-        containerColor = SoftMist,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = { BookingTopBar(onBack = if (state.step == BookingStep.DENTIST) onBack else { { viewModel.goTo(previousStep(state.step)) } }) },
         bottomBar = {
             BookingBottomAction(
@@ -177,7 +177,7 @@ private fun BookingTopBar(onBack: (() -> Unit)?) {
     ) {
         if (onBack != null) IconButton(onClick = onBack) { Icon(Lucide.ArrowLeft, "Back") }
         else Spacer(Modifier.size(48.dp))
-        Text("Schedule visit", Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = RoyalNavy)
+        Text("Schedule visit", Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.size(48.dp))
     }
 }
@@ -190,13 +190,13 @@ private fun BookingProgress(step: BookingStep) {
             BookingStep.values().forEachIndexed { itemIndex, item ->
                 Box(Modifier.size(36.dp).clip(CircleShape).background(if (itemIndex <= index) VibrantTeal else Color(0xFFD9E0E5)), contentAlignment = Alignment.Center) {
                     if (itemIndex < index) Icon(Lucide.Check, null, tint = White)
-                    else Text("${itemIndex + 1}", color = if (itemIndex <= index) White else SlateGray, fontWeight = FontWeight.Bold)
+                    else Text("${itemIndex + 1}", color = if (itemIndex <= index) White else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                 }
                 if (itemIndex < 3) Box(Modifier.weight(1f).height(3.dp).background(if (itemIndex < index) VibrantTeal else Color(0xFFD9E0E5)))
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            listOf("Dentist", "Service", "Date & time", "Review").forEach { Text(it, fontSize = 11.sp, color = RoyalNavy, maxLines = 1) }
+            listOf("Dentist", "Service", "Date & time", "Review").forEach { Text(it, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1) }
         }
     }
 }
@@ -212,9 +212,9 @@ private fun StepHeading(step: BookingStep) {
         BookingStep.DATE_TIME -> "Find a time that works for you."; BookingStep.REVIEW -> "Please check the details before confirming."
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("${BookingStep.values().indexOf(step) + 1} of 4", color = SlateGray, fontSize = 14.sp)
-        Text(title, color = RoyalNavy, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Text(subtitle, color = SlateGray, fontSize = 16.sp)
+        Text("${BookingStep.values().indexOf(step) + 1} of 4", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+        Text(title, color = MaterialTheme.colorScheme.onSurface, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
     }
 }
 
@@ -226,8 +226,8 @@ private fun DentistStep(state: BookingUiState, viewModel: BookingViewModel) {
                 SelectableCard(state.selectedDentist?.dentistId == dentist.dentistId, { viewModel.selectDentist(dentist) }) {
                     Avatar(dentist.profileImage, dentist.dentistName)
                     Column(Modifier.weight(1f)) {
-                        Text(dentist.dentistName, color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Text(DentistScheduleFormatter.format(dentist.daysOfWeek), color = DeepTeal, fontSize = 14.sp, maxLines = 2)
+                        Text(dentist.dentistName, color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(DentistScheduleFormatter.format(dentist.daysOfWeek), color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, maxLines = 2)
                     }
                     Checkmark(state.selectedDentist?.dentistId == dentist.dentistId)
                 }
@@ -246,20 +246,20 @@ private fun ServiceStep(state: BookingUiState, viewModel: BookingViewModel) {
                 SelectableCard(selected, { viewModel.toggleService(service) }) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = if (selected) DeepTeal.copy(alpha = 0.12f) else MintSparkle,
+                        color = if (selected) DeepTeal.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant,
                     ) {
                         Icon(
                             imageVector = dentalServiceIcon(service.serviceName),
                             contentDescription = service.serviceName,
-                            tint = DeepTeal,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(10.dp).size(23.dp),
                         )
                     }
                     Column(Modifier.weight(1f)) {
-                        Text(service.serviceName ?: "Service", color = RoyalNavy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Text("${formatPrice(service.price)}${service.durationMinutes?.let { "  •  $it min" } ?: ""}", color = DeepTeal, fontSize = 14.sp)
+                        Text(service.serviceName ?: "Service", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("${formatPrice(service.price)}${service.durationMinutes?.let { "  •  $it min" } ?: ""}", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
                         service.serviceCategoryName?.takeIf { it.isNotBlank() }?.let {
-                            Text(it, color = SlateGray, fontSize = 12.sp, maxLines = 1)
+                            Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
                         }
                     }
                     Checkmark(selected)
@@ -268,7 +268,7 @@ private fun ServiceStep(state: BookingUiState, viewModel: BookingViewModel) {
             if (state.selectedServices.isNotEmpty()) {
                 Text(
                     "${state.selectedServices.size} service${if (state.selectedServices.size == 1) "" else "s"} selected • ${state.totalEstimatedDurationMinutes} min total",
-                    color = DeepTeal,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 4.dp)
@@ -286,11 +286,11 @@ private fun DateTimeStep(state: BookingUiState, viewModel: BookingViewModel, onC
         "Edit"
     ) { viewModel.goTo(BookingStep.SERVICE) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(SimpleDateFormat("MMMM yyyy", LocalLocale.current.platformLocale).format(Date()), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = RoyalNavy)
+        Text(SimpleDateFormat("MMMM yyyy", LocalLocale.current.platformLocale).format(Date()), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         TextButton(onClick = onCalendar) { Icon(Lucide.CalendarDays, null); Spacer(Modifier.width(4.dp)); Text("View calendar") }
     }
     DateStrip(state, viewModel)
-    Text("Available times", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = RoyalNavy)
+    Text("Available times", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
     when (val times = state.timeslots) {
         Resource.Idle -> EmptyState("Choose a date to see available times.")
         Resource.Loading -> LoadingState("Loading available times...")
@@ -317,11 +317,11 @@ private fun DateStrip(state: BookingUiState, viewModel: BookingViewModel) {
             Surface(
                 onClick = { if (!unavailable) viewModel.selectDate(value) }, enabled = !unavailable,
                 modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 90.dp).padding(horizontal = 2.dp), shape = BookingCardShape,
-                color = if (selected) VibrantTeal else White, border = BorderStroke(1.dp, if (selected) VibrantTeal else Color(0xFFE4EAEE))
+                color = if (selected) VibrantTeal else MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, if (selected) VibrantTeal else MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text(if (date.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)) "Today" else display.format(date.time), color = if (selected) White else if (unavailable) LightSlate else SlateGray, fontSize = 12.sp)
-                    Text(day.format(date.time), color = if (selected) White else if (unavailable) LightSlate else RoyalNavy, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text(if (date.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)) "Today" else display.format(date.time), color = if (selected) White else if (unavailable) LightSlate else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(day.format(date.time), color = if (selected) White else if (unavailable) LightSlate else MaterialTheme.colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     if (unavailable) Text("Unavailable", color = LightSlate, fontSize = 9.sp)
                     if (selected) Icon(Lucide.Check, null, tint = White, modifier = Modifier.size(16.dp))
                 }
@@ -337,7 +337,7 @@ private fun TimeGrid(slots: List<AvailableSlotDTO>, selected: AvailableSlotDTO?,
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { slot ->
                     val isSelected = selected?.startTime == slot.startTime
-                    Surface(onClick = { onSelect(slot) }, modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 2.dp), shape = BookingCardShape, color = if (isSelected) VibrantTeal else White) { Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp)) { Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time", color = if (isSelected) White else RoyalNavy, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center) } }
+                    Surface(onClick = { onSelect(slot) }, modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 2.dp), shape = BookingCardShape, color = if (isSelected) VibrantTeal else MaterialTheme.colorScheme.surface) { Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp)) { Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time", color = if (isSelected) White else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center) } }
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
@@ -347,11 +347,11 @@ private fun TimeGrid(slots: List<AvailableSlotDTO>, selected: AvailableSlotDTO?,
 
 @Composable
 private fun ReviewStep(state: BookingUiState, patient: com.example.clinexusapp.model.PatientInfo?, viewModel: BookingViewModel) {
-    Surface(color = White, shape = BookingCardShape, border = BorderStroke(1.dp, Color(0xFFE4EAEE))) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = BookingCardShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Appointment details", Modifier.weight(1f), color = RoyalNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                TextButton(onClick = { viewModel.goTo(BookingStep.DATE_TIME) }) { Text("Edit", color = DeepTeal) }
+                Text("Appointment details", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                TextButton(onClick = { viewModel.goTo(BookingStep.DATE_TIME) }) { Text("Edit", color = MaterialTheme.colorScheme.primary) }
             }
             DetailRow(Lucide.UserRound, "Dentist", state.selectedDentist?.dentistName.orEmpty(), "Dentist")
             DetailRow(
@@ -364,31 +364,31 @@ private fun ReviewStep(state: BookingUiState, patient: com.example.clinexusapp.m
             DetailRow(Lucide.Tag, "Price", formatPrice(state.selectedServices.sumOf { it.price ?: 0.0 }), "Price")
             DetailRow(Lucide.CalendarDays, "Date", formatAppointmentDate(state.selectedDate), "Date")
             DetailRow(Lucide.Clock, "Time", formatTimeRange(state.selectedSlot), "Time")
-            DetailRow(Lucide.MapPin, "Clinic", "Clinexus Dental Clinic", "Clinic")
+            DetailRow(Lucide.MapPin, "Clinic", "Rivera Dental Clinic", "Clinic")
         }
     }
-    Surface(color = White, shape = BookingCardShape, border = BorderStroke(1.dp, Color(0xFFE4EAEE))) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = BookingCardShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             PatientAvatar(patient)
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Patient", color = SlateGray, fontSize = 13.sp)
-                Text(listOfNotNull(patient?.firstName, patient?.lastName).joinToString(" ").ifBlank { patient?.email ?: "Current patient" }, color = RoyalNavy, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("Patient", color = SlateGray, fontSize = 13.sp)
+                Text("Patient", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(listOfNotNull(patient?.firstName, patient?.lastName).joinToString(" ").ifBlank { patient?.email ?: "Current patient" }, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Patient", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }
-    Surface(color = Color(0xFFE4F3FF), shape = BookingCardShape) {
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = BookingCardShape) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Lucide.CircleAlert, contentDescription = null, tint = BluePrimary, modifier = Modifier.size(22.dp))
-            Text("Your appointment request will be sent to the clinic for approval.", modifier = Modifier.weight(1f), color = RoyalNavy)
+            Icon(Lucide.CircleAlert, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+            Text("Your appointment request will be sent to the clinic for approval.", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
         }
     }
-    Surface(onClick = { viewModel.setConfirmationChecked(!state.confirmationChecked) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), color = White, shape = BookingCardShape, border = BorderStroke(1.dp, Color(0xFFE4EAEE))) {
+    Surface(onClick = { viewModel.setConfirmationChecked(!state.confirmationChecked) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), color = MaterialTheme.colorScheme.surface, shape = BookingCardShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
             Checkbox(checked = state.confirmationChecked, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = VibrantTeal))
             Spacer(Modifier.width(12.dp))
-            Text("I confirm that the details are correct.", color = RoyalNavy)
+            Text("I confirm that the details are correct.", color = MaterialTheme.colorScheme.onSurface)
         }
     }
     if (state.submission is Resource.Error) {
@@ -399,31 +399,31 @@ private fun ReviewStep(state: BookingUiState, patient: com.example.clinexusapp.m
 @Composable
 private fun DetailRow(icon: ImageVector, label: String, value: String, description: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, description, tint = SlateGray, modifier = Modifier.size(22.dp))
+        Icon(icon, description, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(12.dp))
-        Text(label, color = SlateGray, fontSize = 14.sp, modifier = Modifier.width(72.dp))
-        Text(value, color = RoyalNavy, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, modifier = Modifier.width(72.dp))
+        Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun SummaryCard(title: String, value: String, action: String?, onAction: () -> Unit) {
-    Surface(color = White, shape = BookingCardShape, border = BorderStroke(1.dp, Color(0xFFE4EAEE))) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = BookingCardShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text(title, color = SlateGray, fontSize = 13.sp); Text(value, color = RoyalNavy, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
-            if (action != null) TextButton(onClick = onAction) { Text(action, color = DeepTeal) }
+            Column(Modifier.weight(1f)) { Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp); Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+            if (action != null) TextButton(onClick = onAction) { Text(action, color = MaterialTheme.colorScheme.primary) }
         }
     }
 }
 
 @Composable
 private fun SelectableCard(selected: Boolean, onClick: () -> Unit, content: @Composable RowScope.() -> Unit) {
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp), shape = BookingCardShape, color = if (selected) MintSparkle else White, border = BorderStroke(2.dp, if (selected) VibrantTeal else Color(0xFFE4EAEE))) { Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content) }
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp), shape = BookingCardShape, color = if (selected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface, border = BorderStroke(2.dp, if (selected) VibrantTeal else MaterialTheme.colorScheme.outlineVariant)) { Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content) }
 }
 
 @Composable
 private fun Avatar(url: String?, description: String) {
-    Box(Modifier.size(52.dp).clip(CircleShape).background(MintSparkle), contentAlignment = Alignment.Center) { if (url.isNullOrBlank()) Icon(Lucide.UserRound, description, tint = DeepTeal) else AsyncImage(model = url, contentDescription = description, modifier = Modifier.fillMaxSize()) }
+    Box(Modifier.size(52.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) { if (url.isNullOrBlank()) Icon(Lucide.UserRound, description, tint = MaterialTheme.colorScheme.primary) else AsyncImage(model = url, contentDescription = description, modifier = Modifier.fillMaxSize()) }
 }
 
 @Composable
@@ -431,13 +431,13 @@ private fun PatientAvatar(patient: com.example.clinexusapp.model.PatientInfo?) {
     var imageFailed by remember(patient?.profilePicture) { mutableStateOf(false) }
     val initials = listOfNotNull(patient?.firstName?.firstOrNull(), patient?.lastName?.firstOrNull()).joinToString("")
     val profilePicture = patient?.profilePicture
-    Box(Modifier.size(56.dp).clip(CircleShape).background(MintSparkle), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
         if (!profilePicture.isNullOrBlank() && !imageFailed) {
             AsyncImage(model = profilePicture, contentDescription = "Patient profile image", modifier = Modifier.fillMaxSize(), onError = { imageFailed = true })
         } else if (initials.isNotBlank()) {
-            Text(initials.uppercase(Locale.US), color = DeepTeal, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(initials.uppercase(Locale.US), color = MaterialTheme.colorScheme.primary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         } else {
-            Icon(Lucide.CircleUserRound, "Patient profile", tint = DeepTeal, modifier = Modifier.size(34.dp))
+            Icon(Lucide.CircleUserRound, "Patient profile", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
         }
     }
 }
@@ -450,12 +450,12 @@ private fun <T> ResourceContent(resource: Resource<List<T>>, onRetry: () -> Unit
     when (resource) { Resource.Idle -> EmptyState("Nothing is available right now."); Resource.Loading -> LoadingState("Loading..."); is Resource.Error -> ErrorState(resource.message ?: "Unable to load.", onRetry); is Resource.Success -> if (resource.data.isEmpty()) EmptyState("Nothing is available right now.") else content(resource.data) }
 }
 
-@Composable private fun LoadingState(message: String) { Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(color = VibrantTeal, modifier = Modifier.size(24.dp)); Spacer(Modifier.width(12.dp)); Text(message, color = SlateGray) } }
-@Composable private fun EmptyState(message: String) { Surface(color = White, shape = BookingCardShape) { Text(message, Modifier.padding(20.dp), color = SlateGray) } }
+@Composable private fun LoadingState(message: String) { Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp)); Spacer(Modifier.width(12.dp)); Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+@Composable private fun EmptyState(message: String) { Surface(color = MaterialTheme.colorScheme.surface, shape = BookingCardShape) { Text(message, Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
 @Composable private fun ErrorState(message: String, retry: () -> Unit) { Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) { Text(message, color = ErrorRed); TextButton(onClick = retry) { Text("Retry") } } }
 
 @Composable
-private fun BookingBottomAction(label: String, enabled: Boolean, onClick: () -> Unit) { Surface(color = White, shadowElevation = 8.dp) { Box(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding()) { Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal, disabledContainerColor = Color(0xFFCBD5D8))) { Text(label, fontSize = 17.sp, fontWeight = FontWeight.Bold) } } } }
+private fun BookingBottomAction(label: String, enabled: Boolean, onClick: () -> Unit) { Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) { Box(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding()) { Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = VibrantTeal, disabledContainerColor = Color(0xFFCBD5D8))) { Text(label, fontSize = 17.sp, fontWeight = FontWeight.Bold) } } } }
 
 private fun formatPrice(price: Double?): String = price?.let { "₱${String.format(Locale.US, "%,.0f", it)}" } ?: "Price unavailable"
 private fun formatAppointmentDate(value: String?): String = value?.let {

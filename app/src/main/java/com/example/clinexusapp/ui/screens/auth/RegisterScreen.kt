@@ -146,7 +146,7 @@ fun RegisterScreen(
                 Text(
                     text = "Join our network of elite care",
                     fontSize = 15.sp,
-                    color = SlateGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -304,7 +304,7 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                    Text("Have an account? ", color = SlateGray)
+                    Text("Have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = onNavigateToLogin) {
                         Text("Sign In", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }

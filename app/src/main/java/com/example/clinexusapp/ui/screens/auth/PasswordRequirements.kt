@@ -1,5 +1,6 @@
 package com.example.clinexusapp.ui.screens.auth
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.Text
@@ -19,7 +20,7 @@ fun PasswordRequirements(password: String, confirmation: String) {
     )
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         rules.forEach { (label, satisfied) ->
-            Text("• $label", color = if (satisfied) SlateGray else ErrorRed, fontSize = 13.sp)
+            Text("• $label", color = if (satisfied) MaterialTheme.colorScheme.onSurfaceVariant else ErrorRed, fontSize = 13.sp)
         }
     }
 }

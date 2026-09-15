@@ -51,7 +51,7 @@ fun SessionManagementScreen(onBack: () -> Unit, onSignedOut: () -> Unit) {
 
     Scaffold(
         topBar = { ElegantTopAppBar("Sessions & Saved Accounts", onBack) },
-        containerColor = Color(0xFFE8EEF8),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
@@ -59,20 +59,20 @@ fun SessionManagementScreen(onBack: () -> Unit, onSignedOut: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                Text("This device", color = RoyalNavy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}", color = SlateGray)
+                Text("This device", color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             items(accounts, key = { it.patient.patientID }) { account ->
                 val patient = account.patient
                 val isCurrent = patient.patientID == currentUser?.patientID
                 Surface(
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, Color(0xFFDDE7E6)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(shape = CircleShape, color = Color(0xFFE8EEF8), modifier = Modifier.size(46.dp)) {
+                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(46.dp)) {
                                 val photo = account.cachedProfilePicture?.takeIf { it.isNotBlank() }
                                     ?: patient.profilePicture?.takeIf { it.isNotBlank() }
                                 SubcomposeAsyncImage(
@@ -80,23 +80,23 @@ fun SessionManagementScreen(onBack: () -> Unit, onSignedOut: () -> Unit) {
                                     contentDescription = "${patient.firstName.orEmpty()} profile picture",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
-                                    loading = { Box(contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = DeepTeal) } },
-                                    error = { Box(contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = DeepTeal) } }
+                                    loading = { Box(contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = MaterialTheme.colorScheme.primary) } },
+                                    error = { Box(contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = MaterialTheme.colorScheme.primary) } }
                                 )
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(listOfNotNull(patient.firstName, patient.lastName).joinToString(" "), color = RoyalNavy, fontWeight = FontWeight.Bold)
-                                Text(patient.email.orEmpty(), color = SlateGray, fontSize = 13.sp)
+                                Text(listOfNotNull(patient.firstName, patient.lastName).joinToString(" "), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                                Text(patient.email.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                             }
                             if (isCurrent) {
-                                Icon(Lucide.ShieldCheck, "Current session", tint = DeepTeal)
+                                Icon(Lucide.ShieldCheck, "Current session", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                         Spacer(Modifier.height(10.dp))
                         Text(
                             if (account.lastSignInAt > 0) "Last sign-in: ${DateFormat.getDateTimeInstance().format(Date(account.lastSignInAt))}" else "Last sign-in time unavailable",
-                            color = SlateGray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
                         )
                         TextButton(
@@ -115,7 +115,7 @@ fun SessionManagementScreen(onBack: () -> Unit, onSignedOut: () -> Unit) {
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                 ) { Text("Sign out all accounts on this device", color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.height(8.dp))
-                Text("Server-wide sign-out is unavailable until the clinic API supports session revocation.", color = SlateGray, fontSize = 12.sp)
+                Text("Server-wide sign-out is unavailable until the clinic API supports session revocation.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
         }
     }

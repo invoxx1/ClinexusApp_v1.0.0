@@ -39,7 +39,7 @@ fun AppointmentTicketScreen(
         "Your appointment has been scheduled successfully."
     }
 
-    Scaffold(containerColor = SoftMist) { padding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
@@ -50,24 +50,24 @@ fun AppointmentTicketScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(Lucide.CircleCheck, "Booking success", tint = VibrantTeal, modifier = Modifier.size(64.dp))
-            Text(heading, color = RoyalNavy, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Surface(color = if (pending) Color(0xFFFFF3D6) else MintSparkle, shape = RoundedCornerShape(20.dp)) {
-                Text(status, color = RoyalNavy, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            Icon(Lucide.CircleCheck, "Booking success", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(64.dp))
+            Text(heading, color = MaterialTheme.colorScheme.onSurface, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Surface(color = if (pending) Color(0xFFFFF3D6) else MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(20.dp)) {
+                Text(status, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             }
-            Text(message, color = SlateGray, fontSize = 15.sp)
+            Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp)
             TicketCard(ticket, status)
-            Button(onClick = onViewAppointments, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal), shape = RoundedCornerShape(26.dp)) { Text("View my appointments") }
-            TextButton(onClick = onBackHome) { Text("Back to home", color = DeepTeal) }
+            Button(onClick = onViewAppointments, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = VibrantTeal), shape = RoundedCornerShape(26.dp)) { Text("View my appointments") }
+            TextButton(onClick = onBackHome) { Text("Back to home", color = MaterialTheme.colorScheme.primary) }
         }
     }
 }
 
 @Composable
 private fun TicketCard(ticket: AppointmentTicket, status: String) {
-    Surface(color = White, shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, Color(0xFFE4EAEE)), shadowElevation = 3.dp) {
+    Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shadowElevation = 3.dp) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Text("Appointment ticket", color = RoyalNavy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Appointment ticket", color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             TicketRow("Status", status)
             TicketRow("Dentist", ticket.dentist)
             TicketRow("Service", ticket.service)
@@ -85,7 +85,7 @@ private fun TicketCard(ticket: AppointmentTicket, status: String) {
 @Composable
 private fun TicketRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-        Text(label, color = SlateGray, fontSize = 13.sp, modifier = Modifier.weight(0.42f))
-        Text(value.ifBlank { "Not provided" }, color = RoyalNavy, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(0.58f))
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.weight(0.42f))
+        Text(value.ifBlank { "Not provided" }, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(0.58f))
     }
 }

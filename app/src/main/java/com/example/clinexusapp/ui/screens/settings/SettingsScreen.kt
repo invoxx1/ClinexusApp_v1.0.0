@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: SettingsViewModel) {
-    val darkMode by settingsViewModel.isDarkMode.collectAsState()
+    val darkMode = isSystemInDarkTheme()
     val notificationsEnabled by settingsViewModel.appointmentReminders.collectAsState()
     var confirmLogout by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -46,7 +46,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
             confirmButton = {
                 Button(
                     onClick = { confirmLogout = false; onLogout() },
-                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed)
+                    colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = ErrorRed)
                 ) { Text("Log out") }
             },
             shape = RoundedCornerShape(24.dp)
@@ -87,14 +87,21 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                             ) {
                                 settingsViewModel.toggleAppointmentReminders(it)
                             }
-                            SettingsToggleItem(
-                                title = "Dark Mode",
-                                icon = Lucide.Moon,
-                                iconColor = Color(0xFF2C3E50),
-                                iconBg = if (isSystemInDarkTheme()) Color(0xFF2C3E50).copy(alpha = 0.1f) else Color(0xFFF1F5F9),
-                                isChecked = darkMode,
-                                onCheckedChange = { settingsViewModel.toggleDarkMode(it) }
-                            )
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Icon(Lucide.Moon, null, tint = MaterialTheme.colorScheme.primary)
+                                Column {
+                                    Text("Appearance · Follow phone", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        if (darkMode) "Dark mode is on" else "Light mode is on",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 13.sp,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -106,7 +113,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, settingsViewModel: 
                                 title = "Privacy & Security", 
                                 icon = Lucide.ShieldCheck,
                                 iconColor = Color(0xFF1F3A6D),
-                                iconBg = if (isSystemInDarkTheme()) Color(0xFF1F3A6D).copy(alpha = 0.1f) else Color(0xFFE8EEF8)
+                                iconBg = if (isSystemInDarkTheme()) Color(0xFF1F3A6D).copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 scope.launch { snackbarHostState.showSnackbar("Opening: Privacy Settings") }
                             }

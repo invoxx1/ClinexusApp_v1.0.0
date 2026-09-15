@@ -75,12 +75,17 @@ import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private val ProfileBackground = Color(0xFFE8EEF8)
+private val ProfileBackground: Color
+    @Composable get() = MaterialTheme.colorScheme.background
 private val ProfileTeal = Color(0xFF1F3A6D)
-private val ProfileNavy = Color(0xFF07143C)
-private val ProfileMuted = Color(0xFF737C9A)
-private val ProfileMint = Color(0xFFE8EEF8)
-private val ProfileDivider = Color(0xFFE4E8EF)
+private val ProfileNavy: Color
+    @Composable get() = MaterialTheme.colorScheme.onSurface
+private val ProfileMuted: Color
+    @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val ProfileMint: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+private val ProfileDivider: Color
+    @Composable get() = MaterialTheme.colorScheme.outlineVariant
 private val ProfileRed = Color(0xFFB90829)
 private val PanelShape = RoundedCornerShape(20.dp)
 
@@ -166,7 +171,7 @@ fun ProfileScreen(
             .ifBlank { "Patient" }
         val accountPhoto = account.cachedProfilePicture ?: patient.profilePicture
         Dialog(onDismissRequest = {}) {
-            Surface(shape = RoundedCornerShape(26.dp), color = Color.White, shadowElevation = 16.dp) {
+            Surface(shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 16.dp) {
                 Column(
                     modifier = Modifier.padding(horizontal = 42.dp, vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -174,14 +179,14 @@ fun ProfileScreen(
                     Box(Modifier.size(104.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(
                             modifier = Modifier.fillMaxSize(),
-                            color = ProfileTeal,
+                            color = MaterialTheme.colorScheme.primary,
                             trackColor = ProfileMint,
                             strokeWidth = 4.dp,
                         )
                         Surface(shape = CircleShape, modifier = Modifier.size(84.dp), color = ProfileMint) {
                             if (accountPhoto.isNullOrBlank()) {
                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(42.dp))
+                                    Icon(Lucide.UserRound, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(42.dp))
                                 }
                             } else {
                                 AsyncImage(
@@ -230,11 +235,11 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = { confirmRemovePhoto = false; viewModel.updateProfilePhoto(remove = true) },
-                    colors = ButtonDefaults.buttonColors(containerColor = ProfileRed)
+                    colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = ProfileRed)
                 ) { Text("Remove") }
             },
             shape = RoundedCornerShape(24.dp),
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
         )
     }
 
@@ -251,7 +256,7 @@ fun ProfileScreen(
                 ) { Text("Log out") }
             },
             shape = RoundedCornerShape(24.dp),
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
         )
     }
 
@@ -259,7 +264,7 @@ fun ProfileScreen(
         ModalBottomSheet(
             onDismissRequest = { showPhotoOptions = false },
             sheetState = photoSheetState,
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         ) {
             Column(
@@ -310,7 +315,7 @@ fun ProfileScreen(
                         ),
                         contentScale = ContentScale.Crop,
                     )
-                    else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(52.dp)) }
+                    else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Lucide.UserRound, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(52.dp)) }
                   }
                 }
                 if (selectedPhotoUri != null) {
@@ -319,7 +324,7 @@ fun ProfileScreen(
                         TextButton(onClick = {
                             selectedPhotoZoom = 1f
                             selectedPhotoOffset = Offset.Zero
-                        }) { Text("Reset", color = ProfileTeal, fontWeight = FontWeight.Bold) }
+                        }) { Text("Reset", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) }
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -351,7 +356,7 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     enabled = selectedPhotoUri != null && updateState !is Resource.Loading,
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ProfileTeal),
+                    colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = ProfileTeal),
                 ) {
                     if (updateState is Resource.Loading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     else Icon(Lucide.Pencil, null)
@@ -374,7 +379,7 @@ fun ProfileScreen(
         ModalBottomSheet(
             onDismissRequest = { showAccountSwitcher = false },
             sheetState = accountSheetState,
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         ) {
             Column(
@@ -424,11 +429,11 @@ fun ProfileScreen(
                             Surface(
                                 modifier = Modifier.size(46.dp),
                                 shape = CircleShape,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.surface,
                             ) {
                                 if (accountPhoto.isNullOrBlank()) {
                                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(28.dp))
+                                        Icon(Lucide.UserRound, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                                     }
                                 } else {
                                     SubcomposeAsyncImage(
@@ -440,14 +445,14 @@ fun ProfileScreen(
                                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                                 CircularProgressIndicator(
                                                     modifier = Modifier.size(22.dp),
-                                                    color = ProfileTeal,
+                                                    color = MaterialTheme.colorScheme.primary,
                                                     strokeWidth = 2.dp,
                                                 )
                                             }
                                         },
                                         error = {
                                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                Icon(Lucide.UserRound, null, tint = ProfileTeal, modifier = Modifier.size(28.dp))
+                                                Icon(Lucide.UserRound, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                                             }
                                         },
                                         success = { SubcomposeAsyncImageContent() },
@@ -469,9 +474,9 @@ fun ProfileScreen(
                     shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, ProfileTeal),
                 ) {
-                    Icon(Lucide.UserRoundPlus, null, tint = ProfileTeal)
+                    Icon(Lucide.UserRoundPlus, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
-                    Text("Add account", color = ProfileTeal, fontWeight = FontWeight.Bold)
+                    Text("Add account", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -534,9 +539,9 @@ private fun ProfileHero(
         ProfileHeader(onBack)
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp).fillMaxWidth().height(235.dp)
-                .shadow(10.dp, PanelShape, ambientColor = Color(0xFFE8EEF8).copy(alpha = 0.35f), spotColor = Color.Transparent),
+                .shadow(10.dp, PanelShape, ambientColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), spotColor = Color.Transparent),
             shape = PanelShape,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 91.dp, bottom = 20.dp),
@@ -546,11 +551,11 @@ private fun ProfileHero(
                 Spacer(Modifier.height(5.dp))
                 Text(email.ifBlank { "Email not available" }, color = ProfileMuted, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(13.dp))
-                Surface(shape = RoundedCornerShape(50), color = Color(0xFFE8EEF8)) {
+                Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceVariant) {
                     Row(Modifier.padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Lucide.ShieldCheck, null, tint = Color(0xFF1F3A6D), modifier = Modifier.size(21.dp))
+                        Icon(Lucide.ShieldCheck, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
                         Spacer(Modifier.width(9.dp))
-                        Text("Verified Patient", color = Color(0xFF1F3A6D), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("Verified Patient", color = MaterialTheme.colorScheme.primary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -558,13 +563,13 @@ private fun ProfileHero(
         Surface(
             modifier = Modifier.align(Alignment.TopCenter).offset(y = 132.dp).size(126.dp),
             shape = CircleShape,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(5.dp, Color.White),
             shadowElevation = 5.dp,
         ) {
             if (photoUrl.isNullOrBlank()) {
                 Box(Modifier.fillMaxSize().background(ProfileMint), contentAlignment = Alignment.Center) {
-                    Icon(Lucide.UserRound, "Profile photo", tint = ProfileTeal, modifier = Modifier.size(76.dp))
+                    Icon(Lucide.UserRound, "Profile photo", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(76.dp))
                 }
             } else {
                 AsyncImage(model = photoUrl, contentDescription = "Profile photo", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -574,12 +579,12 @@ private fun ProfileHero(
             modifier = Modifier.align(Alignment.TopCenter).offset(x = 48.dp, y = 218.dp).size(48.dp)
                 .clickable(role = Role.Button, onClick = onPhotoClick),
             shape = CircleShape,
-            color = Color(0xFFE8EEF8),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             border = BorderStroke(2.dp, Color.White),
             shadowElevation = 3.dp,
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Lucide.Camera, "Edit profile photo", tint = Color(0xFF1F3A6D), modifier = Modifier.size(23.dp))
+                Icon(Lucide.Camera, "Edit profile photo", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(23.dp))
             }
         }
     }
@@ -625,9 +630,9 @@ private fun ProfileSection(title: String, entries: List<ProfileMenuEntry>) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
         Text(title, color = ProfileMuted, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 2.dp, bottom = 9.dp).semantics { heading() })
         Surface(
-            modifier = Modifier.fillMaxWidth().shadow(7.dp, PanelShape, ambientColor = Color(0xFFE8EEF8).copy(alpha = 0.28f), spotColor = Color.Transparent),
+            modifier = Modifier.fillMaxWidth().shadow(7.dp, PanelShape, ambientColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f), spotColor = Color.Transparent),
             shape = PanelShape,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
         ) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 entries.forEachIndexed { index, entry ->

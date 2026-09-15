@@ -164,7 +164,7 @@ fun PersonalInformationScreen(onBack: () -> Unit, viewModel: ProfileViewModel) {
         ModalBottomSheet(
             onDismissRequest = { showPhotoEditor = false },
             sheetState = photoEditorSheetState,
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         ) {
             Column(

@@ -1,5 +1,6 @@
 package com.example.clinexusapp.ui.components
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -25,9 +26,9 @@ fun Modifier.shimmer(): Modifier = composed {
     )
 
     val shimmerColors = listOf(
-        Color.LightGray.copy(alpha = 0.6f),
-        Color.LightGray.copy(alpha = 0.2f),
-        Color.LightGray.copy(alpha = 0.6f),
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
     )
 
     val brush = Brush.linearGradient(
