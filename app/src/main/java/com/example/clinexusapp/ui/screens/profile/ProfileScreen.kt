@@ -27,6 +27,7 @@ import androidx.core.content.FileProvider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -646,8 +647,19 @@ private fun ProfileSection(title: String, entries: List<ProfileMenuEntry>) {
 
 @Composable
 private fun ProfileMenuRow(entry: ProfileMenuEntry) {
-    val accent = if (entry.destructive) ProfileRed else Color(0xFF1F3A6D)
-    val background = if (entry.destructive) Color(0xFFFFECEE) else ProfileMint
+    val isDark = isSystemInDarkTheme()
+    val accent = if (entry.destructive) {
+        if (isDark) Color(0xFF4B5563) else ProfileRed
+    } else if (isDark) {
+        Color.White
+    } else {
+        Color(0xFF1F3A6D)
+    }
+    val background = if (entry.destructive) {
+        if (isDark) Color(0xFFE5E7EB) else Color(0xFFFFECEE)
+    } else {
+        ProfileMint
+    }
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 82.dp).clickable(role = Role.Button, onClick = entry.onClick).padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -657,7 +669,7 @@ private fun ProfileMenuRow(entry: ProfileMenuEntry) {
         }
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Text(entry.title, color = if (entry.destructive) ProfileRed else ProfileNavy, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
+            Text(entry.title, color = if (entry.destructive && isDark) Color.White else if (entry.destructive) ProfileRed else ProfileNavy, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(3.dp))
             Text(entry.subtitle, color = ProfileMuted, fontSize = 13.sp, lineHeight = 17.sp)
         }

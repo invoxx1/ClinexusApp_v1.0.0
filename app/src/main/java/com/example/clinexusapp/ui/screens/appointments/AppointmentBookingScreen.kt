@@ -18,6 +18,7 @@ import com.composables.icons.lucide.UserRound
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -190,7 +191,7 @@ private fun BookingProgress(step: BookingStep) {
             BookingStep.values().forEachIndexed { itemIndex, item ->
                 Box(Modifier.size(36.dp).clip(CircleShape).background(if (itemIndex <= index) VibrantTeal else Color(0xFFD9E0E5)), contentAlignment = Alignment.Center) {
                     if (itemIndex < index) Icon(Lucide.Check, null, tint = White)
-                    else Text("${itemIndex + 1}", color = if (itemIndex <= index) White else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                    else Text("${itemIndex + 1}", color = if (itemIndex <= index) White else if (isSystemInDarkTheme()) Color(0xFF1F3A6D) else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                 }
                 if (itemIndex < 3) Box(Modifier.weight(1f).height(3.dp).background(if (itemIndex < index) VibrantTeal else Color(0xFFD9E0E5)))
             }
@@ -455,7 +456,7 @@ private fun <T> ResourceContent(resource: Resource<List<T>>, onRetry: () -> Unit
 @Composable private fun ErrorState(message: String, retry: () -> Unit) { Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) { Text(message, color = ErrorRed); TextButton(onClick = retry) { Text("Retry") } } }
 
 @Composable
-private fun BookingBottomAction(label: String, enabled: Boolean, onClick: () -> Unit) { Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) { Box(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding()) { Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = VibrantTeal, disabledContainerColor = Color(0xFFCBD5D8))) { Text(label, fontSize = 17.sp, fontWeight = FontWeight.Bold) } } } }
+private fun BookingBottomAction(label: String, enabled: Boolean, onClick: () -> Unit) { Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) { Box(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding()) { Button(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(28.dp), colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = VibrantTeal, disabledContainerColor = Color(0xFFCBD5D8), disabledContentColor = if (isSystemInDarkTheme()) Color(0xFF1F3A6D) else Color.White)) { Text(label, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1) } } } }
 
 private fun formatPrice(price: Double?): String = price?.let { "₱${String.format(Locale.US, "%,.0f", it)}" } ?: "Price unavailable"
 private fun formatAppointmentDate(value: String?): String = value?.let {

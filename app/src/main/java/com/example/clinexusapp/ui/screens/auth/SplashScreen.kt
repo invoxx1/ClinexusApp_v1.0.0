@@ -198,10 +198,12 @@ fun SplashScreen(
             )
             Text(
                 text = "TRUSTED DENTAL CARE",
-                modifier = Modifier.graphicsLayer {
-                    alpha = taglineAlpha.value
-                    translationY = 8.dp.toPx() * (1f - taglineAlpha.value)
-                },
+                modifier = Modifier
+                    .offset(x = 1.dp)
+                    .graphicsLayer {
+                        alpha = taglineAlpha.value
+                        translationY = 8.dp.toPx() * (1f - taglineAlpha.value)
+                    },
                 color = Color.White.copy(alpha = 0.76f),
                 fontSize = (brandWidth.value * 0.031f).sp,
                 lineHeight = 18.sp,

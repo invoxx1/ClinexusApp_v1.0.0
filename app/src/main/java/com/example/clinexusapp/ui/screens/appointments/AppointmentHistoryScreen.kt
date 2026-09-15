@@ -22,6 +22,7 @@ import android.content.Intent
 import android.provider.CalendarContract
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
@@ -43,6 +44,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -457,6 +459,8 @@ private fun tabLabel(tab: AppointmentTab) = when (tab) { AppointmentTab.PENDING 
 private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, onCancel: () -> Unit, onReschedule: () -> Unit, onBook: () -> Unit, onAddToCalendar: () -> Unit) {
     val status = mapAppointmentStatus(appointment.appointmentStatus)
     val style = statusStyle(status, appointment.needsPatientScheduleChoice)
+    val rescheduleColor = if (isSystemInDarkTheme()) Color.White else DeepTeal
+    val rescheduleContainer = if (isSystemInDarkTheme()) Color.Transparent else MaterialTheme.colorScheme.surface
     Surface(
         onClick = onClick,
         modifier = Modifier.semantics(mergeDescendants = true) {
@@ -487,7 +491,37 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                 Text(DateUtils.formatDisplayTime(appointment.startTime), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp))
             }
             Text("${appointment.serviceName ?: appointment.treatment}  •  ${appointment.clinicName ?: "Rivera Dental Clinic"}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-            Surface(color = style.background, shape = RoundedCornerShape(12.dp)) { Text(style.message, color = style.foreground, fontSize = 13.sp, modifier = Modifier.padding(12.dp)) }
+            if (isSystemInDarkTheme()) {
+                Surface(
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.56f)),
+                ) {
+                    Box(
+                        Modifier.background(
+                            Brush.linearGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.White.copy(alpha = 0.38f),
+                                    0.22f to style.foreground.copy(alpha = 0.56f),
+                                    0.72f to style.foreground.copy(alpha = 0.46f),
+                                    1.0f to Color.White.copy(alpha = 0.16f),
+                                ),
+                            )
+                        )
+                    ) {
+                        Text(
+                            style.message,
+                            color = Color.White.copy(alpha = 0.96f),
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(12.dp),
+                        )
+                    }
+                }
+            } else {
+                Surface(color = style.background, shape = RoundedCornerShape(12.dp)) {
+                    Text(style.message, color = style.foreground, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 when (status) {
 
@@ -498,10 +532,10 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                             Text("Cancel", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
 
-                        OutlinedButton(onClick = onReschedule, modifier = Modifier.weight(1f).height(38.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, DeepTeal), colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = DeepTeal)) {
-                            Icon(Lucide.CalendarSync, "Reschedule appointment", modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Reschedule", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        OutlinedButton(onClick = onReschedule, modifier = Modifier.weight(1f).height(38.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, rescheduleColor), colors = ButtonDefaults.outlinedButtonColors(containerColor = rescheduleContainer, contentColor = rescheduleColor), contentPadding = PaddingValues(horizontal = 8.dp)) {
+                            Icon(Lucide.CalendarSync, "Reschedule appointment", modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Reschedule", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         }
                     }
 
@@ -512,10 +546,10 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                             Text("Cancel", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
 
-                        OutlinedButton(onClick = onReschedule, modifier = Modifier.weight(1f).height(38.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, DeepTeal), colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = DeepTeal)) {
-                            Icon(Lucide.CalendarSync, "Reschedule appointment", modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Reschedule", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        OutlinedButton(onClick = onReschedule, modifier = Modifier.weight(1f).height(38.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, rescheduleColor), colors = ButtonDefaults.outlinedButtonColors(containerColor = rescheduleContainer, contentColor = rescheduleColor), contentPadding = PaddingValues(horizontal = 8.dp)) {
+                            Icon(Lucide.CalendarSync, "Reschedule appointment", modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Reschedule", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         }
                     }
 
@@ -588,6 +622,7 @@ private fun CancellationSheet(appointment: AppointmentDTO, submitting: Boolean, 
     var details by remember { mutableStateOf("") }
     val other = reason == "Other"
     val valid = !reason.isNullOrBlank() && (!other || details.isNotBlank())
+    val isDark = isSystemInDarkTheme()
     ModalBottomSheet(
         onDismissRequest = { if (details.isBlank()) onDismiss() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -617,8 +652,8 @@ private fun CancellationSheet(appointment: AppointmentDTO, submitting: Boolean, 
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(38.dp), enabled = !submitting, shape = RoundedCornerShape(16.dp), border = BorderStroke(2.dp, DeepTeal), contentPadding = PaddingValues(horizontal = 6.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = DeepTeal)) { Text("Keep Appointment", fontSize = 13.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.Bold) }
-                Button(onClick = { onConfirm(if (other) details else reason.orEmpty()) }, modifier = Modifier.weight(1f).height(38.dp), enabled = valid && !submitting, shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 6.dp), colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = ErrorRed, disabledContainerColor = Color(0xFFE7B7B7))) { if (submitting) CircularProgressIndicator(Modifier.size(18.dp), color = White) else Text("Confirm Cancellation", fontSize = 13.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.Bold) }
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(38.dp), enabled = !submitting, shape = RoundedCornerShape(16.dp), border = BorderStroke(2.dp, if (isDark) Color.White else DeepTeal), contentPadding = PaddingValues(horizontal = 6.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDark) Color.White else DeepTeal)) { Text("Keep Appointment", fontSize = 13.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.Bold) }
+                Button(onClick = { onConfirm(if (other) details else reason.orEmpty()) }, modifier = Modifier.weight(1f).height(38.dp), enabled = valid && !submitting, shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 6.dp), colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = ErrorRed, disabledContainerColor = Color(0xFFE7B7B7), disabledContentColor = if (isDark) Color(0xFF1F3A6D) else Color.White)) { if (submitting) CircularProgressIndicator(Modifier.size(18.dp), color = White) else Text("Confirm Cancellation", fontSize = 13.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.Bold) }
             }
         }
     }
