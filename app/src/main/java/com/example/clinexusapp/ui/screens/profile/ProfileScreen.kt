@@ -536,13 +536,15 @@ private fun ProfileHero(
     onPhotoClick: () -> Unit,
 ) {
     val name = listOf(firstName, lastName).map { it.trim() }.filter { it.isNotBlank() }.joinToString(" ").ifBlank { "Patient" }
+    val isDark = isSystemInDarkTheme()
     Box(Modifier.fillMaxWidth().height(404.dp)) {
         ProfileHeader(onBack)
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp).fillMaxWidth().height(235.dp)
                 .shadow(10.dp, PanelShape, ambientColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), spotColor = Color.Transparent),
             shape = PanelShape,
-            color = MaterialTheme.colorScheme.surface,
+            color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.96f) else MaterialTheme.colorScheme.surface,
+            border = if (isDark) BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)) else null,
         ) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 91.dp, bottom = 20.dp),
@@ -628,12 +630,14 @@ private fun ProfileHeader(onBack: () -> Unit) {
 
 @Composable
 private fun ProfileSection(title: String, entries: List<ProfileMenuEntry>) {
+    val isDark = isSystemInDarkTheme()
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
         Text(title, color = ProfileMuted, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 2.dp, bottom = 9.dp).semantics { heading() })
         Surface(
             modifier = Modifier.fillMaxWidth().shadow(7.dp, PanelShape, ambientColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f), spotColor = Color.Transparent),
             shape = PanelShape,
-            color = MaterialTheme.colorScheme.surface,
+            color = if (isDark) MaterialTheme.colorScheme.surface.copy(alpha = 0.96f) else MaterialTheme.colorScheme.surface,
+            border = if (isDark) BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)) else null,
         ) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 entries.forEachIndexed { index, entry ->

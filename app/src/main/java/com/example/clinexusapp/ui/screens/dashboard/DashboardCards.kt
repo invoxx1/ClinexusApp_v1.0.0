@@ -10,8 +10,10 @@ import com.composables.icons.lucide.Tag
 
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -129,29 +131,53 @@ fun PromotionCard(
     onBookClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.shadow(4.dp, DashboardStyle.CardShape),
-        shape = DashboardStyle.CardShape,
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        Box(Modifier.background(Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)))) {
-            Column(Modifier.fillMaxSize().padding(start = 14.dp, top = 12.dp, end = 48.dp, bottom = 10.dp)) {
+    if (isSystemInDarkTheme()) {
+        DashboardCard(modifier) {
+            PromotionContent(title, value, description, onBookClick)
+        }
+    } else {
+        Surface(
+            modifier = modifier.shadow(4.dp, DashboardStyle.CardShape),
+            shape = DashboardStyle.CardShape,
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Box(Modifier.background(Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)))) {
+                Column(Modifier.fillMaxSize().padding(start = 14.dp, top = 12.dp, end = 48.dp, bottom = 10.dp)) {
+                    Text(title, color = DashboardStyle.Navy, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(value, color = Color(0xFF1769C2), fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                    if (description.isNotBlank()) {
+                        Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    DashboardPillButton("Book Now", onBookClick, Modifier.widthIn(min = 108.dp))
+                }
+                Text(
+                    "✦",
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp),
+                    color = Color(0xFF62A7EC),
+                    fontSize = 32.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromotionContent(title: String, value: String, description: String, onBookClick: () -> Unit) {
+        Column(Modifier.fillMaxSize().padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
                 Text(title, color = DashboardStyle.Navy, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(value, color = Color(0xFF1769C2), fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
                 if (description.isNotBlank()) {
                     Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, lineHeight = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                Spacer(Modifier.weight(1f))
-                DashboardPillButton("Book Now", onBookClick, Modifier.widthIn(min = 108.dp))
+                }
+                Text("✦", color = Color(0xFF62A7EC), fontSize = 32.sp)
             }
-            Text(
-                "✦",
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp),
-                color = Color(0xFF62A7EC),
-                fontSize = 32.sp,
-            )
+            Spacer(Modifier.weight(1f))
+            DashboardPillButton("Book Now", onBookClick, Modifier.widthIn(min = 108.dp))
         }
-    }
 }
 
 @Composable
@@ -162,13 +188,25 @@ fun InsightCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth().height(112.dp).shadow(4.dp, DashboardStyle.CardShape),
-        shape = DashboardStyle.CardShape,
-        color = MaterialTheme.colorScheme.surface,
-    ) {
+    if (isSystemInDarkTheme()) {
+        DashboardCard(modifier.height(112.dp)) {
+            InsightContent(title, subtitle, category, onClick, fillCard = true)
+        }
+    } else {
+        Surface(
+            modifier = modifier.fillMaxWidth().height(112.dp).shadow(4.dp, DashboardStyle.CardShape),
+            shape = DashboardStyle.CardShape,
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            InsightContent(title, subtitle, category, onClick, fillCard = false)
+        }
+    }
+}
+
+@Composable
+private fun InsightContent(title: String, subtitle: String, category: String, onClick: () -> Unit, fillCard: Boolean) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = (if (fillCard) Modifier.fillMaxSize() else Modifier).padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -187,7 +225,6 @@ fun InsightCard(
                 Text("Read more", Modifier.padding(horizontal = 10.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
-    }
 }
 
 @Composable
@@ -225,6 +262,7 @@ internal fun DashboardCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -236,10 +274,21 @@ internal fun DashboardCard(
             )
             .clip(DashboardStyle.CardShape)
             .then(modifier),
-        color = MaterialTheme.colorScheme.surface,
+        color = if (isDark) Color.White.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface,
+        border = if (isDark) BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)) else null,
         shape = DashboardStyle.CardShape
     ) {
-        Column(content = content)
+        if (isDark) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(DashboardStyle.CardShape)
+        ) {
+            Column(content = content)
+        }
+        } else {
+            Column(content = content)
+        }
     }
 }
 

@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
+import kotlin.time.Duration.Companion.seconds
 import com.example.clinexusapp.R
 import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.model.ClinicNewsDTO
@@ -123,7 +124,7 @@ fun DashboardScreen(
     LaunchedEffect(Unit) {
         viewModel.fetchDashboardData()
         while (true) {
-            delay(30_000)
+            delay(30.seconds)
             viewModel.refreshAppointmentsAndNotifications()
         }
     }
@@ -159,7 +160,7 @@ internal fun DashboardContent(
     val headerVisible by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
     var selectedInsight by remember { mutableStateOf<HealthInsightDTO?>(null) }
     var selectedAppointment by remember { mutableStateOf<AppointmentDTO?>(null) }
-    var showPromotions by remember { mutableStateOf(false) }
+    var showPromotions by remember { mutableStateOf(value = false) }
     val promotions = (promotionsState as? Resource.Success)?.data.orEmpty()
     val walkthroughTargetReady = remember(activeWalkthroughTarget) { mutableStateOf(false) }
     LaunchedEffect(activeWalkthroughTarget, promotions.isNotEmpty()) {
@@ -178,10 +179,9 @@ internal fun DashboardContent(
     val walkthroughReady = walkthroughTargetReady.value
 
     selectedAppointment?.let { appointment ->
-        AppointmentDetailsDialog(
-            appointment = appointment,
-            onDismiss = { selectedAppointment = null },
-        )
+        AppointmentDetailsDialog(appointment) {
+            selectedAppointment = null
+        }
     }
 
     DashboardSystemBars(headerVisible)
@@ -251,10 +251,10 @@ internal fun DashboardContent(
                         onActionClick = onAppointmentsClick,
                     )
                     Spacer(Modifier.height(4.dp))
-                    when (val state = nextAppointmentState) {
+                    when (nextAppointmentState) {
                         Resource.Loading, Resource.Idle -> DashboardLoadingCard()
-                        is Resource.Error -> DashboardErrorCard(state.message ?: "Unable to load appointments", onRetry)
-                        is Resource.Success -> state.data?.let { appointment ->
+                        is Resource.Error -> DashboardErrorCard(nextAppointmentState.message ?: "Unable to load appointments", onRetry)
+                        is Resource.Success -> nextAppointmentState.data?.let { appointment ->
                             UpcomingAppointmentCard(appointment) {
                                 selectedAppointment = appointment
                             }
@@ -300,7 +300,7 @@ internal fun DashboardContent(
                                             .width(if (selected) 18.dp else 6.dp)
                                             .height(6.dp)
                                             .clip(CircleShape)
-                                            .background(if (selected) DashboardStyle.Teal else Color(0xFFD5DEEC))
+                                            .background(if (selected) DashboardStyle.Teal else Color(0xFFD5DEEC)),
                                     )
                                 }
                             }
@@ -310,8 +310,10 @@ internal fun DashboardContent(
             }
             val serverInsights = (insightsState as? Resource.Success)?.data.orEmpty()
             val insights = (serverInsights + FallbackHealthInsights)
+                .asSequence()
                 .distinctBy { it.id ?: it.title }
                 .take(3)
+                .toList()
             item(key = "insights") {
                 Column(Modifier.padding(horizontal = 22.dp)) {
                     DashboardSectionHeader("Health Insights", Lucide.Lightbulb)
@@ -348,7 +350,7 @@ internal fun DashboardContent(
                                         .width(if (selected) 18.dp else 6.dp)
                                         .height(6.dp)
                                         .clip(CircleShape)
-                                        .background(if (selected) DashboardStyle.Teal else Color(0xFFD5DEEC))
+                                        .background(if (selected) DashboardStyle.Teal else Color(0xFFD5DEEC)),
                                 )
                             }
                         }
@@ -415,7 +417,7 @@ fun DashboardHeader(
             }
             .statusBarsPadding(),
     ) {
-        val showSlogan = maxWidth >= 380.dp && fontScale <= 1.15f
+        val showSlogan = (maxWidth >= 380.dp) && (fontScale <= 1.15f)
         Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 22.dp, top = 20.dp, bottom = 25.dp)) {
             Row(Modifier.fillMaxWidth().padding(end = 42.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -514,8 +516,13 @@ fun DashboardSectionHeader(
 
 @Composable
 private fun DashboardLoadingCard() {
-    Surface(shape = DashboardStyle.CardShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.height(112.dp).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    DashboardCard(Modifier.height(112.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Box(Modifier.fillMaxWidth(0.55f).height(20.dp).clip(RoundedCornerShape(8.dp)).shimmer())
             Box(Modifier.fillMaxWidth(0.8f).height(16.dp).clip(RoundedCornerShape(8.dp)).shimmer())
             Box(Modifier.fillMaxWidth(0.65f).height(16.dp).clip(RoundedCornerShape(8.dp)).shimmer())
@@ -525,10 +532,17 @@ private fun DashboardLoadingCard() {
 
 @Composable
 private fun DashboardErrorCard(message: String, onRetry: () -> Unit) {
-    Surface(shape = DashboardStyle.CardShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    DashboardCard {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text(message, color = DashboardStyle.Muted, textAlign = TextAlign.Center)
-            TextButton(onClick = onRetry) { Text("Try again", color = MaterialTheme.colorScheme.primary) }
+            TextButton(onClick = onRetry) {
+                Text("Try again", color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
