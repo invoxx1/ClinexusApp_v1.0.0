@@ -55,20 +55,25 @@ fun VerifyOTPScreen(
     val state = otpState
     LaunchedEffect(state, resetToken) {
         if (state is Resource.Success) {
-            if (purpose == "reset" || purpose == "verification") {
+            if (purpose == "reset") {
                 if (resetToken != null) {
                     onOtpVerified(resetToken)
                     viewModel.resetState()
                 } else {
-                    // Handled error if token is missing
                     snackbarHostState.showSnackbar("Verification successful, but reset token is missing.")
                 }
             } else if (purpose == "verification") {
                 onOtpVerified(null)
                 viewModel.resetState()
+            } else {
+                onOtpVerified(resetToken)
+                viewModel.resetState()
             }
         } else if (state is Resource.Error) {
-            snackbarHostState.showSnackbar(state.message ?: "Verification failed")
+            val message = state.message ?: "Verification failed"
+            otp = ""
+            viewModel.resetState()
+            snackbarHostState.showSnackbar(message)
         }
     }
 
@@ -101,7 +106,7 @@ fun VerifyOTPScreen(
 
             OtpCodeInput(value = otp, onValueChange = { otp = it }, enabled = otpState !is Resource.Loading)
 
-            if (purpose == "reset") {
+            if (purpose == "reset" || purpose == "verification") {
                 TextButton(
                     onClick = { viewModel.resendOtp(email, purpose) },
                     enabled = resendSeconds == 0 && resendState !is Resource.Loading,
