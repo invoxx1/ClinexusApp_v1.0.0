@@ -109,6 +109,14 @@ class AuthRepository @Inject constructor(private val apiService: ApiService) {
         }
     }
 
+    suspend fun resendVerificationEmail(email: String): Resource<GenericResponse> = try {
+        val response = apiService.resendVerificationEmail(VerifyOtpRequest(email.trim().lowercase(), ""))
+        if (response.isSuccessful && response.body() != null) Resource.Success(response.body()!!)
+        else Resource.Error(parseError(response.errorBody()?.string()) ?: "Unable to resend verification code")
+    } catch (e: Exception) {
+        Resource.Error(e.message ?: "Unable to resend verification code")
+    }
+
     // ---------- VERIFY OTP (for password reset) ----------
     suspend fun verifyOTP(email: String, otp: String): Resource<GenericResponse> {
         return try {

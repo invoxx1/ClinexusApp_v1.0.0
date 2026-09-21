@@ -35,7 +35,9 @@ data class HistoryUiState(
     val cancellationSubmitting: Boolean = false,
     val rescheduleSubmitting: Boolean = false,
     val rescheduleDates: Map<String, Resource<List<AvailableSlotDTO>>> = emptyMap(),
-    val rescheduleSlots: Resource<List<AvailableSlotDTO>> = Resource.Idle
+    val rescheduleSlots: Resource<List<AvailableSlotDTO>> = Resource.Idle,
+    val rescheduleWorkingDays: Set<String> = emptySet(),
+    val rescheduleScheduleLoaded: Boolean = false,
 )
 
 @HiltViewModel
@@ -80,6 +82,37 @@ class HistoryViewModel @Inject constructor(
     }
 
     private var rescheduleAvailabilityJob: Job? = null
+
+    fun loadRescheduleWorkingDays(dentistId: Int) {
+        _uiState.value = _uiState.value.copy(rescheduleWorkingDays = emptySet(), rescheduleScheduleLoaded = false)
+        viewModelScope.launch {
+            // The mobile endpoint /dentists/:id/available-slots requires a date and
+            // returns slots, not a schedule. Active dentists exposes the real active
+            // dentist_schedules.day_of_week values needed by the calendar.
+            val dentists = appointmentRepository.getActiveDentists()
+            val dentist = (dentists as? Resource.Success)?.data?.firstOrNull { it.dentistId == dentistId }
+            if (dentist?.daysOfWeek?.isNotBlank() == true) {
+                _uiState.value = _uiState.value.copy(
+                    rescheduleWorkingDays = normalizeWorkingDays(dentist.daysOfWeek.split(",")),
+                    rescheduleScheduleLoaded = true,
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(rescheduleScheduleLoaded = true)
+            }
+        }
+    }
+
+    private fun normalizeWorkingDays(values: List<String>): Set<String> {
+        val week = listOf("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY")
+        return values.flatMap { raw ->
+            val parts = raw.trim().uppercase(Locale.US).split(Regex("\\s*[-–]\\s*"))
+            if (parts.size == 2) {
+                val start = week.indexOfFirst { it.startsWith(parts[0].take(3)) }
+                val end = week.indexOfFirst { it.startsWith(parts[1].take(3)) }
+                if (start >= 0 && end >= start) week.subList(start, end + 1) else emptyList()
+            } else week.filter { it.startsWith(parts.firstOrNull()?.take(3).orEmpty()) }
+        }.toSet()
+    }
 
     fun loadRescheduleDates(appointment: AppointmentDTO, dates: List<String>) {
         rescheduleAvailabilityJob?.cancel()

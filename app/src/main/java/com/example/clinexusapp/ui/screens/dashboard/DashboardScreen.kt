@@ -11,11 +11,14 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -143,6 +146,7 @@ fun DashboardScreen(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun DashboardContent(
     firstName: String,
@@ -318,23 +322,19 @@ internal fun DashboardContent(
                 Column(Modifier.padding(horizontal = 22.dp)) {
                     DashboardSectionHeader("Health Insights", Lucide.Lightbulb)
                     Spacer(Modifier.height(4.dp))
-                    val insightListState = rememberLazyListState()
-                    val selectedInsightIndex by remember {
-                        derivedStateOf { insightListState.firstVisibleItemIndex }
-                    }
-                    LazyRow(
-                        state = insightListState,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    val insightPagerState = rememberPagerState(pageCount = { insights.size })
+                    HorizontalPager(
+                        state = insightPagerState,
                         contentPadding = PaddingValues(end = 18.dp),
-                    ) {
-                        items(insights, key = { it.id ?: it.title }) { insight ->
+                        pageSpacing = 10.dp,
+                    ) { page ->
+                        val insight = insights[page]
                             InsightCard(
                                 title = insight.title,
                                 subtitle = insight.description,
                                 category = insight.category,
-                                modifier = Modifier.fillParentMaxWidth(0.94f),
+                                modifier = Modifier.fillMaxWidth(),
                             ) { selectedInsight = insight }
-                        }
                     }
                     if (insights.size > 1) {
                         Spacer(Modifier.height(8.dp))
@@ -343,7 +343,7 @@ internal fun DashboardContent(
                             horizontalArrangement = Arrangement.Center,
                         ) {
                             insights.indices.forEach { index ->
-                                val selected = selectedInsightIndex == index
+                                val selected = insightPagerState.currentPage == index
                                 Box(
                                     Modifier
                                         .padding(horizontal = 3.dp)

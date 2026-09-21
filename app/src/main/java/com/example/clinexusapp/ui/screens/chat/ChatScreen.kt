@@ -23,6 +23,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +62,7 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.clinexusapp.R
 import com.example.clinexusapp.model.*
+import com.example.clinexusapp.ui.components.ClinexusSnackbarHost
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.util.Resource
@@ -68,6 +72,8 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,15 +87,53 @@ fun ChatScreen(
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
     var showAttachmentOptions by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<MessageDetailDTO?>(null) }
+    var deleteConversationTarget by remember { mutableStateOf<ConversationDTO?>(null) }
 
     val context = LocalContext.current
     val contactsState by viewModel.contactsState.collectAsState()
     val conversationsState by viewModel.conversationsState.collectAsState()
     val conversationMessagesState by viewModel.conversationMessagesState.collectAsState()
     val sendMessageState by viewModel.sendMessageState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val selectedConversation by viewModel.selectedConversation.collectAsState()
     val selectedContact by viewModel.selectedContact.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, selectedConversation?.conversationId) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> viewModel.stopPollingMessages()
+                Lifecycle.Event.ON_START -> selectedConversation?.conversationId?.let(viewModel::startPollingMessages)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.stopPollingMessages()
+        }
+    }
+
+    deleteTarget?.let { message ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete message") },
+            text = { Text("This message will be removed from the conversation.") },
+            confirmButton = { TextButton(onClick = { viewModel.deleteMessage(message.messageId); deleteTarget = null }) { Text("Delete", color = ErrorRed) } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel") } },
+        )
+    }
+    deleteConversationTarget?.let { conversation ->
+        AlertDialog(
+            onDismissRequest = { deleteConversationTarget = null },
+            title = { Text("Delete conversation") },
+            text = { Text("Delete your conversation with ${conversation.name}? This cannot be undone.") },
+            confirmButton = { TextButton(onClick = { viewModel.deleteConversation(conversation.conversationId); deleteConversationTarget = null }) { Text("Delete", color = ErrorRed) } },
+            dismissButton = { TextButton(onClick = { deleteConversationTarget = null }) { Text("Cancel") } },
+        )
+    }
 
     var currentView by remember { mutableStateOf(ChatView.CONVERSATIONS) }
     var searchQuery by remember { mutableStateOf("") }
@@ -226,6 +270,10 @@ fun ChatScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.actionMessages.collect { snackbarHostState.showSnackbar(it) }
+    }
+
     BackHandler(enabled = currentView != ChatView.CONVERSATIONS) {
         when(currentView) {
             ChatView.MESSAGES -> {
@@ -287,6 +335,7 @@ fun ChatScreen(
                 )
             }
         },
+        snackbarHost = { ClinexusSnackbarHost(snackbarHostState) },
         floatingActionButton = {
             if (currentView == ChatView.CONVERSATIONS) {
                 FloatingActionButton(
@@ -331,7 +380,10 @@ fun ChatScreen(
                             }
                             is Resource.Error -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text(text = convState.message ?: "An error occurred", color = Color.Red)
+                                    ChatLoadError(
+                                        message = convState.message ?: "Could not load conversations.",
+                                        onRetry = viewModel::fetchConversations,
+                                    )
                                 }
                             }
                             is Resource.Success -> {
@@ -350,7 +402,7 @@ fun ChatScreen(
                                         verticalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
                                         items(conversations) { conversation ->
-                                            ConversationItem(conversation = conversation) {
+                                            ConversationItem(conversation = conversation, onDelete = { deleteConversationTarget = conversation }) {
                                                 viewModel.selectConversation(conversation)
                                                 currentView = ChatView.MESSAGES
                                             }
@@ -393,7 +445,10 @@ fun ChatScreen(
                             }
                             is Resource.Error -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text(text = cState.message ?: "An error occurred", color = Color.Red)
+                                    ChatLoadError(
+                                        message = cState.message ?: "Could not load contacts.",
+                                        onRetry = viewModel::fetchContacts,
+                                    )
                                 }
                             }
                             is Resource.Success -> {
@@ -459,7 +514,10 @@ fun ChatScreen(
                                 }
                                 is Resource.Error -> {
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(text = messagesState.message ?: "An error occurred", color = Color.Red)
+                                        ChatLoadError(
+                                            message = messagesState.message ?: "Could not load messages.",
+                                            onRetry = { selectedConversation?.conversationId?.let(viewModel::fetchConversationMessages) },
+                                        )
                                     }
                                 }
                                 is Resource.Success -> {
@@ -505,7 +563,8 @@ fun ChatScreen(
                                                     message = message, 
                                                     isFromMe = isFromMe, 
                                                     isSeen = isSeen,
-                                                    isLastInGroup = isLastInGroup
+                                                    isLastInGroup = isLastInGroup,
+                                                    onDelete = { deleteTarget = message },
                                                 )
                                                 
                                                 if (isLastInGroup) {
@@ -740,11 +799,29 @@ fun ChatAvatar(imageUrl: String?, name: String, size: Dp, fontSize: TextUnit = 1
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ConversationItem(conversation: ConversationDTO, onClick: () -> Unit) {
+fun ConversationItem(conversation: ConversationDTO, onDelete: () -> Unit, onClick: () -> Unit) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { it * 0.35f },
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.StartToEnd || value == SwipeToDismissBoxValue.EndToStart) onDelete()
+            false
+        }
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(ErrorRed).padding(horizontal = 24.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) { Text("Delete", color = Color.White, fontWeight = FontWeight.Bold) }
+        },
+        enableDismissFromStartToEnd = false,
+    ) {
     Surface(
         modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(20.dp), ambientColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f), spotColor = Color.Transparent)
-            .clickable { onClick() },
+            .combinedClickable(onClick = onClick, onLongClick = onDelete),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
     ) {
@@ -764,6 +841,19 @@ fun ConversationItem(conversation: ConversationDTO, onClick: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Icon(Lucide.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
         }
+    }
+    }
+}
+
+@Composable
+private fun ChatLoadError(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(message, color = ErrorRed, textAlign = TextAlign.Center)
+        TextButton(onClick = onRetry) { Text("Try again") }
     }
 }
 
@@ -807,12 +897,14 @@ fun DateHeader(date: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TealChatBubble(
     message: MessageDetailDTO, 
     isFromMe: Boolean, 
     isSeen: Boolean = false,
-    isLastInGroup: Boolean = true
+    isLastInGroup: Boolean = true,
+    onDelete: () -> Unit = {},
 ) {
     val horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start
     val hasAttachment = message.attachmentId != null && message.attachmentId != 0
@@ -828,7 +920,7 @@ fun TealChatBubble(
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).then(if (isFromMe) Modifier.combinedClickable(onClick = {}, onLongClick = onDelete) else Modifier),
         horizontalAlignment = horizontalAlignment
     ) {
         if (hasAttachment) {

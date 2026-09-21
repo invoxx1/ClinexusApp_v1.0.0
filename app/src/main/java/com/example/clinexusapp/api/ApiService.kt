@@ -37,6 +37,11 @@ interface ApiService {
         @Body request: VerifyOtpRequest,
     ): Response<GenericResponse>
 
+    @POST("api/patient/resend-verification")
+    suspend fun resendVerificationEmail(
+        @Body request: VerifyOtpRequest,
+    ): Response<GenericResponse>
+
     @POST("api/patient/forgot-password")
     suspend fun forgotPassword(
         @Body request: ForgotPasswordRequest,
@@ -134,6 +139,15 @@ interface ApiService {
         @Path("conversationID") conversationId: Int,
         @Body request: MarkReadRequest
     ): Response<Unit>
+
+    @DELETE("api/conversations/{conversationID}")
+    suspend fun deleteConversation(
+        @Header("Authorization") token: String,
+        @Path("conversationID") conversationId: Int,
+    ): Response<GenericResponse>
+
+    @DELETE("api/messages/{messageID}")
+    suspend fun deleteMessage(@Header("Authorization") token: String, @Path("messageID") messageId: Int): Response<GenericResponse>
 
     @GET("api/clinic-news")
     suspend fun getClinicNews(

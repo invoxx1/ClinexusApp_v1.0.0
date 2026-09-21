@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.clinexusapp.ui.components.ElegantTopAppBar
+import com.example.clinexusapp.ui.components.ClinexusSnackbarHost
 import com.example.clinexusapp.ui.components.NeumorphicCard
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.model.NotificationDTO
@@ -36,12 +38,17 @@ import java.util.Locale
 @Composable
 fun NotificationScreen(
     onBack: () -> Unit,
-    viewModel: NotificationViewModel
+    viewModel: NotificationViewModel,
+    onOpenReference: (Int) -> Unit = {},
 ) {
     val notificationState by viewModel.notifications.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.loadNotifications()
+    }
+    LaunchedEffect(Unit) {
+        viewModel.actionMessages.collect { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(
@@ -51,6 +58,7 @@ fun NotificationScreen(
                 onBack = onBack
             )
         },
+        snackbarHost = { ClinexusSnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         when (val state = notificationState) {
@@ -64,7 +72,10 @@ fun NotificationScreen(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(state.message ?: "Failed to load notifications", color = Color.Red)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(state.message ?: "Failed to load notifications", color = Color.Red)
+                    TextButton(onClick = viewModel::loadNotifications) { Text("Try again") }
+                }
             }
             is Resource.Success -> {
                 Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -89,7 +100,10 @@ fun NotificationScreen(
                             items(state.data, key = { it.notificationId }) { item ->
                                 TealNotificationCard(
                                     item = item,
-                                    onClick = { viewModel.markAsRead(item) }
+                                    onClick = {
+                                        viewModel.markAsRead(item)
+                                        item.referenceId?.takeIf { it > 0 }?.let(onOpenReference)
+                                    }
                                 )
                             }
                         }
@@ -112,13 +126,13 @@ fun TealNotificationCard(item: NotificationDTO, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(if (item.isRead == 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else GrayMedium),
+                    .background(if (item.isRead == 0) Color(0xFFEAF1FB) else RoyalNavy),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Lucide.Bell,
                     contentDescription = null,
-                    tint = if (item.isRead == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (item.isRead == 0) Color(0xFF72A7FF) else Color.White,
                     modifier = Modifier.size(20.dp)
                 )
             }

@@ -64,8 +64,8 @@ fun NeumorphicCard(
                 spotColor = if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.1f)
             ),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = if (isDark) androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)) else null
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (isDark) 0.92f else 0.88f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.78f))
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             content()

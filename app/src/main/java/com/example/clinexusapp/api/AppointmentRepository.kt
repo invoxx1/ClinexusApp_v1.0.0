@@ -485,7 +485,11 @@ class AppointmentRepository @Inject constructor(
                     }
                 }
 
-                Resource.Success(slots)
+                Resource.Success(
+                    slots
+                        .filter { !it.startTime.isNullOrBlank() && !it.endTime.isNullOrBlank() }
+                        .distinctBy { it.startTime?.take(5) }
+                )
 
             } else {
 

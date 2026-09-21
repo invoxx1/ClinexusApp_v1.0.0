@@ -64,7 +64,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
     fun captureWalkthroughTarget(target: WalkthroughTarget, bounds: Rect) {
         // Freeze each target after its first stable layout. Recomposition and data refreshes
         // must not move a coach mark that is already visible.
-        if (target == activeTarget && walkthroughBounds[target] == null && bounds.width > 0f && bounds.height > 0f) {
+        if (walkthroughBounds[target] == null && bounds.width > 0f && bounds.height > 0f) {
             walkthroughBounds[target] = bounds
         }
     }
@@ -141,6 +141,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                 NotificationScreen(
                     onBack = { navController.popBackStack() },
                     viewModel = notificationViewModel,
+                    onOpenReference = { appointmentId -> navController.navigate(Screen.AppointmentHistory.createRoute(appointmentId)) { launchSingleTop = true } },
                 )
             }
             composable(
