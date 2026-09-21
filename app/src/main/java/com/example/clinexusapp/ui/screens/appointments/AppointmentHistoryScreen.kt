@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -70,6 +71,8 @@ import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.viewmodel.*
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -102,6 +105,8 @@ fun AppointmentHistoryScreen(
     initialAppointmentId: Int? = null,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var screenActive by remember { mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
     val state by viewModel.uiState.collectAsState()
     var selected by remember { mutableStateOf<AppointmentDTO?>(null) }
     var cancelTarget by remember { mutableStateOf<AppointmentDTO?>(null) }
@@ -116,7 +121,16 @@ fun AppointmentHistoryScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            screenActive = event != Lifecycle.Event.ON_STOP
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(screenActive) {
+        if (!screenActive) return@LaunchedEffect
         viewModel.fetchHistory(clearOperation = false)
         while (true) {
             delay(15_000)
@@ -671,9 +685,13 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
     LaunchedEffect(appointment.appointmentId) {
         date = ""
         selectedSlot = null
+        viewModel.loadRescheduleWorkingDays(appointment.dentistId)
         viewModel.loadRescheduleDates(appointment, dateValues)
     }
     if (showCalendar) {
+        // Recreate the picker once the dentist schedule arrives; otherwise its
+        // SelectableDates policy can remain the initial permissive one.
+        key(state.rescheduleWorkingDays, state.rescheduleScheduleLoaded) {
         val initialMillis = remember(date) {
             runCatching {
                 java.time.LocalDate.parse(date.ifBlank { java.time.LocalDate.now().plusDays(1).toString() })
@@ -686,8 +704,10 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                 override fun isSelectableDate(utcTimeMillis: Long): Boolean {
                     val selectedDate = java.time.Instant.ofEpochMilli(utcTimeMillis)
                         .atZone(java.time.ZoneOffset.UTC).toLocalDate()
-                    return selectedDate.isAfter(java.time.LocalDate.now()) &&
-                        !selectedDate.isAfter(java.time.LocalDate.now().plusMonths(3))
+                    val dayName = selectedDate.dayOfWeek.name
+                    return (state.rescheduleWorkingDays.isEmpty() || dayName in state.rescheduleWorkingDays) && selectedDate.isAfter(java.time.LocalDate.now()) &&
+                        !selectedDate.isAfter(java.time.LocalDate.now().plusMonths(3)) &&
+                        true
                 }
             },
         )
@@ -706,7 +726,13 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                 }) { Text("Select") }
             },
             dismissButton = { TextButton(onClick = { showCalendar = false }) { Text("Cancel") } },
-        ) { DatePicker(state = pickerState) }
+        ) {
+            DatePicker(
+                state = pickerState,
+                colors = DatePickerDefaults.colors(disabledDayContentColor = ErrorRed)
+            )
+        }
+        }
     }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -738,25 +764,29 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                     val value = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time)
                     val availability = state.rescheduleDates[value]
                     val available = availability is Resource.Success && availability.data.isNotEmpty()
+                    val failed = availability is Resource.Error
                     val selected = date == value && available
                     Surface(
-                        onClick = { date = value; selectedSlot = null; viewModel.loadRescheduleSlots(value) },
-                        enabled = available && !state.rescheduleSubmitting,
+                        onClick = {
+                            if (failed) viewModel.loadCalendarRescheduleDate(appointment, value)
+                            else { date = value; selectedSlot = null; viewModel.loadRescheduleSlots(value) }
+                        },
+                        enabled = (available || failed) && !state.rescheduleSubmitting,
                         modifier = Modifier.widthIn(min = 76.dp).heightIn(min = 90.dp),
                         shape = RoundedCornerShape(18.dp),
                         color = if (selected) BluePrimary else if (!available) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
                         border = BorderStroke(1.dp, if (selected) BluePrimary else MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            val textColor = if (selected) White else if (available) MaterialTheme.colorScheme.onSurface else LightSlate
+                            val textColor = if (selected) White else if (available) MaterialTheme.colorScheme.onSurface else ErrorRed
                             Text(SimpleDateFormat("EEE", Locale.US).format(calendar.time), color = textColor, fontSize = 12.sp)
                             Text(SimpleDateFormat("MMM d", Locale.US).format(calendar.time), color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             if (!available) Text(
                                 when (availability) {
                                     is Resource.Success -> "Unavailable"
-                                    is Resource.Error -> "Unavailable"
+                                    is Resource.Error -> "Retry"
                                     else -> "Checking…"
-                                }, color = LightSlate, fontSize = 10.sp
+                                }, color = ErrorRed, fontSize = 10.sp
                             )
                         }
                     }
@@ -765,7 +795,10 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
             Row(verticalAlignment = Alignment.CenterVertically) { Icon(Lucide.Clock, "Preferred time", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(8.dp)); Text("Preferred Time", color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
             when (val slots = state.rescheduleSlots) {
                 Resource.Loading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                is Resource.Error -> Text(slots.message ?: "Unable to load availability.", color = ErrorRed)
+                is Resource.Error -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(slots.message ?: "Unable to load availability.", color = ErrorRed, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { if (date.isNotBlank()) viewModel.loadRescheduleSlots(date) }) { Text("Try again") }
+                }
                 is Resource.Success -> if (slots.data.isEmpty()) Text("No available times for this date.", color = MaterialTheme.colorScheme.onSurfaceVariant) else LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(slots.data) { slot -> FilterChip(selected = selectedSlot?.startTime == slot.startTime, onClick = { selectedSlot = slot }, label = { Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time") }) } }
                 Resource.Idle -> Text("Choose a date first.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

@@ -55,7 +55,7 @@ fun VerifyOTPScreen(
     val state = otpState
     LaunchedEffect(state, resetToken) {
         if (state is Resource.Success) {
-            if (purpose == "reset") {
+            if (purpose == "reset" || purpose == "verification") {
                 if (resetToken != null) {
                     onOtpVerified(resetToken)
                     viewModel.resetState()

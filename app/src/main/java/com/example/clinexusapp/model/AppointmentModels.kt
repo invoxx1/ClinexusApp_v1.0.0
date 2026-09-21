@@ -112,7 +112,10 @@ data class DentistScheduleDTO(
     @SerializedName("dentist_id")
     val dentistId: Int,
 
-    @SerializedName("working_days")
+    @SerializedName(
+        value = "working_days",
+        alternate = ["workingDays", "days_of_week", "daysOfWeek", "available_days", "availableDays"]
+    )
     val workingDays: List<String>,
 
     @SerializedName("start_time")

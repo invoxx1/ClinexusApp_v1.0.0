@@ -328,7 +328,8 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
             val notificationViewModel: NotificationViewModel = hiltViewModel()
             NotificationScreen(
                 onBack = { navController.popBackStack() },
-                viewModel = notificationViewModel
+                viewModel = notificationViewModel,
+                onOpenReference = { appointmentId -> navController.navigate(Screen.AppointmentHistory.createRoute(appointmentId)) { launchSingleTop = true } },
             )
         }
 

@@ -30,6 +30,7 @@ data class BookingUiState(
     val selectedSlot: AvailableSlotDTO? = null,
     val schedule: Resource<DentistScheduleDTO>? = null,
     val timeslots: Resource<List<AvailableSlotDTO>> = Resource.Success(emptyList()),
+    val calendarAvailability: Map<String, Resource<List<AvailableSlotDTO>>> = emptyMap(),
     val submission: Resource<CreateAppointmentResponse>? = null,
     val confirmationChecked: Boolean = false,
     val isSubmitting: Boolean = false
@@ -88,8 +89,11 @@ class BookingViewModel @Inject constructor(
                 selectedDentist = dentist,
                 selectedDate = null,
                 selectedSlot = null,
+                // Active-dentists already returns the authoritative active
+                // dentist_schedules.day_of_week values from the backend.
                 schedule = null,
                 timeslots = Resource.Success(emptyList()),
+                calendarAvailability = emptyMap(),
                 confirmationChecked = false,
                 step = BookingStep.DENTIST
             )
@@ -108,6 +112,7 @@ class BookingViewModel @Inject constructor(
                 selectedDate = null,
                 selectedSlot = null,
                 timeslots = Resource.Success(emptyList()),
+                calendarAvailability = emptyMap(),
                 confirmationChecked = false,
                 step = BookingStep.SERVICE
             )
@@ -127,6 +132,26 @@ class BookingViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    fun loadCalendarAvailability(dates: List<String>) {
+        val state = _uiState.value
+        val dentist = state.selectedDentist ?: return
+        if (state.totalEstimatedDurationMinutes <= 0) return
+        val missing = dates.filter { it !in state.calendarAvailability }
+        if (missing.isEmpty()) return
+        update { it.copy(calendarAvailability = it.calendarAvailability + missing.associateWith { Resource.Loading }) }
+        viewModelScope.launch {
+            missing.forEach { date ->
+                val result = getBookableSlots(dentist.dentistId, date, state.totalEstimatedDurationMinutes)
+                update { current -> current.copy(calendarAvailability = current.calendarAvailability + (date to result)) }
+            }
+        }
+    }
+
+    fun retryCalendarAvailability(date: String) {
+        update { it.copy(calendarAvailability = it.calendarAvailability - date) }
+        loadCalendarAvailability(listOf(date))
     }
 
     fun refreshSelectedDate() {

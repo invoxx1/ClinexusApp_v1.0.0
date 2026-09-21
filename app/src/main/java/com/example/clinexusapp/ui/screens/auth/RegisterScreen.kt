@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,21 +58,27 @@ fun RegisterScreen(
     onRegisterSuccess: (String) -> Unit,
     onNavigateToLogin: () -> Unit,
 ) {
-    var firstName by remember { mutableStateOf("") }
-    var middleName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
-    var dateOfBirth by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var phoneNumber by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    // Registration stays on the navigation back stack while OTP is shown.
+    // Save typed values so an accidental Back never forces the patient to retype.
+    var firstName by rememberSaveable { mutableStateOf("") }
+    var middleName by rememberSaveable { mutableStateOf("") }
+    var lastName by rememberSaveable { mutableStateOf("") }
+    var dateOfBirth by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
 
     // Address State
-    var streetAddress by remember { mutableStateOf("") }
+    var streetAddress by rememberSaveable { mutableStateOf("") }
     var selectedRegion by remember { mutableStateOf<Region?>(null) }
     var selectedProvince by remember { mutableStateOf<Province?>(null) }
     var selectedCity by remember { mutableStateOf<City?>(null) }
     var selectedBarangay by remember { mutableStateOf<Barangay?>(null) }
+    var savedRegionCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var savedProvinceCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var savedCityCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var savedBarangayCode by rememberSaveable { mutableStateOf<String?>(null) }
 
     val regions by viewModel.regions.collectAsState()
     val provinces by viewModel.provinces.collectAsState()
@@ -80,16 +87,37 @@ fun RegisterScreen(
     val addressLoading by viewModel.addressLoading.collectAsState()
     val addressError by viewModel.addressError.collectAsState()
 
+    LaunchedEffect(regions) {
+        if (selectedRegion == null && savedRegionCode != null) regions.firstOrNull { it.code == savedRegionCode }?.let {
+            selectedRegion = it; viewModel.onRegionSelected(it.code)
+        }
+    }
+    LaunchedEffect(provinces) {
+        if (selectedProvince == null && savedProvinceCode != null) provinces.firstOrNull { it.code == savedProvinceCode }?.let {
+            selectedProvince = it; viewModel.onProvinceSelected(it.code)
+        }
+    }
+    LaunchedEffect(cities) {
+        if (selectedCity == null && savedCityCode != null) cities.firstOrNull { it.code == savedCityCode }?.let {
+            selectedCity = it; viewModel.onCitySelected(it.code)
+        }
+    }
+    LaunchedEffect(barangays) {
+        if (selectedBarangay == null && savedBarangayCode != null) selectedBarangay = barangays.firstOrNull { it.code == savedBarangayCode }
+    }
+
     val registerState by viewModel.registerState.collectAsState()
     val validationError by viewModel.validationError.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val context = LocalContext.current
-    var profileImageUri by remember { mutableStateOf<Uri?>(null) }
+    var savedProfileImageUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var profileImageUri by remember(savedProfileImageUri) { mutableStateOf(savedProfileImageUri?.let(Uri::parse)) }
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
         profileImageUri = uri
+        savedProfileImageUri = uri?.toString()
     }
 
     // 🟢 Compute form validity – all text fields and dropdowns must be filled
@@ -199,6 +227,7 @@ fun RegisterScreen(
                         onOptionSelected = { name ->
                             val region = regions.find { it.regionName == name }
                             selectedRegion = region
+                            savedRegionCode = region?.code
                             selectedProvince = null
                             selectedCity = null
                             selectedBarangay = null
@@ -217,6 +246,7 @@ fun RegisterScreen(
                         onOptionSelected = { name ->
                             val province = provinces.find { it.displayName == name }
                             selectedProvince = province
+                            savedProvinceCode = province?.code
                             selectedCity = null
                             selectedBarangay = null
                             province?.let { viewModel.onProvinceSelected(it.code) }
@@ -235,6 +265,7 @@ fun RegisterScreen(
                         onOptionSelected = { name ->
                             val city = cities.find { it.displayName == name }
                             selectedCity = city
+                            savedCityCode = city?.code
                             selectedBarangay = null
                             city?.let { viewModel.onCitySelected(it.code) }
                         },
@@ -251,6 +282,7 @@ fun RegisterScreen(
                         selectedOption = selectedBarangay?.displayName ?: "",
                         onOptionSelected = { name ->
                             selectedBarangay = barangays.find { it.displayName == name }
+                            savedBarangayCode = selectedBarangay?.code
                         },
                         enabled = selectedCity != null,
                         loading = addressLoading == "Barangay",

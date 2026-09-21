@@ -31,7 +31,8 @@ class OTPViewModel @Inject constructor(private val repository: AuthRepository) :
             _resendState.value = when (purpose) {
                 "reset" -> repository.forgotPassword(email)
                 "change" -> repository.requestPasswordChange()
-                else -> Resource.Error("Registration OTP resend is not supported by the current server")
+                "verification" -> repository.resendVerificationEmail(email)
+                else -> Resource.Error("Unsupported OTP request")
             }
         }
     }

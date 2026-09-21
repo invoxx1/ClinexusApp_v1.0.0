@@ -35,7 +35,7 @@ fun ClinexusSnackbarHost(
         modifier = modifier.navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
     ) { data ->
         val message = data.visuals.message
-        val isSuccess = listOf("success", "updated", "saved", "sent", "complete", "verified")
+        val isSuccess = listOf("success", "updated", "saved", "sent", "complete", "verified", "deleted", "marked as read")
             .any { message.contains(it, ignoreCase = true) }
         val accent = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onErrorContainer
         val background = if (isSuccess) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.errorContainer

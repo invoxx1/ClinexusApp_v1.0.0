@@ -35,6 +35,9 @@ class ChatViewModel @Inject constructor(
     private val _selectedContact = MutableStateFlow<ContactDTO?>(null)
     val selectedContact: StateFlow<ContactDTO?> = _selectedContact.asStateFlow()
 
+    private val _actionMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val actionMessages: SharedFlow<String> = _actionMessages.asSharedFlow()
+
     private var pollingJob: kotlinx.coroutines.Job? = null
 
     init {
@@ -150,6 +153,8 @@ class ChatViewModel @Inject constructor(
                     }
                 }
                 if (existingConversation != null) fetchConversations()
+            } else if (result is Resource.Error) {
+                _actionMessages.emit(result.message ?: "Message was not sent. Please try again.")
             }
         }
     }
@@ -161,6 +166,34 @@ class ChatViewModel @Inject constructor(
     fun markConversationAsRead(conversationId: Int, lastReadMessageID: Int) {
         viewModelScope.launch {
             repository.markConversationAsRead(conversationId, lastReadMessageID)
+        }
+    }
+
+    fun deleteMessage(messageId: Int) {
+        viewModelScope.launch {
+            when (val result = repository.deleteMessage(messageId)) {
+                is Resource.Success -> {
+                    _selectedConversation.value?.let { fetchConversationMessages(it.conversationId) }
+                    fetchConversations()
+                    _actionMessages.emit("Message deleted")
+                }
+                is Resource.Error -> _actionMessages.emit(result.message ?: "Could not delete the message. Please try again.")
+                else -> Unit
+            }
+        }
+    }
+
+    fun deleteConversation(conversationId: Int) {
+        viewModelScope.launch {
+            when (val result = repository.deleteConversation(conversationId)) {
+                is Resource.Success -> {
+                    if (_selectedConversation.value?.conversationId == conversationId) selectConversation(null)
+                    fetchConversations()
+                    _actionMessages.emit("Conversation deleted")
+                }
+                is Resource.Error -> _actionMessages.emit(result.message ?: "Could not delete the conversation. Please try again.")
+                else -> Unit
+            }
         }
     }
 }

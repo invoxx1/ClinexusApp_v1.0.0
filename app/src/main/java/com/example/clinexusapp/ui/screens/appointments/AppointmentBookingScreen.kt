@@ -101,10 +101,22 @@ fun AppointmentBookingScreen(
     }
 
     if (showCalendar) {
+        val serverWorkingDays = (state.schedule as? Resource.Success)?.data?.workingDays.orEmpty()
+        val directoryWorkingDays = state.selectedDentist?.daysOfWeek.orEmpty().split(",").map(String::trim).filter(String::isNotBlank)
+        val workingDays = if (serverWorkingDays.isNotEmpty()) serverWorkingDays else directoryWorkingDays
+        // If neither source has a schedule, do not incorrectly mark every date red.
+        val scheduleReady = state.schedule !is Resource.Loading || directoryWorkingDays.isNotEmpty()
+        // DatePicker stores SelectableDates in its state. Keying the entire dialog
+        // recreates that state when the schedule request completes.
+        key(workingDays) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = System.currentTimeMillis(),
             selectableDates = object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis >= System.currentTimeMillis() - 86_400_000L
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val dayName = SimpleDateFormat("EEEE", Locale.US).format(Date(utcTimeMillis))
+                    return scheduleReady && utcTimeMillis >= System.currentTimeMillis() - 86_400_000L &&
+                        isDentistWorkingDay(workingDays, dayName)
+                }
             }
         )
         DatePickerDialog(
@@ -118,7 +130,10 @@ fun AppointmentBookingScreen(
                 }) { Text("Select") }
             },
             dismissButton = { TextButton(onClick = { showCalendar = false }) { Text("Cancel") } }
-        ) { DatePicker(state = datePickerState) }
+        ) {
+            DatePicker(state = datePickerState, colors = DatePickerDefaults.colors(disabledDayContentColor = ErrorRed))
+        }
+        }
     }
 
     Scaffold(
@@ -306,24 +321,44 @@ private fun DateStrip(state: BookingUiState, viewModel: BookingViewModel) {
     val display = SimpleDateFormat("EEE", Locale.US)
     val day = SimpleDateFormat("d", Locale.US)
     val today = Calendar.getInstance()
-    val dates = (0..4).map { offset -> Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, offset) } }
+    // Show a complete seven-day booking window. Dates beyond this week remain
+    // available through the full calendar dialog.
+    val dates = (0..6).map { offset -> Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, offset) } }
+    val dateValues = dates.map { formatter.format(it.time) }
+    LaunchedEffect(state.selectedDentist?.dentistId, state.totalEstimatedDurationMinutes) {
+        viewModel.loadCalendarAvailability(dateValues)
+    }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 4.dp)) {
         items(dates) { date ->
             val value = formatter.format(date.time)
             val selected = state.selectedDate == value
-            val unavailable = !isDentistWorkingDay(
-                state.selectedDentist?.daysOfWeek,
-                SimpleDateFormat("EEEE", Locale.US).format(date.time)
-            )
+            val serverWorkingDays = (state.schedule as? Resource.Success)?.data?.workingDays.orEmpty()
+            val directoryWorkingDays = state.selectedDentist?.daysOfWeek.orEmpty().split(",").map(String::trim).filter(String::isNotBlank)
+            val workingDays = if (serverWorkingDays.isNotEmpty()) serverWorkingDays else directoryWorkingDays
+            val availability = state.calendarAvailability[value]
+            val checking = availability == null || availability is Resource.Loading
+            val failed = availability is Resource.Error
+            val serverUnavailable = (availability as? Resource.Success)?.data?.isEmpty() == true
+            val unavailable = serverUnavailable || (workingDays.isNotEmpty() && !isDentistWorkingDay(workingDays, SimpleDateFormat("EEEE", Locale.US).format(date.time)))
             Surface(
-                onClick = { if (!unavailable) viewModel.selectDate(value) }, enabled = !unavailable,
+                onClick = {
+                    when {
+                        failed -> viewModel.retryCalendarAvailability(value)
+                        !unavailable -> viewModel.selectDate(value)
+                    }
+                },
+                enabled = !unavailable && !checking,
                 modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 90.dp).padding(horizontal = 2.dp), shape = BookingCardShape,
                 color = if (selected) VibrantTeal else MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, if (selected) VibrantTeal else MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text(if (date.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)) "Today" else display.format(date.time), color = if (selected) White else if (unavailable) LightSlate else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    Text(day.format(date.time), color = if (selected) White else if (unavailable) LightSlate else MaterialTheme.colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    if (unavailable) Text("Unavailable", color = LightSlate, fontSize = 9.sp)
+                    Text(if (date.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)) "Today" else display.format(date.time), color = if (selected) White else if (unavailable) ErrorRed else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(day.format(date.time), color = if (selected) White else if (unavailable) ErrorRed else MaterialTheme.colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    when {
+                        unavailable -> Text("Unavailable", color = ErrorRed, fontSize = 9.sp)
+                        checking -> Text("Checking…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+                        failed -> Text("Retry", color = ErrorRed, fontSize = 9.sp)
+                    }
                     if (selected) Icon(Lucide.Check, null, tint = White, modifier = Modifier.size(16.dp))
                 }
             }
@@ -473,13 +508,17 @@ private fun formatTimeRange(slot: AvailableSlotDTO?): String =
         .joinToString(" – ")
         .ifBlank { "Time unavailable" }
 
-private fun isDentistWorkingDay(days: String?, dayName: String): Boolean {
-    if (days.isNullOrBlank()) return true
-    val normalizedDay = dayName.lowercase(Locale.US)
-    return days.split(",", "-", "–")
-        .map { it.trim().lowercase(Locale.US) }
-        .any { configuredDay ->
-            configuredDay == normalizedDay ||
-                configuredDay.take(3) == normalizedDay.take(3)
-        }
+private fun isDentistWorkingDay(days: List<String>, dayName: String): Boolean {
+    if (days.isEmpty()) return true
+    val week = listOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+    val dayIndex = week.indexOf(dayName.lowercase(Locale.US))
+    return days.any { configured ->
+        val value = configured.trim().lowercase(Locale.US)
+        val range = value.split(Regex("\\s*[-–]\\s*"))
+        if (range.size == 2) {
+            val start = week.indexOfFirst { it.startsWith(range[0].take(3)) }
+            val end = week.indexOfFirst { it.startsWith(range[1].take(3)) }
+            start >= 0 && end >= 0 && dayIndex >= start && dayIndex <= end
+        } else value == dayName.lowercase(Locale.US) || value.take(3) == dayName.take(3).lowercase(Locale.US)
+    }
 }

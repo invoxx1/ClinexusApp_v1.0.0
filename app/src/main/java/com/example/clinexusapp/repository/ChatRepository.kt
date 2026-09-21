@@ -22,6 +22,8 @@ interface ChatRepository {
         attachmentPart: MultipartBody.Part?
     ): Resource<SendMessageResponse>
     suspend fun markConversationAsRead(conversationId: Int, lastReadMessageID: Int): Resource<Unit>
+    suspend fun deleteMessage(messageId: Int): Resource<Unit>
+    suspend fun deleteConversation(conversationId: Int): Resource<Unit>
 }
 
 @Singleton
@@ -107,4 +109,16 @@ class ChatRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Network error")
         }
     }
+
+    override suspend fun deleteMessage(messageId: Int): Resource<Unit> = try {
+        val response = apiService.deleteMessage(authHeader, messageId)
+        if (response.isSuccessful && response.body()?.success != false) Resource.Success(Unit)
+        else Resource.Error(response.errorBody()?.string() ?: response.body()?.message ?: "Unable to delete message")
+    } catch (e: Exception) { Resource.Error(e.message ?: "Network error") }
+
+    override suspend fun deleteConversation(conversationId: Int): Resource<Unit> = try {
+        val response = apiService.deleteConversation(authHeader, conversationId)
+        if (response.isSuccessful && response.body()?.success != false) Resource.Success(Unit)
+        else Resource.Error(response.errorBody()?.string() ?: response.body()?.message ?: "Unable to delete conversation")
+    } catch (e: Exception) { Resource.Error(e.message ?: "Network error") }
 }
