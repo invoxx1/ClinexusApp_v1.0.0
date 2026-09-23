@@ -6,7 +6,8 @@ data class LoginResponse(
     val message: String? = null,
     val token: String? = null,
     val patient: PatientInfo? = null,
-    val success: Boolean? = null
+    val success: Boolean? = null,
+    val requiresVerification: Boolean? = null,
 )
 
 data class PatientInfo(

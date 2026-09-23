@@ -179,6 +179,7 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     onBack = { navController.popBackStack() },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToPersonalInformation = { rootNavController.navigate(Screen.PersonalInformation.route) },
+                    onNavigateToClinicalHistory = { rootNavController.navigate(Screen.ClinicalHistory.route) },
                     onNavigateToHistory = { rootNavController.navigate(Screen.AppointmentHistory.route) },
                     onNavigateToChangePassword = { rootNavController.navigate(Screen.ChangePassword.route) },
                     onNavigateToSessions = { rootNavController.navigate(Screen.Sessions.route) },

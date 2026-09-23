@@ -8,8 +8,14 @@ import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.model.ClinicNewsDTO
 import com.example.clinexusapp.model.HealthInsightDTO
 import com.example.clinexusapp.model.PromotionDTO
+import com.example.clinexusapp.model.PatientQueueDTO
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
+import com.example.clinexusapp.util.NotificationHelper
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -22,7 +28,12 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val repository: AuthRepository,
     private val appointmentRepository: AppointmentRepository,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
+
+    private var queueMonitorJob: Job? = null
+    private var monitoredQueueAppointmentId: Int? = null
+    private val sentQueueAlerts = mutableSetOf<String>()
 
     private val _newsState = MutableStateFlow<Resource<List<ClinicNewsDTO>>>(Resource.Loading)
     val newsState = _newsState.asStateFlow()
@@ -35,6 +46,21 @@ class DashboardViewModel @Inject constructor(
 
     private val _nextAppointment = MutableStateFlow<Resource<AppointmentDTO?>>(Resource.Idle)
     val nextAppointment = _nextAppointment.asStateFlow()
+
+    private val _checkingInAppointmentId = MutableStateFlow<Int?>(null)
+    val checkingInAppointmentId = _checkingInAppointmentId.asStateFlow()
+
+    private val _checkedInAppointmentIds = MutableStateFlow<Set<Int>>(emptySet())
+    val checkedInAppointmentIds = _checkedInAppointmentIds.asStateFlow()
+
+    private val _queueAppointmentId = MutableStateFlow<Int?>(null)
+    val queueAppointmentId = _queueAppointmentId.asStateFlow()
+
+    private val _queueStatus = MutableStateFlow<Resource<PatientQueueDTO>>(Resource.Idle)
+    val queueStatus = _queueStatus.asStateFlow()
+
+    private val _appointmentActionError = MutableStateFlow<String?>(null)
+    val appointmentActionError = _appointmentActionError.asStateFlow()
 
     private val _unreadNotificationsCount = MutableStateFlow(0)
     val unreadNotificationsCount = _unreadNotificationsCount.asStateFlow()
@@ -83,6 +109,74 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun selfCheckIn(appointmentId: Int) {
+        if (_checkingInAppointmentId.value != null) return
+        viewModelScope.launch {
+            _checkingInAppointmentId.value = appointmentId
+            when (val result = appointmentRepository.selfCheckIn(appointmentId)) {
+                is Resource.Success -> {
+                    _checkingInAppointmentId.value = null
+                    _checkedInAppointmentIds.value = _checkedInAppointmentIds.value + appointmentId
+                    refreshAppointments()
+                    loadQueueStatus(appointmentId)
+                }
+                is Resource.Error -> {
+                    _checkingInAppointmentId.value = null
+                    _appointmentActionError.value = result.message ?: "Unable to check in."
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun loadQueueStatus(appointmentId: Int) {
+        _queueAppointmentId.value = appointmentId
+        _queueStatus.value = Resource.Loading
+        if (monitoredQueueAppointmentId == appointmentId && queueMonitorJob?.isActive == true) return
+        queueMonitorJob?.cancel()
+        monitoredQueueAppointmentId = appointmentId
+        queueMonitorJob = viewModelScope.launch {
+            while (monitoredQueueAppointmentId == appointmentId) {
+                val result = appointmentRepository.getPatientQueueStatus(appointmentId)
+                _queueStatus.value = result
+                if (result is Resource.Success) {
+                    notifyQueueChange(appointmentId, result.data)
+                    if (result.data.queueStatus.lowercase() in setOf("in_progress", "completed", "cancelled")) {
+                        monitoredQueueAppointmentId = null
+                        break
+                    }
+                }
+                delay(10_000)
+            }
+        }
+    }
+
+    private fun notifyQueueChange(appointmentId: Int, queue: PatientQueueDTO) {
+        val status = queue.queueStatus.lowercase()
+        val alert = when {
+            status == "ready" -> "ready" to ("You're next" to "Please stay nearby. The clinic is ready for you.")
+            queue.patientsAhead == 1 -> "almost" to ("Almost your turn" to "There is only one patient ahead of you.")
+            else -> return
+        }
+        if (sentQueueAlerts.add("$appointmentId:${alert.first}")) {
+            NotificationHelper.showNotification(context, alert.second.first, alert.second.second, appointmentId)
+        }
+    }
+
+    fun closeQueueStatus() {
+        _queueAppointmentId.value = null
+        _queueStatus.value = Resource.Idle
+    }
+
+    fun clearAppointmentActionError() {
+        _appointmentActionError.value = null
+    }
+
+    override fun onCleared() {
+        queueMonitorJob?.cancel()
+        super.onCleared()
+    }
+
     private suspend fun refreshAppointments() {
         val result = appointmentRepository.getPatientAppointments()
         if (result is Resource.Success) {
@@ -93,6 +187,7 @@ class DashboardViewModel @Inject constructor(
                 when (mapAppointmentStatus(it.appointmentStatus)) {
                     AppointmentStatus.PENDING,
                     AppointmentStatus.CONFIRMED,
+                    AppointmentStatus.IN_PROGRESS,
                     AppointmentStatus.RESCHEDULE_REQUESTED,
                     AppointmentStatus.CANCELLATION_REQUESTED -> true
                     else -> false
@@ -107,11 +202,12 @@ class DashboardViewModel @Inject constructor(
                 }
             }.sortedWith(compareBy<AppointmentDTO> {
                 when (mapAppointmentStatus(it.appointmentStatus)) {
-                    AppointmentStatus.CONFIRMED -> 0
-                    AppointmentStatus.PENDING -> 1
-                    AppointmentStatus.RESCHEDULE_REQUESTED -> 2
-                    AppointmentStatus.CANCELLATION_REQUESTED -> 3
-                    else -> 4
+                    AppointmentStatus.IN_PROGRESS -> 0
+                    AppointmentStatus.CONFIRMED -> 1
+                    AppointmentStatus.PENDING -> 2
+                    AppointmentStatus.RESCHEDULE_REQUESTED -> 3
+                    AppointmentStatus.CANCELLATION_REQUESTED -> 4
+                    else -> 5
                 }
             }.thenBy {
                 try {

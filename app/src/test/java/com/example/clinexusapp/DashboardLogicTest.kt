@@ -26,6 +26,11 @@ class DashboardLogicTest {
     }
 
     @Test
+    fun `mapAppointmentStatus maps in progress correctly`() {
+        assertEquals(AppointmentStatus.IN_PROGRESS, mapAppointmentStatus("in_progress"))
+    }
+
+    @Test
     fun `mapAppointmentStatus maps Reschedule correctly`() {
         assertEquals(AppointmentStatus.RESCHEDULE_REQUESTED, mapAppointmentStatus("RESCHEDULE_REQUESTED"))
         assertEquals(AppointmentStatus.RESCHEDULE_REQUESTED, mapAppointmentStatus("needs_reschedule"))

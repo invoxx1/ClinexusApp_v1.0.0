@@ -291,6 +291,7 @@ private fun AppointmentStatusField(rawStatus: String, modifier: Modifier = Modif
     val (label, color) = when (status) {
         AppointmentStatus.PENDING -> "Pending" to Color(0xFFD97706)
         AppointmentStatus.CONFIRMED -> "Confirmed" to Color(0xFF008A13)
+        AppointmentStatus.IN_PROGRESS -> "In progress" to Color(0xFF0369A1)
         AppointmentStatus.RESCHEDULE_REQUESTED -> "Reschedule requested" to Color(0xFF7C3AED)
         AppointmentStatus.CANCELLATION_REQUESTED -> "Cancellation requested" to Color(0xFFC2415A)
         AppointmentStatus.COMPLETED -> "Completed" to Color(0xFF2563EB)

@@ -16,6 +16,7 @@ import com.composables.icons.lucide.Stethoscope
 import com.composables.icons.lucide.Tag
 import com.composables.icons.lucide.UserRound
 import com.composables.icons.lucide.Plus
+import com.composables.icons.lucide.X
 
 
 import android.content.Intent
@@ -39,6 +40,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.scale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -85,6 +93,7 @@ private data class StatusStyle(val label: String, val icon: ImageVector, val for
 private fun statusStyle(status: AppointmentStatus, needsPatientChoice: Boolean = false): StatusStyle = when (status) {
     AppointmentStatus.PENDING -> StatusStyle("Pending", Lucide.Clock, Color(0xFFD97706), Color(0xFFFFF7E6), "Waiting for confirmation from the clinic.")
     AppointmentStatus.CONFIRMED -> StatusStyle("Confirmed", Lucide.CircleCheck, Color(0xFF15803D), Color(0xFFECFDF3), "Your appointment is confirmed.")
+    AppointmentStatus.IN_PROGRESS -> StatusStyle("In progress", Lucide.Clock, Color(0xFF0369A1), Color(0xFFE0F2FE), "Your dental visit is now in progress.")
     AppointmentStatus.COMPLETED -> StatusStyle("Completed", Lucide.CircleCheck, Color(0xFF2563EB), Color(0xFFEFF6FF), "This appointment has been completed.")
     AppointmentStatus.CANCELLED -> StatusStyle("Cancelled", Lucide.CircleX, Color(0xFFDC2626), Color(0xFFFFF2F2), "This appointment was cancelled.")
     AppointmentStatus.RESCHEDULE_REQUESTED -> if (needsPatientChoice) {
@@ -177,7 +186,21 @@ fun AppointmentHistoryScreen(
             onDismiss = { errorMessage = null }
         )
     }
-    if (selected != null) AppointmentDetailsDialog(selected!!, onDismiss = { selected = null })
+    if (selected != null) AppointmentDetailsDialog(
+        appointment = selected!!,
+        onDismiss = { selected = null },
+        onCheckIn = { viewModel.selfCheckIn(selected!!.appointmentId) },
+        onQueue = { viewModel.loadQueueStatus(selected!!.appointmentId) },
+        checkingIn = state.checkingInAppointmentId == selected!!.appointmentId,
+        checkedIn = !selected!!.checkedInAt.isNullOrBlank() || selected!!.appointmentId in state.checkedInAppointmentIds,
+    )
+    if (state.queueAppointmentId != null) {
+        QueueStatusDialog(
+            status = state.queueStatus,
+            onRetry = { viewModel.loadQueueStatus(state.queueAppointmentId!!) },
+            onDismiss = viewModel::closeQueueStatus,
+        )
+    }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 120.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -216,7 +239,17 @@ fun AppointmentHistoryScreen(
                     val visible = viewModel.filteredAppointments(state.selectedTab, appointments.data)
                     if (visible.isEmpty()) item { EmptyAppointments() }
                     else items(visible, key = { it.appointmentId }) { appointment ->
-                        AppointmentCard(appointment, onClick = { selected = appointment }, onCancel = { cancelTarget = appointment }, onReschedule = { rescheduleTarget = appointment }, onBook = onNavigateToBooking, onAddToCalendar = { addAppointmentToCalendar(context, appointment) })
+                        AppointmentCard(
+                            appointment = appointment,
+                            onClick = { selected = appointment },
+                            onCancel = { cancelTarget = appointment },
+                            onReschedule = { rescheduleTarget = appointment },
+                            onBook = onNavigateToBooking,
+                            onAddToCalendar = { addAppointmentToCalendar(context, appointment) },
+                            onCheckIn = { viewModel.selfCheckIn(appointment.appointmentId) },
+                            onQueue = { viewModel.loadQueueStatus(appointment.appointmentId) },
+                            checkingIn = state.checkingInAppointmentId == appointment.appointmentId,
+                        )
                     }
                 }
             }
@@ -470,7 +503,17 @@ private fun AppointmentTabs(
 private fun tabLabel(tab: AppointmentTab) = when (tab) { AppointmentTab.PENDING -> "Pending"; AppointmentTab.CONFIRMED -> "Confirmed"; AppointmentTab.COMPLETED -> "Completed"; AppointmentTab.CANCELLED -> "Cancelled" }
 
 @Composable
-private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, onCancel: () -> Unit, onReschedule: () -> Unit, onBook: () -> Unit, onAddToCalendar: () -> Unit) {
+private fun AppointmentCard(
+    appointment: AppointmentDTO,
+    onClick: () -> Unit,
+    onCancel: () -> Unit,
+    onReschedule: () -> Unit,
+    onBook: () -> Unit,
+    onAddToCalendar: () -> Unit,
+    onCheckIn: () -> Unit,
+    onQueue: () -> Unit,
+    checkingIn: Boolean,
+) {
     val status = mapAppointmentStatus(appointment.appointmentStatus)
     val style = statusStyle(status, appointment.needsPatientScheduleChoice)
     val rescheduleColor = if (isSystemInDarkTheme()) Color.White else DeepTeal
@@ -586,17 +629,173 @@ private fun AppointmentCard(appointment: AppointmentDTO, onClick: () -> Unit, on
                     }
 
                     AppointmentStatus.COMPLETED,
+                    AppointmentStatus.IN_PROGRESS,
                     AppointmentStatus.CANCELLATION_REQUESTED,
                     AppointmentStatus.UNKNOWN -> Unit
                 }
             }
-            if (status == AppointmentStatus.CONFIRMED) {
-                TextButton(onClick = onAddToCalendar, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Lucide.Plus, contentDescription = null, modifier = Modifier.size(19.dp))
-                    Spacer(Modifier.width(7.dp))
-                    Text("Add to phone calendar", fontWeight = FontWeight.SemiBold)
+            if (status == AppointmentStatus.CONFIRMED || status == AppointmentStatus.IN_PROGRESS) {
+                val isToday = appointment.appointmentDate.substringBefore('T') ==
+                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                if (isToday) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (status == AppointmentStatus.CONFIRMED) {
+                            Button(
+                                onClick = onCheckIn,
+                                modifier = Modifier.weight(1f).height(44.dp),
+                                enabled = !checkingIn,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal),
+                            ) {
+                                if (checkingIn) CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                                else Text("Check In", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = onQueue,
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(14.dp),
+                        ) { Text("View Queue", fontWeight = FontWeight.Bold) }
+                    }
+                }
+                if (status == AppointmentStatus.CONFIRMED) {
+                    TextButton(onClick = onAddToCalendar, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Icon(Lucide.Plus, contentDescription = null, modifier = Modifier.size(19.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Add to phone calendar", fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+internal fun QueueStatusDialog(
+    status: Resource<com.example.clinexusapp.model.PatientQueueDTO>,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 20.dp) {
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier.fillMaxWidth().background(
+                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.80f)))
+                    ).padding(horizontal = 20.dp, vertical = 18.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(color = Color.White.copy(alpha = 0.15f), shape = CircleShape) {
+                            Icon(Lucide.Clock, null, tint = Color.White, modifier = Modifier.padding(11.dp).size(26.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("CLINIC QUEUE", color = Color.White.copy(alpha = 0.72f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Text("Queue Status", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                        IconButton(onClick = onDismiss) { Icon(Lucide.X, "Close queue", tint = Color.White) }
+                    }
+                }
+                when (status) {
+                    Resource.Idle, Resource.Loading -> Column(
+                        Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Checking your place in line…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    is Resource.Error -> {
+                        Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Lucide.CircleX, null, tint = ErrorRed, modifier = Modifier.size(38.dp))
+                            Text(status.message ?: "Unable to load queue status.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            OutlinedButton(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text("Try Again") }
+                        }
+                    }
+                    is Resource.Success -> {
+                        val queue = status.data
+                        val normalized = queue.queueStatus.lowercase()
+                        val label = normalized.replace('_', ' ').replaceFirstChar { it.uppercase() }
+                        val accent = when (normalized) {
+                            "ready", "in_progress" -> Color(0xFF168354)
+                            "delayed" -> Color(0xFFD97706)
+                            "cancelled" -> ErrorRed
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Surface(color = Color(0xFFE8F7EF), shape = RoundedCornerShape(50)) {
+                                Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF16A364)))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("LIVE · Updates every 10 sec", color = Color(0xFF168354), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Surface(color = accent.copy(alpha = 0.10f), shape = RoundedCornerShape(50), border = BorderStroke(1.dp, accent.copy(alpha = 0.35f))) {
+                                Text(label, color = accent, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                            }
+                            Text(
+                                when (normalized) {
+                                    "ready" -> "You're next! Please stay nearby."
+                                    "in_progress" -> "Your dental visit is now in progress."
+                                    "waiting" -> "You're checked in and waiting in line."
+                                    "delayed" -> "The clinic is running a little behind."
+                                    "not_checked_in" -> "Check in first to join today's queue."
+                                    "not_available" -> "Queue tracking is not available yet."
+                                    "completed" -> "Your appointment has been completed."
+                                    "cancelled" -> "This appointment was cancelled."
+                                    else -> "Your latest queue information is shown below."
+                                },
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                fontSize = 13.sp,
+                            )
+                            if (queue.queuePosition != null || queue.patientsAhead != null || queue.estimatedWaitMinutes != null) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    QueueMetric("Position", queue.queuePosition?.let { "#$it" } ?: "—", Modifier.weight(1f))
+                                    QueueMetric("Ahead", queue.patientsAhead?.toString() ?: "—", Modifier.weight(1f))
+                                    AnimatedWaitMetric(queue.estimatedWaitMinutes, Modifier.weight(1f))
+                                }
+                            }
+                            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(14.dp)) { Text("Done", fontWeight = FontWeight.Bold) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QueueMetric(label: String, value: String, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(14.dp)) {
+        Column(Modifier.padding(horizontal = 6.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun AnimatedWaitMetric(minutes: Int?, modifier: Modifier = Modifier) {
+    val animatedMinutes by animateIntAsState(targetValue = minutes ?: 0, animationSpec = tween(700), label = "estimated wait")
+    val pulse = rememberInfiniteTransition(label = "wait pulse")
+    val scale by pulse.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.045f,
+        animationSpec = infiniteRepeatable(animation = tween(900), repeatMode = RepeatMode.Reverse),
+        label = "wait scale",
+    )
+    Surface(
+        modifier = modifier.scale(scale),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)),
+    ) {
+        Column(Modifier.padding(horizontal = 6.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(if (minutes == null) "—" else "$animatedMinutes min", color = MaterialTheme.colorScheme.primary, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text("Est. wait", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1)
         }
     }
 }
@@ -849,9 +1048,140 @@ private fun SheetDragHandle() {
 }
 
 @Composable
-internal fun AppointmentDetailsDialog(appointment: AppointmentDTO, onDismiss: () -> Unit) {
+internal fun AppointmentDetailsDialog(
+    appointment: AppointmentDTO,
+    onDismiss: () -> Unit,
+    onCheckIn: (() -> Unit)? = null,
+    onQueue: (() -> Unit)? = null,
+    checkingIn: Boolean = false,
+    checkedIn: Boolean = !appointment.checkedInAt.isNullOrBlank(),
+) {
     val style = statusStyle(mapAppointmentStatus(appointment.appointmentStatus), appointment.needsPatientScheduleChoice)
-    AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }, title = { Text("Appointment details", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { AppointmentAvatar(appointment, size = 56.dp); Spacer(Modifier.width(12.dp)); Column { Text(appointment.doctor, color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp, fontWeight = FontWeight.Bold); Text(appointment.dentistSpecialty ?: "Dental care", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp) } }; StatusBadge(style); DetailLine(dentalServiceIcon(appointment.serviceName ?: appointment.treatment), "Service", appointment.serviceName ?: appointment.treatment); appointment.price?.let { DetailLine(Lucide.Tag, "Price", "₱${String.format(Locale.US, "%,.0f", it)}") }; DetailLine(Lucide.CalendarDays, "Date", DateUtils.formatDisplayDate(appointment.appointmentDate)); DetailLine(Lucide.Clock, "Time", "${DateUtils.formatDisplayTime(appointment.startTime)} – ${DateUtils.formatDisplayTime(appointment.endTime)}"); DetailLine(Lucide.MapPin, "Clinic", appointment.clinicName ?: "Rivera Dental Clinic"); Text("Booking reference: #${appointment.appointmentId}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp); appointment.submittedAt?.let { Text("Submitted: ${DateUtils.formatDisplayDate(it)}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }; appointment.cancelledBy?.let { Text("Cancelled by: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.cancellationReason?.let { Text("Cancellation reason: $it", color = ErrorRed, fontSize = 13.sp) }; appointment.rescheduleNote?.let { Text("Reschedule note: $it", color = Color(0xFF7C3AED), fontSize = 13.sp) } } })
+    val status = mapAppointmentStatus(appointment.appointmentStatus)
+    val isToday = appointment.appointmentDate.substringBefore('T') == SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(26.dp),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 20.dp,
+        ) {
+            Column {
+                Box(
+                    Modifier.fillMaxWidth().background(
+                        Brush.linearGradient(
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.82f))
+                        )
+                    ).padding(horizontal = 18.dp, vertical = 15.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AppointmentAvatar(appointment, size = 54.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("APPOINTMENT DETAILS", color = Color.White.copy(alpha = 0.72f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                Text(appointment.doctor, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                Text(appointment.dentistSpecialty ?: "Dental care", color = Color.White.copy(alpha = 0.82f), fontSize = 13.sp)
+                            }
+                            IconButton(onClick = onDismiss, modifier = Modifier.size(38.dp)) {
+                                Icon(Lucide.X, "Close appointment details", tint = Color.White)
+                            }
+                        }
+                        Surface(color = Color.White.copy(alpha = 0.14f), shape = RoundedCornerShape(14.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(style.icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(9.dp))
+                                Column {
+                                    Text(style.label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(style.message, color = Color.White.copy(alpha = 0.82f), fontSize = 11.sp, lineHeight = 14.sp, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Visit information", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    AppointmentDetailTile(Lucide.CalendarDays, "Date", DateUtils.formatDisplayDate(appointment.appointmentDate))
+                    AppointmentDetailTile(Lucide.Clock, "Time", "${DateUtils.formatDisplayTime(appointment.startTime)} – ${DateUtils.formatDisplayTime(appointment.endTime)}")
+                    AppointmentDetailTile(dentalServiceIcon(appointment.serviceName ?: appointment.treatment), "Service", appointment.serviceName ?: appointment.treatment)
+                    AppointmentDetailTile(Lucide.MapPin, "Clinic", appointment.clinicName ?: "Rivera Dental Clinic")
+                    appointment.price?.let { AppointmentDetailTile(Lucide.Tag, "Price", "₱${String.format(Locale.US, "%,.0f", it)}") }
+
+                    AppointmentDetailTile(Lucide.Tag, "Reference", "#${appointment.appointmentId}")
+
+                    if (isToday && (status == AppointmentStatus.CONFIRMED || status == AppointmentStatus.IN_PROGRESS)) {
+                        HorizontalDivider(Modifier.padding(top = 2.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                        Text("Today's visit", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (status == AppointmentStatus.CONFIRMED && onCheckIn != null) {
+                                Box(Modifier.weight(1f).height(46.dp)) {
+                                androidx.compose.animation.AnimatedVisibility(visible = checkedIn, enter = fadeIn() + scaleIn(initialScale = 0.78f)) {
+                                    Surface(
+                                        modifier = Modifier.fillMaxSize(),
+                                        shape = RoundedCornerShape(15.dp),
+                                        color = Color(0xFFE8F7EF),
+                                        border = BorderStroke(1.dp, Color(0xFF74C69D)),
+                                    ) {
+                                        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                            Icon(Lucide.CircleCheck, null, tint = Color(0xFF168354), modifier = Modifier.size(19.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Checked In", color = Color(0xFF168354), fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                                        }
+                                    }
+                                }
+                                if (!checkedIn) {
+                                Button(
+                                    onClick = onCheckIn,
+                                    enabled = !checkingIn,
+                                    modifier = Modifier.fillMaxSize(),
+                                    shape = RoundedCornerShape(15.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal),
+                                ) {
+                                    if (checkingIn) CircularProgressIndicator(Modifier.size(19.dp), color = Color.White, strokeWidth = 2.dp)
+                                    else { Icon(Lucide.CircleCheck, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Check In", fontWeight = FontWeight.Bold, maxLines = 1) }
+                                }
+                                }
+                                }
+                            }
+                            if (onQueue != null) {
+                                OutlinedButton(
+                                    onClick = onQueue,
+                                    modifier = Modifier.weight(1f).height(46.dp),
+                                    shape = RoundedCornerShape(15.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp),
+                                ) {
+                                    Icon(Lucide.Clock, null, Modifier.size(18.dp)); Spacer(Modifier.width(5.dp)); Text("View Queue", fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppointmentDetailTile(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f), shape = RoundedCornerShape(11.dp)) {
+                Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(8.dp).size(18.dp))
+            }
+            Spacer(Modifier.width(11.dp))
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.width(68.dp))
+            Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
+        }
+    }
 }
 
 @Composable private fun EmptyAppointments() { Column(Modifier.fillMaxWidth().padding(vertical = 44.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) { Icon(Lucide.CalendarCheck, "No appointments", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp)); Text("No appointments in this tab", color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Book a visit when you are ready.", color = MaterialTheme.colorScheme.onSurfaceVariant) } }

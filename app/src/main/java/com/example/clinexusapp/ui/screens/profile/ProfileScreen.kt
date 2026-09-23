@@ -3,6 +3,7 @@ package com.example.clinexusapp.ui.screens.profile
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.ArrowLeftRight
 import com.composables.icons.lucide.CalendarDays
+import com.composables.icons.lucide.ClipboardList
 import com.composables.icons.lucide.Camera
 import com.composables.icons.lucide.ChevronLeft
 import com.composables.icons.lucide.ChevronRight
@@ -107,6 +108,7 @@ fun ProfileScreen(
     onBack: () -> Unit,
     @Suppress("UNUSED_PARAMETER") onNavigateToSettings: () -> Unit,
     onNavigateToPersonalInformation: () -> Unit,
+    onNavigateToClinicalHistory: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
     onNavigateToSessions: () -> Unit,
@@ -506,6 +508,7 @@ fun ProfileScreen(
                     title = "Account",
                     entries = listOf(
                         ProfileMenuEntry("Personal Information", "View and manage your details", Lucide.UserRound, onClick = onNavigateToPersonalInformation),
+                        ProfileMenuEntry("Clinical History", "View consultations and treatment records", Lucide.ClipboardList, onClick = onNavigateToClinicalHistory),
                         ProfileMenuEntry("My Appointments", "View and manage your appointments", Lucide.CalendarDays, onClick = onNavigateToHistory),
                     ),
                 )

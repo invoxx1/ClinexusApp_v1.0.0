@@ -57,6 +57,7 @@ import com.example.clinexusapp.model.HealthInsightDTO
 import com.example.clinexusapp.model.PromotionDTO
 import com.example.clinexusapp.ui.navigation.Screen
 import com.example.clinexusapp.ui.screens.appointments.AppointmentDetailsDialog
+import com.example.clinexusapp.ui.screens.appointments.QueueStatusDialog
 import com.example.clinexusapp.ui.components.shimmer
 import com.example.clinexusapp.ui.components.WalkthroughTarget
 import com.example.clinexusapp.util.Resource
@@ -122,6 +123,11 @@ fun DashboardScreen(
     val insightsState by viewModel.insightsState.collectAsState()
     val promotionsState by viewModel.promotionsState.collectAsState()
     val nextApptState by viewModel.nextAppointment.collectAsState()
+    val checkingInAppointmentId by viewModel.checkingInAppointmentId.collectAsState()
+    val checkedInAppointmentIds by viewModel.checkedInAppointmentIds.collectAsState()
+    val queueAppointmentId by viewModel.queueAppointmentId.collectAsState()
+    val queueStatus by viewModel.queueStatus.collectAsState()
+    val appointmentActionError by viewModel.appointmentActionError.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.fetchDashboardData()
@@ -140,6 +146,15 @@ fun DashboardScreen(
         onAppointmentsClick = { rootNavController.navigate(Screen.AppointmentHistory.route) },
         onBookClick = { rootNavController.navigate(Screen.AppointmentBooking.route) },
         onRetry = viewModel::fetchDashboardData,
+        checkingInAppointmentId = checkingInAppointmentId,
+        checkedInAppointmentIds = checkedInAppointmentIds,
+        queueAppointmentId = queueAppointmentId,
+        queueStatus = queueStatus,
+        appointmentActionError = appointmentActionError,
+        onCheckIn = viewModel::selfCheckIn,
+        onQueue = viewModel::loadQueueStatus,
+        onCloseQueue = viewModel::closeQueueStatus,
+        onClearAppointmentError = viewModel::clearAppointmentActionError,
         activeWalkthroughTarget = activeWalkthroughTarget,
         onWalkthroughTarget = onWalkthroughTarget,
     )
@@ -156,6 +171,15 @@ internal fun DashboardContent(
     onAppointmentsClick: () -> Unit,
     onBookClick: () -> Unit,
     onRetry: () -> Unit,
+    checkingInAppointmentId: Int? = null,
+    checkedInAppointmentIds: Set<Int> = emptySet(),
+    queueAppointmentId: Int? = null,
+    queueStatus: Resource<com.example.clinexusapp.model.PatientQueueDTO> = Resource.Idle,
+    appointmentActionError: String? = null,
+    onCheckIn: (Int) -> Unit = {},
+    onQueue: (Int) -> Unit = {},
+    onCloseQueue: () -> Unit = {},
+    onClearAppointmentError: () -> Unit = {},
     activeWalkthroughTarget: WalkthroughTarget?,
     onWalkthroughTarget: (WalkthroughTarget, Rect) -> Unit,
 ) {
@@ -185,6 +209,27 @@ internal fun DashboardContent(
         AppointmentDetailsDialog(
             appointment = appointment,
             onDismiss = { selectedAppointment = null },
+            onCheckIn = { onCheckIn(appointment.appointmentId) },
+            onQueue = { onQueue(appointment.appointmentId) },
+            checkingIn = checkingInAppointmentId == appointment.appointmentId,
+            checkedIn = !appointment.checkedInAt.isNullOrBlank() || appointment.appointmentId in checkedInAppointmentIds,
+        )
+    }
+
+    if (queueAppointmentId != null) {
+        QueueStatusDialog(
+            status = queueStatus,
+            onRetry = { onQueue(queueAppointmentId) },
+            onDismiss = onCloseQueue,
+        )
+    }
+
+    appointmentActionError?.let { message ->
+        AlertDialog(
+            onDismissRequest = onClearAppointmentError,
+            confirmButton = { TextButton(onClick = onClearAppointmentError) { Text("Close") } },
+            title = { Text("Check-in unavailable") },
+            text = { Text(message) },
         )
     }
 
