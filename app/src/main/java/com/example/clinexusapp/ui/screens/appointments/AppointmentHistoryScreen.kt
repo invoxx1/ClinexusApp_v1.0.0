@@ -22,7 +22,7 @@ import com.composables.icons.lucide.X
 import android.content.Intent
 import android.provider.CalendarContract
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import com.example.clinexusapp.ui.components.WalkthroughTarget
 import androidx.compose.foundation.clickable
@@ -60,7 +60,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -85,6 +84,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -396,7 +396,7 @@ private fun AppointmentHeader(
             onClick = onNavigateToBooking,
             modifier = Modifier
                 .size(56.dp)
-                .onGloballyPositioned { onWalkthroughTarget(WalkthroughTarget.BOOK_APPOINTMENT, it.boundsInWindow()) },
+                .onGloballyPositioned { onWalkthroughTarget(WalkthroughTarget.BOOK_APPOINTMENT, it.boundsInRoot()) },
             shape = CircleShape,
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {
@@ -443,7 +443,7 @@ private fun AppointmentTabs(
         shape = RoundedCornerShape(22.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .onGloballyPositioned { onWalkthroughTarget(WalkthroughTarget.APPOINTMENT_STATUSES, it.boundsInWindow()) }
+            .onGloballyPositioned { onWalkthroughTarget(WalkthroughTarget.APPOINTMENT_STATUSES, it.boundsInRoot()) }
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val horizontalPadding = 6.dp

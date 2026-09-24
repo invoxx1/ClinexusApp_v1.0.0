@@ -45,7 +45,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -375,7 +375,7 @@ fun ChatScreen(
                 ChatView.CONVERSATIONS -> {
                     Column(modifier = Modifier.weight(1f)) {
                         Column(
-                            Modifier.onGloballyPositioned { onWalkthroughTarget(it.boundsInWindow()) }
+                            Modifier.onGloballyPositioned { onWalkthroughTarget(it.boundsInRoot()) }
                         ) {
                             ChatListHeader(title = "Messages")
                             MessageSearchField(searchQuery, { searchQuery = it }, "Search people or messages")

@@ -29,7 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -302,7 +302,7 @@ internal fun DashboardContent(
                 DashboardHeader(firstName)
             }
             item(key = "appointment") {
-                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.APPOINTMENT, it.boundsInWindow()) }) {
+                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.APPOINTMENT, it.boundsInRoot()) }) {
                     DashboardSectionHeader(
                         title = "Upcoming Appointment",
                         icon = Lucide.CalendarDays,
@@ -323,7 +323,7 @@ internal fun DashboardContent(
             }
             if (promotions.isNotEmpty()) {
                 item(key = "promotions") {
-                    Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.PROMOTIONS, it.boundsInWindow()) }) {
+                    Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.PROMOTIONS, it.boundsInRoot()) }) {
                         DashboardSectionHeader("Promotions", Lucide.Tag, "View All") {
                             showPromotions = true
                         }
@@ -412,7 +412,7 @@ internal fun DashboardContent(
             }
             val news = (newsState as? Resource.Success)?.data?.firstOrNull() ?: FallbackClinicNews
             item(key = "news") {
-                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.CLINIC_NEWS, it.boundsInWindow()) }) {
+                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.CLINIC_NEWS, it.boundsInRoot()) }) {
                     DashboardSectionHeader("Clinic News", Lucide.Megaphone)
                     Spacer(Modifier.height(4.dp))
                     NewsCard(news.title, news.description, news.date)
