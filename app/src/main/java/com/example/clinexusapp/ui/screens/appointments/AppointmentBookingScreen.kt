@@ -153,7 +153,7 @@ fun AppointmentBookingScreen(
                     enabled = validSelection,
                     onClick = {
                         if (validSelection) {
-                            selectedDate?.let { viewModel.selectDate(it.toString()) }
+                            viewModel.selectDate(selectedDate.toString())
                             showCalendar = false
                         }
                     },
