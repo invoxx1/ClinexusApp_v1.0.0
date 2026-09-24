@@ -50,6 +50,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.delay
 
+private const val BookingWindowNote = "Choose a date from tomorrow up to 30 days ahead. Same-day booking is unavailable."
+
 private val BookingCardShape = RoundedCornerShape(16.dp)
 private enum class TimePeriod(val label: String) { MORNING("Morning"), AFTERNOON("Afternoon") }
 
@@ -109,30 +111,87 @@ fun AppointmentBookingScreen(
         val scheduleReady = state.schedule !is Resource.Loading || directoryWorkingDays.isNotEmpty()
         // DatePicker stores SelectableDates in its state. Keying the entire dialog
         // recreates that state when the schedule request completes.
-        key(workingDays) {
+        key(workingDays, scheduleReady, java.time.LocalDate.now(BookingRules.clinicZone)) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = System.currentTimeMillis(),
+            initialSelectedDateMillis = null,
             selectableDates = object : SelectableDates {
                 override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                    val dayName = SimpleDateFormat("EEEE", Locale.US).format(Date(utcTimeMillis))
-                    return scheduleReady && utcTimeMillis >= System.currentTimeMillis() - 86_400_000L &&
+                    val selectedDate = java.time.Instant.ofEpochMilli(utcTimeMillis).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                    val dayName = selectedDate.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, Locale.US)
+                    return scheduleReady && BookingRules.isWithinBookingWindow(selectedDate.toString()) &&
                         isDentistWorkingDay(workingDays, dayName)
                 }
             }
         )
+        val selectedDate = datePickerState.selectedDateMillis?.let {
+            java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+        }
+        val validSelection = selectedDate?.let {
+            scheduleReady && BookingRules.isWithinBookingWindow(it.toString()) &&
+                isDentistWorkingDay(workingDays, it.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, Locale.US))
+        } == true
+        val calendarColors = DatePickerDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+            headlineContentColor = MaterialTheme.colorScheme.onSurface,
+            weekdayContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            navigationContentColor = MaterialTheme.colorScheme.onSurface,
+            dayContentColor = MaterialTheme.colorScheme.onSurface,
+            disabledDayContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+            selectedDayContainerColor = MaterialTheme.colorScheme.primary,
+            selectedDayContentColor = MaterialTheme.colorScheme.onPrimary,
+            todayContentColor = MaterialTheme.colorScheme.primary,
+            todayDateBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        )
         DatePickerDialog(
             onDismissRequest = { showCalendar = false },
+            shape = RoundedCornerShape(28.dp),
+            colors = calendarColors,
+            tonalElevation = 0.dp,
             confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        viewModel.selectDate(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(millis)))
-                    }
-                    showCalendar = false
-                }) { Text("Select") }
+                Button(
+                    enabled = validSelection,
+                    onClick = {
+                        if (validSelection) {
+                            selectedDate?.let { viewModel.selectDate(it.toString()) }
+                            showCalendar = false
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                ) { Text("Confirm date", fontWeight = FontWeight.SemiBold) }
             },
-            dismissButton = { TextButton(onClick = { showCalendar = false }) { Text("Cancel") } }
+            dismissButton = {
+                TextButton(onClick = { showCalendar = false }) { Text("Cancel") }
+            },
         ) {
-            DatePicker(state = datePickerState, colors = DatePickerDefaults.colors(disabledDayContentColor = ErrorRed))
+            Column(Modifier.fillMaxWidth()) {
+                DatePicker(
+                    state = datePickerState,
+                    colors = calendarColors,
+                    showModeToggle = false,
+                    title = {
+                        Row(
+                            Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Lucide.CalendarDays, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Choose your visit date", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    },
+                    headline = {
+                        Text(
+                            selectedDate?.format(java.time.format.DateTimeFormatter.ofPattern("EEE, MMM d", Locale.US))
+                                ?: "Find your day",
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                )
+                BookingDateNote(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            }
         }
         }
     }
@@ -306,6 +365,7 @@ private fun DateTimeStep(state: BookingUiState, viewModel: BookingViewModel, onC
         Text(SimpleDateFormat("MMMM yyyy", LocalLocale.current.platformLocale).format(Date()), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         TextButton(onClick = onCalendar) { Icon(Lucide.CalendarDays, null); Spacer(Modifier.width(4.dp)); Text("View calendar") }
     }
+    BookingDateNote()
     DateStrip(state, viewModel)
     when (val times = state.timeslots) {
         Resource.Idle -> EmptyState("Choose a date to see available times.")
@@ -316,14 +376,29 @@ private fun DateTimeStep(state: BookingUiState, viewModel: BookingViewModel, onC
 }
 
 @Composable
+private fun BookingDateNote(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+            Icon(Lucide.CircleAlert, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(BookingWindowNote, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, lineHeight = 18.sp)
+        }
+    }
+}
+
+@Composable
 private fun DateStrip(state: BookingUiState, viewModel: BookingViewModel) {
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-    val display = SimpleDateFormat("EEE", Locale.US)
-    val day = SimpleDateFormat("d", Locale.US)
-    val today = Calendar.getInstance()
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone(BookingRules.clinicZone) }
+    val display = SimpleDateFormat("EEE", Locale.US).apply { timeZone = formatter.timeZone }
+    val day = SimpleDateFormat("d", Locale.US).apply { timeZone = formatter.timeZone }
+    val today = Calendar.getInstance(java.util.TimeZone.getTimeZone(BookingRules.clinicZone))
     // Show a complete seven-day booking window. Dates beyond this week remain
     // available through the full calendar dialog.
-    val dates = (0..6).map { offset -> Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, offset) } }
+    val dates = (1..7).map { offset -> Calendar.getInstance(java.util.TimeZone.getTimeZone(BookingRules.clinicZone)).apply { add(Calendar.DAY_OF_YEAR, offset) } }
     val dateValues = dates.map { formatter.format(it.time) }
     LaunchedEffect(state.selectedDentist?.dentistId, state.totalEstimatedDurationMinutes) {
         viewModel.loadCalendarAvailability(dateValues)
@@ -339,7 +414,7 @@ private fun DateStrip(state: BookingUiState, viewModel: BookingViewModel) {
             val checking = availability == null || availability is Resource.Loading
             val failed = availability is Resource.Error
             val serverUnavailable = (availability as? Resource.Success)?.data?.isEmpty() == true
-            val unavailable = serverUnavailable || (workingDays.isNotEmpty() && !isDentistWorkingDay(workingDays, SimpleDateFormat("EEEE", Locale.US).format(date.time)))
+            val unavailable = !BookingRules.isWithinBookingWindow(value) || serverUnavailable || (workingDays.isNotEmpty() && !isDentistWorkingDay(workingDays, SimpleDateFormat("EEEE", Locale.US).apply { timeZone = formatter.timeZone }.format(date.time)))
             Surface(
                 onClick = {
                     when {

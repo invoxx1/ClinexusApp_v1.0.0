@@ -13,6 +13,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BookingRulesTest {
+    @Test fun bookingWindowExcludesTodayAndEndsAtThirtyDays() {
+        val today = java.time.LocalDate.of(2026, 9, 24)
+        assertTrue(!BookingRules.isWithinBookingWindow(today.minusDays(1).toString(), today))
+        assertTrue(!BookingRules.isWithinBookingWindow(today.toString(), today))
+        assertTrue(BookingRules.isWithinBookingWindow(today.plusDays(1).toString(), today))
+        assertTrue(BookingRules.isWithinBookingWindow(today.plusDays(30).toString(), today))
+        assertTrue(!BookingRules.isWithinBookingWindow(today.plusDays(31).toString(), today))
+        assertTrue(!BookingRules.isWithinBookingWindow("invalid", today))
+    }
+
     private val dentist = DentistDTO(1, "Dr. Test", "General", daysOfWeek = "Monday")
     private val service = BookableServiceDTO(2, "Cleaning", 500.0)
     private val slot = AvailableSlotDTO("10:00 AM", "10:00", "10:45")

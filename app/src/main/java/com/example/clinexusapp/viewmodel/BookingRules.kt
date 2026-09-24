@@ -7,6 +7,10 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 object BookingRules {
+    val clinicZone: java.time.ZoneId = java.time.ZoneId.of("Asia/Manila")
+    fun isWithinBookingWindow(date: String, today: LocalDate = LocalDate.now(clinicZone)): Boolean =
+        runCatching { LocalDate.parse(date).let { it.isAfter(today) && !it.isAfter(today.plusDays(30)) } }.getOrDefault(false)
+
     fun statusLabel(rawStatus: String?): String {
         val value = rawStatus?.trim()?.lowercase().orEmpty()
         return when {

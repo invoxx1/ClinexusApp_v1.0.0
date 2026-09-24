@@ -123,6 +123,7 @@ class BookingViewModel @Inject constructor(
     }
 
     fun selectDate(date: String) {
+        if (!BookingRules.isWithinBookingWindow(date)) return
         if (_uiState.value.selectedDate == date && _uiState.value.timeslots is Resource.Loading) return
         selectedDateRefreshJob?.cancel()
         update { it.copy(selectedDate = date, selectedSlot = null, timeslots = Resource.Loading, confirmationChecked = false) }
@@ -191,6 +192,10 @@ class BookingViewModel @Inject constructor(
         val slot = state.selectedSlot
         if (patientId == null || patientId == 0 || dentist == null || services.isEmpty() || date == null || slot?.startTime.isNullOrBlank() || slot.endTime.isNullOrBlank()) {
             update { it.copy(submission = Resource.Error("Please complete all appointment details.")) }
+            return
+        }
+        if (!BookingRules.isWithinBookingWindow(date)) {
+            update { it.copy(submission = Resource.Error("Choose a date from tomorrow through the next 30 days.")) }
             return
         }
         if (!BookingRules.isFutureSlot(date, slot.startTime)) {
