@@ -189,14 +189,22 @@ private fun formatNotificationTime(value: String?): String {
     return SimpleDateFormat("MMM d, yyyy h:mm a", Locale.getDefault()).format(date)
 }
 
-private fun cleanNotificationMessage(value: String): String {
+internal fun cleanNotificationMessage(value: String): String {
     val withoutTimezone = value.replace(
         Regex("\\sGMT[+-]\\d{4}(?:\\s*\\(Coordinated Universal Time\\))?"),
         ""
     )
 
+    // The API serializes an appointment date as midnight and then appends the
+    // actual appointment time (for example, "... 00:00:00 at 3:45 PM").
+    // Midnight belongs to the date value and should not be shown as a second time.
+    val withoutSerializedMidnight = withoutTimezone.replace(
+        Regex("\\s+00:00:00(?=\\s+at\\b)", RegexOption.IGNORE_CASE),
+        ""
+    )
+
     return Regex("\\b([01]\\d|2[0-3]):([0-5]\\d):([0-5]\\d)\\b")
-        .replace(withoutTimezone) { match ->
+        .replace(withoutSerializedMidnight) { match ->
             runCatching {
                 val parsedTime = SimpleDateFormat("HH:mm:ss", Locale.US).parse(match.value)
                 SimpleDateFormat("h:mm a", Locale.getDefault()).format(parsedTime!!)
