@@ -29,7 +29,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Brush
@@ -117,6 +116,7 @@ fun DashboardScreen(
     rootNavController: NavController,
     activeWalkthroughTarget: WalkthroughTarget? = null,
     onWalkthroughTarget: (WalkthroughTarget, Rect) -> Unit = { _, _ -> },
+    onWalkthroughTargetUnavailable: (WalkthroughTarget) -> Unit = {},
 ) {
     val user by SessionManager.currentUser.collectAsState()
     val newsState by viewModel.newsState.collectAsState()
@@ -157,6 +157,7 @@ fun DashboardScreen(
         onClearAppointmentError = viewModel::clearAppointmentActionError,
         activeWalkthroughTarget = activeWalkthroughTarget,
         onWalkthroughTarget = onWalkthroughTarget,
+        onWalkthroughTargetUnavailable = onWalkthroughTargetUnavailable,
     )
 }
 
@@ -182,6 +183,7 @@ internal fun DashboardContent(
     onClearAppointmentError: () -> Unit = {},
     activeWalkthroughTarget: WalkthroughTarget?,
     onWalkthroughTarget: (WalkthroughTarget, Rect) -> Unit,
+    onWalkthroughTargetUnavailable: (WalkthroughTarget) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val headerVisible by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
@@ -189,6 +191,14 @@ internal fun DashboardContent(
     var selectedAppointment by remember { mutableStateOf<AppointmentDTO?>(null) }
     var showPromotions by remember { mutableStateOf(false) }
     val promotions = (promotionsState as? Resource.Success)?.data.orEmpty()
+    LaunchedEffect(activeWalkthroughTarget, promotionsState) {
+        if (activeWalkthroughTarget == WalkthroughTarget.PROMOTIONS &&
+            (promotionsState is Resource.Error ||
+                (promotionsState is Resource.Success && promotions.isEmpty()))
+        ) {
+            onWalkthroughTargetUnavailable(WalkthroughTarget.PROMOTIONS)
+        }
+    }
     val walkthroughTargetReady = remember(activeWalkthroughTarget) { mutableStateOf(false) }
     LaunchedEffect(activeWalkthroughTarget, promotions.isNotEmpty()) {
         val promotionOffset = if (promotions.isNotEmpty()) 1 else 0
@@ -292,7 +302,7 @@ internal fun DashboardContent(
                 DashboardHeader(firstName)
             }
             item(key = "appointment") {
-                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.APPOINTMENT, it.boundsInRoot()) }) {
+                Column(Modifier.padding(horizontal = 22.dp).onGloballyPositioned { if (walkthroughReady) onWalkthroughTarget(WalkthroughTarget.APPOINTMENT, it.boundsInWindow()) }) {
                     DashboardSectionHeader(
                         title = "Upcoming Appointment",
                         icon = Lucide.CalendarDays,

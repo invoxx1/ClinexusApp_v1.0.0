@@ -1,6 +1,7 @@
 package com.example.clinexusapp.viewmodel
 
 import com.example.clinexusapp.model.AvailableSlotDTO
+import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.util.Resource
 
 object BookingRules {
@@ -24,6 +25,36 @@ object BookingRules {
 
     fun keepSlotIfAvailable(slot: AvailableSlotDTO?, slots: Resource<List<AvailableSlotDTO>>): AvailableSlotDTO? =
         slot?.takeIf { selected -> slots is Resource.Success && slots.data.any { it.startTime == selected.startTime } }
+
+    fun removePatientConflicts(
+        slots: List<AvailableSlotDTO>,
+        appointments: List<AppointmentDTO>,
+        dentistId: Int,
+        date: String,
+    ): List<AvailableSlotDTO> {
+        val blocked = appointments.filter { appointment ->
+            appointment.dentistId == dentistId &&
+                appointment.appointmentDate.substringBefore('T') == date &&
+                appointment.appointmentStatus.trim().lowercase() !in setOf(
+                    "cancelled", "canceled", "completed", "done", "rejected", "declined", "denied", "no_show"
+                )
+        }
+        return slots.filterNot { slot ->
+            val slotStart = slot.startTime.toMinutes() ?: return@filterNot false
+            val slotEnd = slot.endTime.toMinutes() ?: return@filterNot false
+            blocked.any { appointment ->
+                val bookedStart = appointment.startTime.toMinutes() ?: return@any false
+                val bookedEnd = appointment.endTime.toMinutes() ?: return@any false
+                slotStart < bookedEnd && slotEnd > bookedStart
+            }
+        }
+    }
+
+    private fun String?.toMinutes(): Int? {
+        val parts = this?.take(5)?.split(":") ?: return null
+        if (parts.size != 2) return null
+        return (parts[0].toIntOrNull() ?: return null) * 60 + (parts[1].toIntOrNull() ?: return null)
+    }
 }
 
 enum class AppointmentStatus {

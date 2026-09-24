@@ -236,7 +236,18 @@ class BookingViewModel @Inject constructor(
         if (durationMinutes <= 0) return Resource.Error("Please select at least one service.")
         val availableSlots = appointmentRepository.getAvailableTimeslots(dentistId, date, durationMinutes)
         if (availableSlots !is Resource.Success) return availableSlots
-        return Resource.Success(availableSlots.data.distinctBy { it.startTime?.take(5) })
+        val patientAppointments = appointmentRepository.getPatientAppointments()
+        val patientFiltered = if (patientAppointments is Resource.Success) {
+            BookingRules.removePatientConflicts(
+                slots = availableSlots.data,
+                appointments = patientAppointments.data,
+                dentistId = dentistId,
+                date = date,
+            )
+        } else {
+            availableSlots.data
+        }
+        return Resource.Success(patientFiltered.distinctBy { it.startTime?.take(5) })
     }
 
     fun clearSubmission() { update { it.copy(submission = null) } }
