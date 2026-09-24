@@ -90,6 +90,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 
 private val AppointmentCardShape = RoundedCornerShape(18.dp)
+private enum class RescheduleTimePeriod(val label: String) { MORNING("Morning"), AFTERNOON("Afternoon") }
 
 private data class StatusStyle(val label: String, val icon: ImageVector, val foreground: Color, val background: Color, val message: String)
 
@@ -275,6 +276,7 @@ fun AppointmentHistoryScreen(
 
 @Composable
 private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
+    val deadlineError = message.contains("before the day of your appointment", ignoreCase = true)
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -302,7 +304,7 @@ private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
                     )
                 }
                 Text(
-                    "Schedule not submitted",
+                    if (deadlineError) "Rescheduling unavailable" else "Schedule not submitted",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 22.sp,
                     lineHeight = 27.sp,
@@ -322,7 +324,7 @@ private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
                     shape = RoundedCornerShape(15.dp),
                     colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = VibrantTeal)
                 ) {
-                    Text("Choose Another Time", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(if (deadlineError) "Got It" else "Choose Another Time", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }
@@ -1029,7 +1031,11 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                     Text(slots.message ?: "Unable to load availability.", color = ErrorRed, modifier = Modifier.weight(1f))
                     TextButton(onClick = { if (date.isNotBlank()) viewModel.loadRescheduleSlots(date) }) { Text("Try again") }
                 }
-                is Resource.Success -> if (slots.data.isEmpty()) Text("No available times for this date.", color = MaterialTheme.colorScheme.onSurfaceVariant) else LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(slots.data) { slot -> FilterChip(selected = selectedSlot?.startTime == slot.startTime, onClick = { selectedSlot = slot }, label = { Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time") }) } }
+                is Resource.Success -> if (slots.data.isEmpty()) {
+                    Text("No available times for this date.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    RescheduleTimePicker(slots.data, selectedSlot) { selectedSlot = it }
+                }
                 Resource.Idle -> Text("Choose a date first.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OutlinedTextField(value = note, onValueChange = { if (it.length <= 200) note = it }, label = { Text("Add note") }, supportingText = { Text("${note.length}/200") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), minLines = 3)
@@ -1190,6 +1196,72 @@ internal fun AppointmentDetailsDialog(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RescheduleTimePicker(
+    slots: List<AvailableSlotDTO>,
+    selected: AvailableSlotDTO?,
+    onSelect: (AvailableSlotDTO) -> Unit,
+) {
+    val morning = slots.filter { (it.startTime?.take(2)?.toIntOrNull() ?: 0) < 12 }
+    val afternoon = slots.filter { (it.startTime?.take(2)?.toIntOrNull() ?: 0) >= 12 }
+    val key = slots.joinToString { it.startTime.orEmpty() }
+    var period by remember(key) { mutableStateOf(if (morning.isNotEmpty()) RescheduleTimePeriod.MORNING else RescheduleTimePeriod.AFTERNOON) }
+    var showAll by remember(period, key) { mutableStateOf(false) }
+    val periodSlots = if (period == RescheduleTimePeriod.MORNING) morning else afternoon
+    val visible = if (showAll) periodSlots else periodSlots.take(6)
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(17.dp)) {
+            Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                RescheduleTimePeriod.values().forEach { option ->
+                    val count = if (option == RescheduleTimePeriod.MORNING) morning.size else afternoon.size
+                    val active = period == option
+                    Surface(
+                        onClick = { period = option },
+                        enabled = count > 0,
+                        modifier = Modifier.weight(1f).height(40.dp),
+                        color = if (active) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        shape = RoundedCornerShape(13.dp),
+                        shadowElevation = if (active) 2.dp else 0.dp,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("${option.label} ($count)", color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+        }
+        if (periodSlots.isEmpty()) {
+            Text("No ${period.label.lowercase()} times available.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            visible.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { slot ->
+                        val active = selected?.startTime?.take(5) == slot.startTime?.take(5)
+                        Surface(
+                            onClick = { onSelect(slot) },
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            color = if (active) VibrantTeal else MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(13.dp),
+                            border = BorderStroke(1.dp, if (active) VibrantTeal else MaterialTheme.colorScheme.outlineVariant),
+                        ) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time", color = if (active) White else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            }
+                        }
+                    }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+            if (periodSlots.size > 6) {
+                TextButton(onClick = { showAll = !showAll }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text(if (showAll) "Show fewer" else "Show all ${periodSlots.size} times", fontWeight = FontWeight.Bold)
                 }
             }
         }

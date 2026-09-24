@@ -225,7 +225,9 @@ class HistoryViewModel @Inject constructor(
                 fetchHistory(clearOperation = false)
             } else {
                 val serverMessage = (result as Resource.Error).message
-                val message = if (
+                val message = if (serverMessage?.contains("at least one day before", ignoreCase = true) == true) {
+                    "Same-day and past appointments cannot be rescheduled. Please submit your request before the day of your appointment."
+                } else if (
                     appointment.needsPatientScheduleChoice &&
                     serverMessage?.contains("can no longer be rescheduled", ignoreCase = true) == true
                 ) {
