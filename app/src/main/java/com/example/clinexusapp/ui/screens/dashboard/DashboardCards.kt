@@ -246,13 +246,6 @@ fun NewsCard(title: String, description: String, date: String) {
                     Text(description, color = DashboardStyle.Muted, fontSize = 10.sp, lineHeight = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
-            Surface(shape = CircleShape, color = Color(0xFFE1F8E8)) {
-                Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(7.dp).background(Color(0xFF16A53A), CircleShape))
-                    Spacer(Modifier.width(6.dp))
-                    Text("OPEN TODAY", color = Color(0xFF087C29), fontSize = 8.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                }
-            }
         }
     }
 }
