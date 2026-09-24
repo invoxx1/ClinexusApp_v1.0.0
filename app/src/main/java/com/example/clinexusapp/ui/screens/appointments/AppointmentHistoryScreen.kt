@@ -95,6 +95,7 @@ private fun statusStyle(status: AppointmentStatus, needsPatientChoice: Boolean =
     AppointmentStatus.CONFIRMED -> StatusStyle("Confirmed", Lucide.CircleCheck, Color(0xFF15803D), Color(0xFFECFDF3), "Your appointment is confirmed.")
     AppointmentStatus.IN_PROGRESS -> StatusStyle("In progress", Lucide.Clock, Color(0xFF0369A1), Color(0xFFE0F2FE), "Your dental visit is now in progress.")
     AppointmentStatus.COMPLETED -> StatusStyle("Completed", Lucide.CircleCheck, Color(0xFF2563EB), Color(0xFFEFF6FF), "This appointment has been completed.")
+    AppointmentStatus.NO_SHOW -> StatusStyle("No show", Lucide.CalendarX, Color(0xFFD97706), Color(0xFFFFF7E6), "You were marked as absent for this appointment.")
     AppointmentStatus.CANCELLED -> StatusStyle("Cancelled", Lucide.CircleX, Color(0xFFDC2626), Color(0xFFFFF2F2), "This appointment was cancelled.")
     AppointmentStatus.RESCHEDULE_REQUESTED -> if (needsPatientChoice) {
         StatusStyle("Action needed", Lucide.CalendarSync, Color(0xFF7C3AED), Color(0xFFF5F3FF), "The clinic requested a new schedule. Choose another available date and time.")
@@ -259,6 +260,7 @@ fun AppointmentHistoryScreen(
 
 @Composable
 private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
+    val alreadyCheckedIn = message.trim().trimEnd('.').equals("You are already checked in", ignoreCase = true)
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -286,7 +288,7 @@ private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
                     )
                 }
                 Text(
-                    "Schedule not submitted",
+                    if (alreadyCheckedIn) "Already checked in" else "Schedule not submitted",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 22.sp,
                     lineHeight = 27.sp,
@@ -294,7 +296,7 @@ private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
                 Text(
-                    message,
+                    if (alreadyCheckedIn) "You have already checked in for this appointment." else message,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 15.sp,
                     lineHeight = 22.sp,
@@ -306,7 +308,7 @@ private fun AppointmentErrorDialog(message: String, onDismiss: () -> Unit) {
                     shape = RoundedCornerShape(15.dp),
                     colors = ButtonDefaults.buttonColors(contentColor = Color.White, containerColor = VibrantTeal)
                 ) {
-                    Text("Choose Another Time", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(if (alreadyCheckedIn) "OK" else "Choose Another Time", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }
@@ -550,12 +552,13 @@ private fun AppointmentCard(
             Text("${appointment.serviceName ?: appointment.treatment}  •  ${appointment.clinicName ?: "Rivera Dental Clinic"}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             if (isSystemInDarkTheme()) {
                 Surface(
+                    modifier = Modifier.fillMaxWidth(),
                     color = Color.Transparent,
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.56f)),
                 ) {
                     Box(
-                        Modifier.background(
+                        Modifier.fillMaxWidth().background(
                             Brush.linearGradient(
                                 colorStops = arrayOf(
                                     0.0f to Color.White.copy(alpha = 0.38f),
@@ -570,13 +573,13 @@ private fun AppointmentCard(
                             style.message,
                             color = Color.White.copy(alpha = 0.96f),
                             fontSize = 13.sp,
-                            modifier = Modifier.padding(12.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         )
                     }
                 }
             } else {
-                Surface(color = style.background, shape = RoundedCornerShape(12.dp)) {
-                    Text(style.message, color = style.foreground, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+                Surface(modifier = Modifier.fillMaxWidth(), color = style.background, shape = RoundedCornerShape(12.dp)) {
+                    Text(style.message, color = style.foreground, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -629,6 +632,7 @@ private fun AppointmentCard(
                     }
 
                     AppointmentStatus.COMPLETED,
+                    AppointmentStatus.NO_SHOW,
                     AppointmentStatus.IN_PROGRESS,
                     AppointmentStatus.CANCELLATION_REQUESTED,
                     AppointmentStatus.UNKNOWN -> Unit
@@ -849,7 +853,7 @@ private fun CancellationSheet(appointment: AppointmentDTO, submitting: Boolean, 
             Text("Tell us why you want to cancel this appointment.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 17.sp, lineHeight = 23.sp)
             AppointmentMiniSummary(appointment)
             listOf("Schedule conflict", "Feeling unwell", "Need a different time", "Other").forEach { option ->
-                Surface(onClick = { reason = option }, color = if (reason == option) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, if (reason == option) VibrantTeal else Color(0xFFD8E2E6))) { Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(reason == option, onClick = null, colors = RadioButtonDefaults.colors(selectedColor = DeepTeal, unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant)); Text(option, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) } }
+                Surface(onClick = { reason = option }, color = if (reason == option) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, if (reason == option) VibrantTeal else Color(0xFFD8E2E6))) { Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(reason == option, onClick = null, colors = RadioButtonDefaults.colors(selectedColor = DeepTeal, unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant)); Spacer(Modifier.width(8.dp)); Text(option, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp) } }
             }
             if (other) OutlinedTextField(value = details, onValueChange = { if (it.length <= 250) details = it }, label = { Text("Please specify your reason") }, supportingText = { Text("${details.length}/250") }, modifier = Modifier.fillMaxWidth())
             Surface(color = Color(0xFFEAF5FF), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
@@ -879,6 +883,15 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
     var selectedSlot by remember { mutableStateOf<AvailableSlotDTO?>(null) }
     var note by remember { mutableStateOf("") }
     var showCalendar by remember { mutableStateOf(false) }
+    DisposableEffect(appointment.appointmentId) {
+        onDispose { viewModel.stopRescheduleSlots() }
+    }
+    LaunchedEffect(state.rescheduleSlots) {
+        val current = (state.rescheduleSlots as? Resource.Success)?.data.orEmpty()
+        if (selectedSlot != null && current.none {
+            it.startTime?.take(5) == selectedSlot?.startTime?.take(5) && it.endTime?.take(5) == selectedSlot?.endTime?.take(5)
+        }) selectedSlot = null
+    }
     val dates = remember { (1..14).map { Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, it) } } }
     val dateValues = remember(dates) { dates.map { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(it.time) } }
     LaunchedEffect(appointment.appointmentId) {
@@ -967,8 +980,8 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                     val selected = date == value && available
                     Surface(
                         onClick = {
-                            if (failed) viewModel.loadCalendarRescheduleDate(appointment, value)
-                            else { date = value; selectedSlot = null; viewModel.loadRescheduleSlots(value) }
+                            if (failed) { date = value; selectedSlot = null; viewModel.loadCalendarRescheduleDate(appointment, value) }
+                            else { date = value; selectedSlot = null; viewModel.loadCalendarRescheduleDate(appointment, value) }
                         },
                         enabled = (available || failed) && !state.rescheduleSubmitting,
                         modifier = Modifier.widthIn(min = 76.dp).heightIn(min = 90.dp),
@@ -996,9 +1009,9 @@ private fun RescheduleSheet(appointment: AppointmentDTO, state: HistoryUiState, 
                 Resource.Loading -> CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 is Resource.Error -> Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(slots.message ?: "Unable to load availability.", color = ErrorRed, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { if (date.isNotBlank()) viewModel.loadRescheduleSlots(date) }) { Text("Try again") }
+                    TextButton(onClick = { if (date.isNotBlank()) viewModel.loadCalendarRescheduleDate(appointment, date) }) { Text("Try again") }
                 }
-                is Resource.Success -> if (slots.data.isEmpty()) Text("No available times for this date.", color = MaterialTheme.colorScheme.onSurfaceVariant) else LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(slots.data) { slot -> FilterChip(selected = selectedSlot?.startTime == slot.startTime, onClick = { selectedSlot = slot }, label = { Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time") }) } }
+                is Resource.Success -> if (slots.data.isEmpty()) Text("No available times for this date.", color = MaterialTheme.colorScheme.onSurfaceVariant) else LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(slots.data) { slot -> FilterChip(selected = selectedSlot?.startTime == slot.startTime, onClick = { selectedSlot = slot }, enabled = !state.rescheduleSubmitting, label = { Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time") }) } }
                 Resource.Idle -> Text("Choose a date first.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OutlinedTextField(value = note, onValueChange = { if (it.length <= 200) note = it }, label = { Text("Add note") }, supportingText = { Text("${note.length}/200") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), minLines = 3)

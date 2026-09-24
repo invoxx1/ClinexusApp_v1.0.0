@@ -27,7 +27,7 @@ object BookingRules {
 }
 
 enum class AppointmentStatus {
-    PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, RESCHEDULE_REQUESTED, CANCELLATION_REQUESTED, UNKNOWN
+    PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, NO_SHOW, CANCELLED, RESCHEDULE_REQUESTED, CANCELLATION_REQUESTED, UNKNOWN
 }
 
 fun mapAppointmentStatus(raw: String?): AppointmentStatus {
@@ -39,7 +39,8 @@ fun mapAppointmentStatus(raw: String?): AppointmentStatus {
         value == "pending" || value == "requested" || value == "request" || value.contains("await") -> AppointmentStatus.PENDING
         value == "approved" || value == "confirmed" || value == "scheduled" || value == "upcoming" -> AppointmentStatus.CONFIRMED
         value == "in_progress" -> AppointmentStatus.IN_PROGRESS
-        value == "completed" || value == "done" || value == "no_show" -> AppointmentStatus.COMPLETED
+        value == "no_show" -> AppointmentStatus.NO_SHOW
+        value == "completed" || value == "done" -> AppointmentStatus.COMPLETED
         value == "cancelled" || value == "canceled" || value == "rejected" || value == "declined" || value == "denied" -> AppointmentStatus.CANCELLED
         else -> AppointmentStatus.UNKNOWN
     }
@@ -50,6 +51,7 @@ fun AppointmentStatus.patientLabel(): String = when (this) {
     AppointmentStatus.CONFIRMED -> "Confirmed"
     AppointmentStatus.IN_PROGRESS -> "In progress"
     AppointmentStatus.COMPLETED -> "Completed"
+    AppointmentStatus.NO_SHOW -> "No show"
     AppointmentStatus.CANCELLED -> "Cancelled"
     AppointmentStatus.RESCHEDULE_REQUESTED -> "Reschedule requested"
     AppointmentStatus.CANCELLATION_REQUESTED -> "Cancellation requested"

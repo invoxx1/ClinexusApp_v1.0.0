@@ -125,6 +125,7 @@ class HistoryViewModel @Inject constructor(
     }
 
     fun loadRescheduleDates(appointment: AppointmentDTO, dates: List<String>) {
+        stopRescheduleSlots()
         rescheduleAvailabilityJob?.cancel()
         _uiState.value = _uiState.value.copy(
             rescheduleDates = dates.associateWith { Resource.Loading },
@@ -154,32 +155,36 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    fun loadRescheduleSlots(date: String) {
-        val slots = _uiState.value.rescheduleDates[date]
-        if (slots !is Resource.Success || slots.data.isEmpty()) return
-        _uiState.value = _uiState.value.copy(rescheduleSlots = slots)
+    private var rescheduleSlotJob: Job? = null
+    private var rescheduleSlotGeneration = 0
+
+    fun stopRescheduleSlots() {
+        rescheduleSlotGeneration++
+        rescheduleSlotJob?.cancel()
+    }
+
+    private suspend fun fetchRescheduleSlots(appointment: AppointmentDTO, date: String): Resource<List<AvailableSlotDTO>> {
+        val result = appointmentRepository.getAvailableTimeslots(appointment.dentistId, date, appointment.durationMinutes())
+        return if (result is Resource.Success) Resource.Success(result.data.filter {
+            it.startTime != null && it.endTime != null && !isUnchangedReschedule(appointment, date, it)
+        }) else result
     }
 
     fun loadCalendarRescheduleDate(appointment: AppointmentDTO, date: String) {
-        _uiState.value = _uiState.value.copy(
-            rescheduleDates = _uiState.value.rescheduleDates + (date to Resource.Loading),
-            rescheduleSlots = Resource.Loading,
-        )
-        viewModelScope.launch {
-            val result = appointmentRepository.getAvailableTimeslots(
-                appointment.dentistId,
-                date,
-                appointment.durationMinutes()
-            )
-            val available = if (result is Resource.Success) {
-                Resource.Success(result.data.filter {
-                    it.startTime != null && it.endTime != null && !isUnchangedReschedule(appointment, date, it)
-                })
-            } else result
-            _uiState.value = _uiState.value.copy(
-                rescheduleDates = _uiState.value.rescheduleDates + (date to available),
-                rescheduleSlots = available,
-            )
+        stopRescheduleSlots()
+        val generation = rescheduleSlotGeneration
+        _uiState.value = _uiState.value.copy(rescheduleSlots = Resource.Loading)
+        rescheduleSlotJob = viewModelScope.launch {
+            while (true) {
+                val available = fetchRescheduleSlots(appointment, date)
+                ensureActive()
+                if (generation != rescheduleSlotGeneration) return@launch
+                _uiState.value = _uiState.value.copy(
+                    rescheduleDates = _uiState.value.rescheduleDates + (date to available),
+                    rescheduleSlots = available,
+                )
+                delay(15_000)
+            }
         }
     }
     fun requestReschedule(appointment: AppointmentDTO, date: String, slot: AvailableSlotDTO, note: String) {
@@ -201,6 +206,20 @@ class HistoryViewModel @Inject constructor(
         val end = slot.endTime ?: return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(rescheduleSubmitting = true, operation = Resource.Loading)
+            stopRescheduleSlots()
+            val latest = fetchRescheduleSlots(appointment, date)
+            _uiState.value = _uiState.value.copy(
+                rescheduleDates = _uiState.value.rescheduleDates + (date to latest),
+                rescheduleSlots = latest,
+            )
+            if (latest !is Resource.Success || latest.data.none { it.startTime?.take(5) == start.take(5) && it.endTime?.take(5) == end.take(5) }) {
+                _uiState.value = _uiState.value.copy(
+                    rescheduleSubmitting = false,
+                    operation = Resource.Error(if (latest is Resource.Error) "Unable to verify availability. Please try again." else "That time is no longer available. Please choose another time."),
+                )
+                loadCalendarRescheduleDate(appointment, date)
+                return@launch
+            }
             val result = appointmentRepository.rescheduleAppointment(
                 appointment.appointmentId,
                 RescheduleAppointmentRequest(
@@ -224,6 +243,7 @@ class HistoryViewModel @Inject constructor(
                 )
                 fetchHistory(clearOperation = false)
             } else {
+                loadCalendarRescheduleDate(appointment, date)
                 val serverMessage = (result as Resource.Error).message
                 val message = if (
                     appointment.needsPatientScheduleChoice &&
@@ -348,6 +368,6 @@ fun AppointmentStatus.toTab(): AppointmentTab = when (this) {
     AppointmentStatus.PENDING, AppointmentStatus.RESCHEDULE_REQUESTED, AppointmentStatus.CANCELLATION_REQUESTED -> AppointmentTab.PENDING
     AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS -> AppointmentTab.CONFIRMED
     AppointmentStatus.COMPLETED -> AppointmentTab.COMPLETED
-    AppointmentStatus.CANCELLED -> AppointmentTab.CANCELLED
+    AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW -> AppointmentTab.CANCELLED
     AppointmentStatus.UNKNOWN -> AppointmentTab.PENDING
 }

@@ -344,6 +344,7 @@ private fun AppointmentStatusField(rawStatus: String, modifier: Modifier = Modif
         AppointmentStatus.RESCHEDULE_REQUESTED -> "Reschedule requested" to Color(0xFF7C3AED)
         AppointmentStatus.CANCELLATION_REQUESTED -> "Cancellation requested" to Color(0xFFC2415A)
         AppointmentStatus.COMPLETED -> "Completed" to Color(0xFF2563EB)
+        AppointmentStatus.NO_SHOW -> "No show" to Color(0xFFD97706)
         AppointmentStatus.CANCELLED -> "Cancelled" to Color(0xFFD92D38)
         AppointmentStatus.UNKNOWN -> "Unavailable" to Color(0xFF687080)
     }
