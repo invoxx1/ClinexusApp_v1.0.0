@@ -52,9 +52,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalDensity
@@ -74,6 +77,7 @@ import com.example.clinexusapp.model.AvailableSlotDTO
 import com.example.clinexusapp.ui.theme.*
 import com.example.clinexusapp.ui.components.dentalServiceIcon
 import com.example.clinexusapp.ui.components.shimmer
+import com.example.clinexusapp.ui.components.WalkthroughTarget
 import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.viewmodel.*
@@ -113,6 +117,8 @@ fun AppointmentHistoryScreen(
     onNavigateToBooking: () -> Unit,
     viewModel: HistoryViewModel,
     initialAppointmentId: Int? = null,
+    activeWalkthroughTarget: WalkthroughTarget? = null,
+    onWalkthroughTarget: (WalkthroughTarget, Rect) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -213,8 +219,18 @@ fun AppointmentHistoryScreen(
                         .padding(bottom = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    AppointmentHeader(onBack, onNavigateToBooking)
-                    AppointmentTabs(state, viewModel)
+                    AppointmentHeader(
+                        onBack = onBack,
+                        onNavigateToBooking = onNavigateToBooking,
+                        activeWalkthroughTarget = activeWalkthroughTarget,
+                        onWalkthroughTarget = onWalkthroughTarget,
+                    )
+                    AppointmentTabs(
+                        state = state,
+                        viewModel = viewModel,
+                        activeWalkthroughTarget = activeWalkthroughTarget,
+                        onWalkthroughTarget = onWalkthroughTarget,
+                    )
                     Text(
                         "${tabLabel(state.selectedTab)} Appointments",
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -346,6 +362,8 @@ private fun AppointmentSuccessBanner(message: String) {
 private fun AppointmentHeader(
     onBack: () -> Unit,
     onNavigateToBooking: () -> Unit,
+    activeWalkthroughTarget: WalkthroughTarget?,
+    onWalkthroughTarget: (WalkthroughTarget, Rect) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -387,7 +405,13 @@ private fun AppointmentHeader(
 
         Surface(
             onClick = onNavigateToBooking,
-            modifier = Modifier.size(56.dp),
+            modifier = Modifier
+                .size(56.dp)
+                .onGloballyPositioned {
+                    if (activeWalkthroughTarget == WalkthroughTarget.BOOK_APPOINTMENT) {
+                        onWalkthroughTarget(WalkthroughTarget.BOOK_APPOINTMENT, it.boundsInWindow())
+                    }
+                },
             shape = CircleShape,
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {
@@ -409,6 +433,8 @@ private fun AppointmentHeader(
 private fun AppointmentTabs(
     state: HistoryUiState,
     viewModel: HistoryViewModel,
+    activeWalkthroughTarget: WalkthroughTarget?,
+    onWalkthroughTarget: (WalkthroughTarget, Rect) -> Unit,
 ) {
     val appointments =
         (state.appointments as? Resource.Success)?.data.orEmpty()
@@ -433,6 +459,11 @@ private fun AppointmentTabs(
         shape = RoundedCornerShape(22.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .onGloballyPositioned {
+                if (activeWalkthroughTarget == WalkthroughTarget.APPOINTMENT_STATUSES) {
+                    onWalkthroughTarget(WalkthroughTarget.APPOINTMENT_STATUSES, it.boundsInWindow())
+                }
+            }
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val horizontalPadding = 6.dp

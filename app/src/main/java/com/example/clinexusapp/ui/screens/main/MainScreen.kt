@@ -160,6 +160,8 @@ fun MainScreen(rootNavController: NavHostController, @Suppress("UNUSED_PARAMETER
                     onNavigateToBooking = { rootNavController.navigate(Screen.AppointmentBooking.route) },
                     viewModel = historyViewModel,
                     initialAppointmentId = entry.arguments?.getInt("appointmentId")?.takeIf { it > 0 },
+                    activeWalkthroughTarget = activeTarget,
+                    onWalkthroughTarget = ::captureWalkthroughTarget,
                 )
             }
             composable(route = Screen.Profile.route) {
