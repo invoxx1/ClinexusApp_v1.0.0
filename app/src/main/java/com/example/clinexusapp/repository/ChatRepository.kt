@@ -7,6 +7,7 @@ import com.example.clinexusapp.util.SessionManager
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -41,6 +42,8 @@ class ChatRepositoryImpl @Inject constructor(
             } else {
                 Resource.Error(response.errorBody()?.string() ?: "Error fetching contacts")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Network error")
         }
@@ -54,6 +57,8 @@ class ChatRepositoryImpl @Inject constructor(
             } else {
                 Resource.Error(response.errorBody()?.string() ?: "Error fetching conversations")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Network error")
         }
@@ -67,6 +72,8 @@ class ChatRepositoryImpl @Inject constructor(
             } else {
                 Resource.Error(response.errorBody()?.string() ?: "Error fetching messages")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Network error")
         }
@@ -91,6 +98,8 @@ class ChatRepositoryImpl @Inject constructor(
             } else {
                 Resource.Error(response.errorBody()?.string() ?: "Error sending message")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Network error")
         }
@@ -105,6 +114,8 @@ class ChatRepositoryImpl @Inject constructor(
             } else {
                 Resource.Error(response.errorBody()?.string() ?: "Error marking as read")
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Network error")
         }
@@ -114,11 +125,19 @@ class ChatRepositoryImpl @Inject constructor(
         val response = apiService.deleteMessage(authHeader, messageId)
         if (response.isSuccessful && response.body()?.success != false) Resource.Success(Unit)
         else Resource.Error(response.errorBody()?.string() ?: response.body()?.message ?: "Unable to delete message")
-    } catch (e: Exception) { Resource.Error(e.message ?: "Network error") }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resource.Error(e.message ?: "Network error")
+    }
 
     override suspend fun deleteConversation(conversationId: Int): Resource<Unit> = try {
         val response = apiService.deleteConversation(authHeader, conversationId)
         if (response.isSuccessful && response.body()?.success != false) Resource.Success(Unit)
         else Resource.Error(response.errorBody()?.string() ?: response.body()?.message ?: "Unable to delete conversation")
-    } catch (e: Exception) { Resource.Error(e.message ?: "Network error") }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resource.Error(e.message ?: "Network error")
+    }
 }

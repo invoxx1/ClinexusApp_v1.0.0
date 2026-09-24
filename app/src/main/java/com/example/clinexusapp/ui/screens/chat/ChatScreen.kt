@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,10 +48,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -136,7 +144,7 @@ fun ChatScreen(
     }
 
     var currentView by remember { mutableStateOf(ChatView.CONVERSATIONS) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(currentView) {
         onVisibilityChange(currentView != ChatView.MESSAGES)
@@ -368,7 +376,7 @@ fun ChatScreen(
                             Modifier.onGloballyPositioned { onWalkthroughTarget(it.boundsInWindow()) }
                         ) {
                             ChatListHeader(title = "Messages")
-                            MessageSearchField(searchQuery, { searchQuery = it }, "Search conversations...")
+                            MessageSearchField(searchQuery, { searchQuery = it }, "Search people or messages")
                         }
                         Spacer(Modifier.height(26.dp))
                         Box(modifier = Modifier.weight(1f)) {
@@ -387,22 +395,31 @@ fun ChatScreen(
                                 }
                             }
                             is Resource.Success -> {
-                                val conversations = convState.data.filter {
-                                    searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) ||
-                                        it.lastMessage.orEmpty().contains(searchQuery, ignoreCase = true)
+                                val conversations = remember(convState.data, searchQuery) {
+                                    searchConversations(convState.data, searchQuery)
                                 }
                                 if (conversations.isEmpty()) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(text = if (searchQuery.isBlank()) "No active conversations" else "No conversations found", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
+                                    ConversationSearchEmptyState(searchQuery)
                                 } else {
                                     LazyColumn(
                                         modifier = Modifier.fillMaxSize(),
                                         contentPadding = PaddingValues(start = 22.dp, end = 22.dp, bottom = 96.dp),
                                         verticalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        items(conversations) { conversation ->
-                                            ConversationItem(conversation = conversation, onDelete = { deleteConversationTarget = conversation }) {
+                                        if (searchQuery.isNotBlank()) {
+                                            item {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    Text("Conversations", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                                    Text("${conversations.size} found", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                                                }
+                                            }
+                                        }
+                                        items(conversations, key = { it.conversationId }) { conversation ->
+                                            ConversationItem(conversation = conversation, searchQuery = searchQuery, onDelete = { deleteConversationTarget = conversation }) {
                                                 viewModel.selectConversation(conversation)
                                                 currentView = ChatView.MESSAGES
                                             }
@@ -745,6 +762,7 @@ private fun MessageSearchField(
     onValueChange: (String) -> Unit,
     placeholder: String,
 ) {
+    val focusManager = LocalFocusManager.current
     TextField(
         value = value,
         onValueChange = onValueChange,
@@ -755,6 +773,8 @@ private fun MessageSearchField(
             { IconButton(onClick = { onValueChange("") }) { Icon(Lucide.X, "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant) } }
         } else null,
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
         shape = RoundedCornerShape(30.dp),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
@@ -768,6 +788,36 @@ private fun MessageSearchField(
 }
 
 enum class ChatView { CONVERSATIONS, CONTACTS, MESSAGES }
+
+internal fun searchConversations(
+    conversations: List<ConversationDTO>,
+    rawQuery: String,
+): List<ConversationDTO> {
+    val query = rawQuery.trim()
+    if (query.isEmpty()) return conversations
+    val terms = query.split(Regex("\\s+")).filter(String::isNotBlank)
+
+    return conversations
+        .filter { conversation ->
+            val searchable = listOf(
+                conversation.name,
+                conversation.role,
+                conversation.lastMessage.orEmpty(),
+            ).joinToString(" ")
+            terms.all { term -> searchable.contains(term, ignoreCase = true) }
+        }
+        .sortedWith(
+            compareBy<ConversationDTO> {
+                when {
+                    it.name.equals(query, ignoreCase = true) -> 0
+                    it.name.startsWith(query, ignoreCase = true) -> 1
+                    it.name.contains(query, ignoreCase = true) -> 2
+                    it.role.contains(query, ignoreCase = true) -> 3
+                    else -> 4
+                }
+            }.thenBy { it.name.lowercase() }
+        )
+}
 
 fun getInitials(name: String): String {
     return name.split(" ")
@@ -801,7 +851,7 @@ fun ChatAvatar(imageUrl: String?, name: String, size: Dp, fontSize: TextUnit = 1
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ConversationItem(conversation: ConversationDTO, onDelete: () -> Unit, onClick: () -> Unit) {
+fun ConversationItem(conversation: ConversationDTO, searchQuery: String = "", onDelete: () -> Unit, onClick: () -> Unit) {
     val dismissState = rememberSwipeToDismissBoxState(
         positionalThreshold = { it * 0.35f },
         confirmValueChange = { value ->
@@ -830,18 +880,82 @@ fun ConversationItem(conversation: ConversationDTO, onDelete: () -> Unit, onClic
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = conversation.name, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(text = highlightedSearchText(conversation.name, searchQuery), fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     conversation.lastMessageTime?.let {
                         Text(text = DateUtils.formatChatTime(it), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(text = conversation.lastMessage ?: "No messages yet", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = highlightedSearchText(conversation.lastMessage ?: "No messages yet", searchQuery), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))
             Icon(Lucide.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
         }
     }
+    }
+}
+
+@Composable
+private fun highlightedSearchText(text: String, rawQuery: String) = buildAnnotatedString {
+    val terms = rawQuery.trim()
+        .split(Regex("\\s+"))
+        .filter(String::isNotBlank)
+        .distinctBy(String::lowercase)
+        .sortedByDescending(String::length)
+    if (terms.isEmpty()) {
+        append(text)
+        return@buildAnnotatedString
+    }
+    val matches = Regex(
+        terms.joinToString("|") { Regex.escape(it) },
+        RegexOption.IGNORE_CASE,
+    ).findAll(text).toList()
+    if (matches.isEmpty()) {
+        append(text)
+        return@buildAnnotatedString
+    }
+
+    var cursor = 0
+    matches.forEach { match ->
+        if (match.range.first > cursor) append(text.substring(cursor, match.range.first))
+        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)) {
+            append(text.substring(match.range))
+        }
+        cursor = match.range.last + 1
+    }
+    if (cursor < text.length) append(text.substring(cursor))
+}
+
+@Composable
+private fun ConversationSearchEmptyState(searchQuery: String) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            modifier = Modifier.size(72.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Lucide.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = if (searchQuery.isBlank()) "No active conversations" else "No results for “${searchQuery.trim()}”",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        if (searchQuery.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Try searching a name, role, or recent message.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
