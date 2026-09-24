@@ -54,6 +54,7 @@ class BookingViewModel @Inject constructor(
     private val appointmentRepository: AppointmentRepository
 ) : ViewModel() {
     private var selectedDateRefreshJob: Job? = null
+    private val serverRejectedSlots = mutableSetOf<String>()
     private val _uiState = MutableStateFlow(BookingUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -192,6 +193,17 @@ class BookingViewModel @Inject constructor(
             update { it.copy(submission = Resource.Error("Please complete all appointment details.")) }
             return
         }
+        if (!BookingRules.isFutureSlot(date, slot.startTime)) {
+            update {
+                it.copy(
+                    step = BookingStep.DATE_TIME,
+                    selectedSlot = null,
+                    confirmationChecked = false,
+                    submission = Resource.Error("That time has already passed. Please choose a later available time."),
+                )
+            }
+            return
+        }
         update { it.copy(isSubmitting = true, submission = Resource.Loading) }
         viewModelScope.launch {
             val result = appointmentRepository.createAppointment(
@@ -206,6 +218,7 @@ class BookingViewModel @Inject constructor(
                 )
             )
             if (result is Resource.Error && result.message.isSlotConflictMessage()) {
+                serverRejectedSlots += slotKey(dentist.dentistId, date, slot.startTime)
                 val refreshedSlots = getBookableSlots(dentist.dentistId, date, state.totalEstimatedDurationMinutes)
                 update {
                     it.copy(
@@ -236,18 +249,23 @@ class BookingViewModel @Inject constructor(
         if (durationMinutes <= 0) return Resource.Error("Please select at least one service.")
         val availableSlots = appointmentRepository.getAvailableTimeslots(dentistId, date, durationMinutes)
         if (availableSlots !is Resource.Success) return availableSlots
+        val futureSlots = BookingRules.removePastSlots(availableSlots.data, date)
         val patientAppointments = appointmentRepository.getPatientAppointments()
         val patientFiltered = if (patientAppointments is Resource.Success) {
             BookingRules.removePatientConflicts(
-                slots = availableSlots.data,
+                slots = futureSlots,
                 appointments = patientAppointments.data,
                 dentistId = dentistId,
                 date = date,
             )
         } else {
-            availableSlots.data
+            futureSlots
         }
-        return Resource.Success(patientFiltered.distinctBy { it.startTime?.take(5) })
+        return Resource.Success(
+            patientFiltered
+                .filterNot { slotKey(dentistId, date, it.startTime) in serverRejectedSlots }
+                .distinctBy { it.startTime?.take(5) }
+        )
     }
 
     fun clearSubmission() { update { it.copy(submission = null) } }
@@ -270,6 +288,9 @@ class BookingViewModel @Inject constructor(
         )
     }
 }
+
+private fun slotKey(dentistId: Int, date: String, startTime: String?): String =
+    "$dentistId|$date|${startTime?.take(5).orEmpty()}"
 
 val BookingUiState.totalEstimatedDurationMinutes: Int
     get() = selectedServices.sumOf { it.durationMinutes ?: 0 }

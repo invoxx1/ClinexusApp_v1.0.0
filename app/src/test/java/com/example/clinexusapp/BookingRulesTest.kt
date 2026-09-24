@@ -32,4 +32,20 @@ class BookingRulesTest {
         assertNull(BookingRules.keepSlotIfAvailable(slot, Resource.Success(emptyList())))
         assertNull(BookingRules.keepSlotIfAvailable(slot, Resource.Error("offline")))
     }
+
+    @Test fun pastTimesAreRemovedForTodayButFutureDatesRemainAvailable() {
+        val slots = listOf(
+            AvailableSlotDTO("8:00 AM", "08:00", "08:45"),
+            AvailableSlotDTO("1:30 PM", "13:30", "14:15"),
+            AvailableSlotDTO("2:00 PM", "14:00", "14:45"),
+        )
+
+        assertEquals(
+            listOf("13:30", "14:00"),
+            BookingRules.removePastSlots(slots, "2026-09-24", "2026-09-24", 13 * 60).map { it.startTime },
+        )
+        assertEquals(3, BookingRules.removePastSlots(slots, "2026-09-25", "2026-09-24", 13 * 60).size)
+        assertTrue(!BookingRules.isFutureSlot("2026-09-24", "08:00", "2026-09-24", 13 * 60))
+        assertTrue(BookingRules.isFutureSlot("2026-09-24", "13:30", "2026-09-24", 13 * 60))
+    }
 }

@@ -3,6 +3,8 @@ package com.example.clinexusapp.viewmodel
 import com.example.clinexusapp.model.AvailableSlotDTO
 import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.util.Resource
+import java.time.LocalDate
+import java.time.LocalTime
 
 object BookingRules {
     fun statusLabel(rawStatus: String?): String {
@@ -25,6 +27,24 @@ object BookingRules {
 
     fun keepSlotIfAvailable(slot: AvailableSlotDTO?, slots: Resource<List<AvailableSlotDTO>>): AvailableSlotDTO? =
         slot?.takeIf { selected -> slots is Resource.Success && slots.data.any { it.startTime == selected.startTime } }
+
+    fun removePastSlots(
+        slots: List<AvailableSlotDTO>,
+        date: String,
+        today: String = LocalDate.now().toString(),
+        currentMinutes: Int = LocalTime.now().hour * 60 + LocalTime.now().minute,
+    ): List<AvailableSlotDTO> = when {
+        date < today -> emptyList()
+        date > today -> slots
+        else -> slots.filter { (it.startTime.toMinutes() ?: -1) > currentMinutes }
+    }
+
+    fun isFutureSlot(
+        date: String,
+        startTime: String?,
+        today: String = LocalDate.now().toString(),
+        currentMinutes: Int = LocalTime.now().hour * 60 + LocalTime.now().minute,
+    ): Boolean = date > today || (date == today && (startTime.toMinutes() ?: -1) > currentMinutes)
 
     fun removePatientConflicts(
         slots: List<AvailableSlotDTO>,
