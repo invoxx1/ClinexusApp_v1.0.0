@@ -7,8 +7,10 @@ import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.model.AvailableSlotDTO
 import com.example.clinexusapp.model.CancelAppointmentRequest
 import com.example.clinexusapp.model.RescheduleAppointmentRequest
+import com.example.clinexusapp.model.PatientQueueDTO
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.AppointmentReminderScheduler
+import com.example.clinexusapp.util.NotificationHelper
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,6 +41,10 @@ data class HistoryUiState(
     val rescheduleSlots: Resource<List<AvailableSlotDTO>> = Resource.Idle,
     val rescheduleWorkingDays: Set<String> = emptySet(),
     val rescheduleScheduleLoaded: Boolean = false,
+    val checkingInAppointmentId: Int? = null,
+    val checkedInAppointmentIds: Set<Int> = emptySet(),
+    val queueAppointmentId: Int? = null,
+    val queueStatus: Resource<PatientQueueDTO> = Resource.Idle,
 )
 
 @HiltViewModel
@@ -45,6 +52,9 @@ class HistoryViewModel @Inject constructor(
     private val appointmentRepository: AppointmentRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
+    private var queueMonitorJob: Job? = null
+    private var monitoredQueueAppointmentId: Int? = null
+    private val sentQueueAlerts = mutableSetOf<String>()
     private val _uiState = MutableStateFlow(HistoryUiState())
     val uiState = _uiState.asStateFlow()
     val historyState = _uiState.map { it.appointments }
@@ -235,6 +245,71 @@ class HistoryViewModel @Inject constructor(
 
     fun clearCompletedRequest() { _uiState.value = _uiState.value.copy(completedRequest = null) }
 
+    fun selfCheckIn(appointmentId: Int) {
+        if (_uiState.value.checkingInAppointmentId != null) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(checkingInAppointmentId = appointmentId)
+            when (val result = appointmentRepository.selfCheckIn(appointmentId)) {
+                is Resource.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        checkingInAppointmentId = null,
+                        checkedInAppointmentIds = _uiState.value.checkedInAppointmentIds + appointmentId,
+                        completedRequest = result.data.message ?: "You have been checked in.",
+                    )
+                    fetchHistory(clearOperation = false, showLoading = false)
+                    loadQueueStatus(appointmentId)
+                }
+                is Resource.Error -> _uiState.value = _uiState.value.copy(
+                    checkingInAppointmentId = null,
+                    operation = Resource.Error(result.message),
+                )
+                else -> Unit
+            }
+        }
+    }
+
+    fun loadQueueStatus(appointmentId: Int) {
+        _uiState.value = _uiState.value.copy(queueAppointmentId = appointmentId, queueStatus = Resource.Loading)
+        if (monitoredQueueAppointmentId == appointmentId && queueMonitorJob?.isActive == true) return
+        queueMonitorJob?.cancel()
+        monitoredQueueAppointmentId = appointmentId
+        queueMonitorJob = viewModelScope.launch {
+            while (monitoredQueueAppointmentId == appointmentId) {
+                val result = appointmentRepository.getPatientQueueStatus(appointmentId)
+                _uiState.value = _uiState.value.copy(queueStatus = result)
+                if (result is Resource.Success) {
+                    notifyQueueChange(appointmentId, result.data)
+                    if (result.data.queueStatus.lowercase() in setOf("in_progress", "completed", "cancelled")) {
+                        monitoredQueueAppointmentId = null
+                        break
+                    }
+                }
+                delay(10_000)
+            }
+        }
+    }
+
+    private fun notifyQueueChange(appointmentId: Int, queue: PatientQueueDTO) {
+        val status = queue.queueStatus.lowercase()
+        val alert = when {
+            status == "ready" -> "ready" to ("You're next" to "Please stay nearby. The clinic is ready for you.")
+            queue.patientsAhead == 1 -> "almost" to ("Almost your turn" to "There is only one patient ahead of you.")
+            else -> return
+        }
+        if (sentQueueAlerts.add("$appointmentId:${alert.first}")) {
+            NotificationHelper.showNotification(context, alert.second.first, alert.second.second, appointmentId)
+        }
+    }
+
+    fun closeQueueStatus() {
+        _uiState.value = _uiState.value.copy(queueAppointmentId = null, queueStatus = Resource.Idle)
+    }
+
+    override fun onCleared() {
+        queueMonitorJob?.cancel()
+        super.onCleared()
+    }
+
     fun filteredAppointments(tab: AppointmentTab, source: List<AppointmentDTO>): List<AppointmentDTO> {
         return filterAppointmentsForTab(tab, source)
     }
@@ -271,7 +346,7 @@ private fun AppointmentDTO.durationMinutes(): Int {
 
 fun AppointmentStatus.toTab(): AppointmentTab = when (this) {
     AppointmentStatus.PENDING, AppointmentStatus.RESCHEDULE_REQUESTED, AppointmentStatus.CANCELLATION_REQUESTED -> AppointmentTab.PENDING
-    AppointmentStatus.CONFIRMED -> AppointmentTab.CONFIRMED
+    AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS -> AppointmentTab.CONFIRMED
     AppointmentStatus.COMPLETED -> AppointmentTab.COMPLETED
     AppointmentStatus.CANCELLED -> AppointmentTab.CANCELLED
     AppointmentStatus.UNKNOWN -> AppointmentTab.PENDING

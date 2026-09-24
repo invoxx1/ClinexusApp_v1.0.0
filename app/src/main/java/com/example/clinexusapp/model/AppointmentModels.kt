@@ -182,3 +182,16 @@ data class CancelAppointmentRequest(
     @SerializedName("cancellationNote")
     val cancellationNote: String
 )
+
+data class PatientQueueResponse(
+    val success: Boolean,
+    val queue: PatientQueueDTO,
+)
+
+data class PatientQueueDTO(
+    val queueStatus: String,
+    val queuePosition: Int? = null,
+    val patientsAhead: Int? = null,
+    val estimatedWaitMinutes: Int? = null,
+    val estimatedStartTime: String? = null,
+)

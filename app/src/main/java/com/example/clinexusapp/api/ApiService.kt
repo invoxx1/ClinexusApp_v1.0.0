@@ -37,7 +37,7 @@ interface ApiService {
         @Body request: VerifyOtpRequest,
     ): Response<GenericResponse>
 
-    @POST("api/patient/resend-verification")
+    @POST("api/resend-verification")
     suspend fun resendVerificationEmail(
         @Body request: VerifyOtpRequest,
     ): Response<GenericResponse>
@@ -174,4 +174,9 @@ interface ApiService {
     suspend fun markAllNotificationsAsRead(
         @Header("Authorization") token: String
     ): Response<GenericResponse>
+
+    @GET("api/patients/me/clinical-history")
+    suspend fun getMyClinicalHistory(
+        @Header("Authorization") token: String,
+    ): Response<ClinicalHistoryResponse>
 }

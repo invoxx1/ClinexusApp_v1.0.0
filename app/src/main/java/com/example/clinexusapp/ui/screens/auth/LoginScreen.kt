@@ -51,6 +51,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
+    onVerificationRequired: (String) -> Unit,
 ) {
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
@@ -66,6 +67,7 @@ fun LoginScreen(
     var transitionName by remember { mutableStateOf("") }
 
     val loginState by viewModel.loginState.collectAsState()
+    val verificationEmail by viewModel.verificationEmail.collectAsState()
     val savedAccounts by SessionManager.savedAccounts.collectAsState()
     val currentUser by SessionManager.currentUser.collectAsState()
     val selectedAccount = savedAccounts.firstOrNull { it.patient.patientID == selectedPatientID }
@@ -208,7 +210,16 @@ fun LoginScreen(
         }
     }
 
-    LaunchedEffect(loginState) {
+    LaunchedEffect(verificationEmail) {
+        verificationEmail?.let { pendingEmail ->
+            loginTransitionActive = false
+            viewModel.consumeVerificationEmail()
+            onVerificationRequired(pendingEmail)
+        }
+    }
+
+    LaunchedEffect(loginState, verificationEmail) {
+        if (verificationEmail != null) return@LaunchedEffect
         when (val state = loginState) {
             is Resource.Success -> {
                 onLoginSuccess()

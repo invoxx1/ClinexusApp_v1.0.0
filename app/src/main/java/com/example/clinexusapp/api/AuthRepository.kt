@@ -44,7 +44,14 @@ class AuthRepository @Inject constructor(private val apiService: ApiService) {
             if (response.isSuccessful && response.body() != null) {
                 Resource.Success(response.body()!!)
             } else {
-                val errorMsg = parseError(response.errorBody()?.string())
+                val errorJson = response.errorBody()?.string()
+                val loginError = runCatching {
+                    com.google.gson.Gson().fromJson(errorJson, LoginResponse::class.java)
+                }.getOrNull()
+                if (response.code() == 403 && loginError?.requiresVerification == true) {
+                    return Resource.Error(EMAIL_VERIFICATION_REQUIRED)
+                }
+                val errorMsg = parseError(errorJson)
                 Resource.Error(errorMsg ?: "Invalid Credentials")
             }
         } catch (e: IOException) {
@@ -532,6 +539,20 @@ class AuthRepository @Inject constructor(private val apiService: ApiService) {
         }
     }
 
+    suspend fun getMyClinicalHistory(): Resource<ClinicalHistoryResponse> {
+        return try {
+            val token = getAuthorizationHeader() ?: return Resource.Error("Not authenticated")
+            val response = apiService.getMyClinicalHistory(token)
+            if (response.isSuccessful && response.body() != null) {
+                Resource.Success(response.body()!!)
+            } else {
+                Resource.Error(parseError(response.errorBody()?.string()) ?: "Failed to fetch clinical history")
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to fetch clinical history")
+        }
+    }
+
     // ---------- HELPER ----------
     private fun parseError(errorJson: String?): String? {
         return try {
@@ -541,5 +562,9 @@ class AuthRepository @Inject constructor(private val apiService: ApiService) {
         } catch (e: Exception) {
             null
         }
+    }
+
+    companion object {
+        const val EMAIL_VERIFICATION_REQUIRED = "EMAIL_VERIFICATION_REQUIRED"
     }
 }

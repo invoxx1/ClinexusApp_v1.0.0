@@ -51,6 +51,7 @@ import java.util.*
 import kotlinx.coroutines.delay
 
 private val BookingCardShape = RoundedCornerShape(16.dp)
+private enum class TimePeriod(val label: String) { MORNING("Morning"), AFTERNOON("Afternoon") }
 
 @Composable
 fun AppointmentBookingScreen(
@@ -64,8 +65,8 @@ fun AppointmentBookingScreen(
     LaunchedEffect(state.step, state.selectedDate, state.selectedDentist?.dentistId) {
         if (state.step == BookingStep.DATE_TIME && state.selectedDate != null) {
             while (true) {
-                delay(10_000)
                 viewModel.refreshSelectedDate()
+                delay(3_000)
             }
         }
     }
@@ -306,7 +307,6 @@ private fun DateTimeStep(state: BookingUiState, viewModel: BookingViewModel, onC
         TextButton(onClick = onCalendar) { Icon(Lucide.CalendarDays, null); Spacer(Modifier.width(4.dp)); Text("View calendar") }
     }
     DateStrip(state, viewModel)
-    Text("Available times", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
     when (val times = state.timeslots) {
         Resource.Idle -> EmptyState("Choose a date to see available times.")
         Resource.Loading -> LoadingState("Loading available times...")
@@ -368,14 +368,63 @@ private fun DateStrip(state: BookingUiState, viewModel: BookingViewModel) {
 
 @Composable
 private fun TimeGrid(slots: List<AvailableSlotDTO>, selected: AvailableSlotDTO?, onSelect: (AvailableSlotDTO) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        slots.chunked(2).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { slot ->
-                    val isSelected = selected?.startTime == slot.startTime
-                    Surface(onClick = { onSelect(slot) }, modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 2.dp), shape = BookingCardShape, color = if (isSelected) VibrantTeal else MaterialTheme.colorScheme.surface) { Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp)) { Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time", color = if (isSelected) White else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center) } }
+    val slotKey = slots.joinToString { it.startTime.orEmpty() }
+    val morningSlots = slots.filter { (it.startTime?.take(2)?.toIntOrNull() ?: 0) < 12 }
+    val afternoonSlots = slots.filter { (it.startTime?.take(2)?.toIntOrNull() ?: 0) >= 12 }
+    val selectedPeriod = if ((selected?.startTime?.take(2)?.toIntOrNull() ?: 0) >= 12) TimePeriod.AFTERNOON else TimePeriod.MORNING
+    var period by remember(slotKey) { mutableStateOf(if (selected != null) selectedPeriod else if (morningSlots.isNotEmpty()) TimePeriod.MORNING else TimePeriod.AFTERNOON) }
+    var showAll by remember(period, slotKey) { mutableStateOf(false) }
+    val periodSlots = if (period == TimePeriod.MORNING) morningSlots else afternoonSlots
+    val visibleSlots = if (showAll) periodSlots else periodSlots.take(6)
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Available times", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
+            Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TimePeriod.values().forEach { option ->
+                    val availableCount = if (option == TimePeriod.MORNING) morningSlots.size else afternoonSlots.size
+                    val active = period == option
+                    Surface(
+                        onClick = { period = option },
+                        enabled = availableCount > 0,
+                        modifier = Modifier.weight(1f).height(42.dp),
+                        color = if (active) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        shape = RoundedCornerShape(14.dp),
+                        shadowElevation = if (active) 2.dp else 0.dp,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("${option.label} ($availableCount)", color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium, fontSize = 13.sp)
+                        }
+                    }
                 }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+        if (periodSlots.isEmpty()) {
+            EmptyState("No ${period.label.lowercase()} times are available.")
+        } else {
+            visibleSlots.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { slot ->
+                        val isSelected = selected?.startTime?.take(5) == slot.startTime?.take(5)
+                        Surface(
+                            onClick = { onSelect(slot) },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isSelected) VibrantTeal else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, if (isSelected) VibrantTeal else MaterialTheme.colorScheme.outlineVariant),
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 3.dp)) {
+                                Text(slot.startTime?.let(DateUtils::formatDisplayTime) ?: "Time", color = if (isSelected) White else MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            }
+                        }
+                    }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+            if (periodSlots.size > 6) {
+                TextButton(onClick = { showAll = !showAll }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text(if (showAll) "Show fewer" else "Show all ${periodSlots.size} times", fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

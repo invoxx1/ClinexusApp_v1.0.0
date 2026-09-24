@@ -790,4 +790,28 @@ class AppointmentRepository @Inject constructor(
             )
         }
     }
+
+    suspend fun selfCheckIn(appointmentId: Int): Resource<GenericResponse> = try {
+        val token = getAuthorizationHeader() ?: return Resource.Error("Not authenticated.")
+        val response = apiService.selfCheckIn(token, appointmentId)
+        if (response.isSuccessful && response.body() != null) {
+            Resource.Success(response.body()!!)
+        } else {
+            handleError(response, "Unable to check in")
+        }
+    } catch (e: Exception) {
+        Resource.Error(e.localizedMessage ?: "Network error while checking in.")
+    }
+
+    suspend fun getPatientQueueStatus(appointmentId: Int): Resource<PatientQueueDTO> = try {
+        val token = getAuthorizationHeader() ?: return Resource.Error("Not authenticated.")
+        val response = apiService.getPatientQueueStatus(token, appointmentId)
+        if (response.isSuccessful && response.body() != null) {
+            Resource.Success(response.body()!!.queue)
+        } else {
+            handleError(response, "Unable to load queue status")
+        }
+    } catch (e: Exception) {
+        Resource.Error(e.localizedMessage ?: "Network error while loading queue status.")
+    }
 }

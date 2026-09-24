@@ -67,4 +67,16 @@ interface AppointmentApiService {
         @Path("appointmentID") appointmentId: Int,
         @Body request: CancelAppointmentRequest
     ): Response<GenericResponse>
+
+    @PATCH("api/patient/appointments/{id}/check-in")
+    suspend fun selfCheckIn(
+        @Header("Authorization") token: String,
+        @Path("id") appointmentId: Int,
+    ): Response<GenericResponse>
+
+    @GET("api/patient/appointments/{id}/queue")
+    suspend fun getPatientQueueStatus(
+        @Header("Authorization") token: String,
+        @Path("id") appointmentId: Int,
+    ): Response<PatientQueueResponse>
 }

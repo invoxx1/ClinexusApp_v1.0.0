@@ -18,6 +18,8 @@ class LoginViewModel @Inject constructor(private val repository: AuthRepository)
 
     private val _loginState = MutableStateFlow<Resource<LoginResponse>?>(null)
     val loginState = _loginState.asStateFlow()
+    private val _verificationEmail = MutableStateFlow<String?>(null)
+    val verificationEmail = _verificationEmail.asStateFlow()
 
     fun login(
         email: String,
@@ -29,6 +31,20 @@ class LoginViewModel @Inject constructor(private val repository: AuthRepository)
             _loginState.value = Resource.Loading
             val request = LoginRequest(email.trim(), password)
             val result = repository.login(request)
+
+            if (result is Resource.Error && result.message == AuthRepository.EMAIL_VERIFICATION_REQUIRED) {
+                when (val resend = repository.resendVerificationEmail(request.email)) {
+                    is Resource.Success -> {
+                        _verificationEmail.value = request.email
+                        _loginState.value = Resource.Error("A new verification code was sent to your email.")
+                    }
+                    is Resource.Error -> _loginState.value = Resource.Error(
+                        resend.message ?: "Your email still needs verification. We couldn't send a new code."
+                    )
+                    else -> Unit
+                }
+                return@launch
+            }
             
             if (result is Resource.Success) {
                 val token = result.data.token
@@ -61,6 +77,11 @@ class LoginViewModel @Inject constructor(private val repository: AuthRepository)
     }
     
     fun resetState() {
+        _loginState.value = null
+    }
+
+    fun consumeVerificationEmail() {
+        _verificationEmail.value = null
         _loginState.value = null
     }
 }

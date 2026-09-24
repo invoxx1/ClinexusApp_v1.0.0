@@ -27,7 +27,8 @@ data class AppointmentDTO(
         @SerializedName("requested_date") val requestedDate: String? = null,
         @SerializedName("requested_start_time") val requestedStartTime: String? = null,
         @SerializedName("requested_end_time") val requestedEndTime: String? = null,
-        @SerializedName("reschedule_source") val rescheduleSource: String? = null
+        @SerializedName("reschedule_source") val rescheduleSource: String? = null,
+        @SerializedName("checked_in_at") val checkedInAt: String? = null
 ) {
     // ✅ Combine first and last names
     val doctor: String get() = listOfNotNull(dentistFirstName, dentistLastName)

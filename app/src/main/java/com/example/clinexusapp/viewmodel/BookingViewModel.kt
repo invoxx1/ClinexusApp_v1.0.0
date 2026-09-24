@@ -15,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 import java.io.Serializable
 
@@ -52,6 +53,7 @@ data class AppointmentTicket(
 class BookingViewModel @Inject constructor(
     private val appointmentRepository: AppointmentRepository
 ) : ViewModel() {
+    private var selectedDateRefreshJob: Job? = null
     private val _uiState = MutableStateFlow(BookingUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -121,6 +123,7 @@ class BookingViewModel @Inject constructor(
 
     fun selectDate(date: String) {
         if (_uiState.value.selectedDate == date && _uiState.value.timeslots is Resource.Loading) return
+        selectedDateRefreshJob?.cancel()
         update { it.copy(selectedDate = date, selectedSlot = null, timeslots = Resource.Loading, confirmationChecked = false) }
         val dentist = _uiState.value.selectedDentist ?: return
         viewModelScope.launch {
@@ -155,12 +158,14 @@ class BookingViewModel @Inject constructor(
     }
 
     fun refreshSelectedDate() {
+        if (selectedDateRefreshJob?.isActive == true) return
         val state = _uiState.value
         val dentist = state.selectedDentist ?: return
         val date = state.selectedDate ?: return
-        viewModelScope.launch {
+        selectedDateRefreshJob = viewModelScope.launch {
             val slots = getBookableSlots(dentist.dentistId, date)
             update {
+                if (it.selectedDate != date || it.selectedDentist?.dentistId != dentist.dentistId) return@update it
                 // Preserve the patient's choice only while that slot is still available.
                 it.copy(
                     timeslots = slots,

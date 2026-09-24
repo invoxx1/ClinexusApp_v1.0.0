@@ -52,6 +52,7 @@ import com.example.clinexusapp.ui.screens.main.RememberPasswordDialog
 import com.example.clinexusapp.ui.screens.notifications.NotificationScreen
 import com.example.clinexusapp.ui.screens.auth.ChangePasswordScreen
 import com.example.clinexusapp.ui.screens.profile.PersonalInformationScreen
+import com.example.clinexusapp.ui.screens.profile.ClinicalHistoryScreen
 import com.example.clinexusapp.ui.screens.profile.SessionManagementScreen
 import com.example.clinexusapp.ui.screens.settings.SettingsScreen
 import com.example.clinexusapp.util.SessionManager
@@ -148,9 +149,13 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-            ) {
-                navController.navigate(Screen.ForgotPassword.route)
-            }
+                onNavigateToForgotPassword = {
+                    navController.navigate(Screen.ForgotPassword.route)
+                },
+                onVerificationRequired = { email ->
+                    navController.navigate(Screen.OTP.createRoute(email, "verification"))
+                },
+            )
         }
         composable(route = Screen.Register.route) {
             val registerViewModel: RegisterViewModel = hiltViewModel()
@@ -338,6 +343,14 @@ fun SetupNavGraph(navController: NavHostController, settingsViewModel: SettingsV
             PersonalInformationScreen(
                 onBack = { navController.popBackStack() },
                 viewModel = profileViewModel
+            )
+        }
+
+        composable(route = Screen.ClinicalHistory.route) {
+            val clinicalHistoryViewModel: ClinicalHistoryViewModel = hiltViewModel()
+            ClinicalHistoryScreen(
+                onBack = { navController.popBackStack() },
+                viewModel = clinicalHistoryViewModel,
             )
         }
 
