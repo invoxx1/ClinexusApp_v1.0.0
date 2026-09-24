@@ -7,6 +7,10 @@ import com.example.clinexusapp.repository.ChatRepository
 import com.example.clinexusapp.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
 import kotlin.time.Duration.Companion.seconds
@@ -37,6 +41,13 @@ class ChatViewModel @Inject constructor(
 
     private val _actionMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionMessages: SharedFlow<String> = _actionMessages.asSharedFlow()
+
+    private val _conversationSearchMatches = MutableStateFlow<Map<Int, String>>(emptyMap())
+    val conversationSearchMatches: StateFlow<Map<Int, String>> = _conversationSearchMatches.asStateFlow()
+    private val _conversationSearchLoading = MutableStateFlow(false)
+    val conversationSearchLoading: StateFlow<Boolean> = _conversationSearchLoading.asStateFlow()
+    private val messageHistoryCache = mutableMapOf<Int, List<MessageDetailDTO>>()
+    private var searchJob: kotlinx.coroutines.Job? = null
 
     private var pollingJob: kotlinx.coroutines.Job? = null
 
@@ -166,6 +177,46 @@ class ChatViewModel @Inject constructor(
     fun markConversationAsRead(conversationId: Int, lastReadMessageID: Int) {
         viewModelScope.launch {
             repository.markConversationAsRead(conversationId, lastReadMessageID)
+        }
+    }
+
+    fun searchConversationHistory(query: String, conversations: List<ConversationDTO>) {
+        searchJob?.cancel()
+        val terms = query.trim().split(Regex("\\s+")).filter(String::isNotBlank)
+        if (terms.isEmpty()) {
+            _conversationSearchMatches.value = emptyMap()
+            _conversationSearchLoading.value = false
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            delay(300)
+            _conversationSearchLoading.value = true
+            try {
+                val histories = coroutineScope {
+                    conversations.map { conversation ->
+                        async {
+                            val cached = messageHistoryCache[conversation.conversationId]
+                            val messages = cached ?: when (val result = repository.getConversationMessages(conversation.conversationId)) {
+                                is Resource.Success -> result.data.messages.also {
+                                    messageHistoryCache[conversation.conversationId] = it
+                                }
+                                else -> emptyList()
+                            }
+                            conversation.conversationId to messages
+                        }
+                    }.awaitAll()
+                }
+
+                _conversationSearchMatches.value = histories.mapNotNull { (conversationId, messages) ->
+                    val match = messages.lastOrNull { message ->
+                        terms.all { term -> message.messageContent.contains(term, ignoreCase = true) }
+                    }
+                    match?.let { conversationId to it.messageContent }
+                }.toMap()
+            } finally {
+                _conversationSearchLoading.value = false
+            }
         }
     }
 

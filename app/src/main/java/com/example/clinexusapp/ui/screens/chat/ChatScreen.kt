@@ -49,7 +49,6 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,6 +81,7 @@ import java.io.File
 import java.io.FileOutputStream
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +101,8 @@ fun ChatScreen(
     val context = LocalContext.current
     val contactsState by viewModel.contactsState.collectAsState()
     val conversationsState by viewModel.conversationsState.collectAsState()
+    val conversationSearchMatches by viewModel.conversationSearchMatches.collectAsState()
+    val conversationSearchLoading by viewModel.conversationSearchLoading.collectAsState()
     val conversationMessagesState by viewModel.conversationMessagesState.collectAsState()
     val sendMessageState by viewModel.sendMessageState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -377,6 +379,13 @@ fun ChatScreen(
                         ) {
                             ChatListHeader(title = "Messages")
                             MessageSearchField(searchQuery, { searchQuery = it }, "Search people or messages")
+                            if (conversationSearchLoading) {
+                                LinearProgressIndicator(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 34.dp, vertical = 6.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                )
+                            }
                         }
                         Spacer(Modifier.height(26.dp))
                         Box(modifier = Modifier.weight(1f)) {
@@ -395,10 +404,13 @@ fun ChatScreen(
                                 }
                             }
                             is Resource.Success -> {
-                                val conversations = remember(convState.data, searchQuery) {
-                                    searchConversations(convState.data, searchQuery)
+                                LaunchedEffect(searchQuery, convState.data) {
+                                    viewModel.searchConversationHistory(searchQuery, convState.data)
                                 }
-                                if (conversations.isEmpty()) {
+                                val conversations = remember(convState.data, searchQuery, conversationSearchMatches) {
+                                    searchConversations(convState.data, searchQuery, conversationSearchMatches)
+                                }
+                                if (conversations.isEmpty() && !conversationSearchLoading) {
                                     ConversationSearchEmptyState(searchQuery)
                                 } else {
                                     LazyColumn(
@@ -419,7 +431,12 @@ fun ChatScreen(
                                             }
                                         }
                                         items(conversations, key = { it.conversationId }) { conversation ->
-                                            ConversationItem(conversation = conversation, searchQuery = searchQuery, onDelete = { deleteConversationTarget = conversation }) {
+                                            ConversationItem(
+                                                conversation = conversation,
+                                                searchQuery = searchQuery,
+                                                searchMessage = conversationSearchMatches[conversation.conversationId],
+                                                onDelete = { deleteConversationTarget = conversation },
+                                            ) {
                                                 viewModel.selectConversation(conversation)
                                                 currentView = ChatView.MESSAGES
                                             }
@@ -792,6 +809,7 @@ enum class ChatView { CONVERSATIONS, CONTACTS, MESSAGES }
 internal fun searchConversations(
     conversations: List<ConversationDTO>,
     rawQuery: String,
+    historicalMatches: Map<Int, String> = emptyMap(),
 ): List<ConversationDTO> {
     val query = rawQuery.trim()
     if (query.isEmpty()) return conversations
@@ -803,6 +821,7 @@ internal fun searchConversations(
                 conversation.name,
                 conversation.role,
                 conversation.lastMessage.orEmpty(),
+                historicalMatches[conversation.conversationId].orEmpty(),
             ).joinToString(" ")
             terms.all { term -> searchable.contains(term, ignoreCase = true) }
         }
@@ -851,14 +870,23 @@ fun ChatAvatar(imageUrl: String?, name: String, size: Dp, fontSize: TextUnit = 1
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ConversationItem(conversation: ConversationDTO, searchQuery: String = "", onDelete: () -> Unit, onClick: () -> Unit) {
+fun ConversationItem(
+    conversation: ConversationDTO,
+    searchQuery: String = "",
+    searchMessage: String? = null,
+    onDelete: () -> Unit,
+    onClick: () -> Unit,
+) {
     val dismissState = rememberSwipeToDismissBoxState(
-        positionalThreshold = { it * 0.35f },
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.StartToEnd || value == SwipeToDismissBoxValue.EndToStart) onDelete()
-            false
-        }
+        positionalThreshold = { it * 0.35f }
     )
+
+    LaunchedEffect(dismissState.settledValue) {
+        if (dismissState.settledValue != SwipeToDismissBoxValue.Settled) {
+            onDelete()
+            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+        }
+    }
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
@@ -886,7 +914,13 @@ fun ConversationItem(conversation: ConversationDTO, searchQuery: String = "", on
                     }
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(text = highlightedSearchText(conversation.lastMessage ?: "No messages yet", searchQuery), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = highlightedSearchText(searchMessage ?: conversation.lastMessage ?: "No messages yet", searchQuery),
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             Spacer(Modifier.width(8.dp))
             Icon(Lucide.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(28.dp))

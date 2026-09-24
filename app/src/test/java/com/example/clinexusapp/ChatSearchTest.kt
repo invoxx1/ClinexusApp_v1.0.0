@@ -24,6 +24,16 @@ class ChatSearchTest {
         assertEquals(listOf(1), searchConversations(conversations, "maria confirmed").map { it.conversationId })
     }
 
+    @Test
+    fun `search includes matching older conversation messages`() {
+        val historicalMatches = mapOf(2 to "Your previous appointment was approved")
+
+        assertEquals(
+            listOf(2),
+            searchConversations(conversations, "previous approved", historicalMatches).map { it.conversationId },
+        )
+    }
+
     private fun conversation(id: Int, name: String, role: String, lastMessage: String) = ConversationDTO(
         conversationId = id,
         accountId = id,
