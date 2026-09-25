@@ -12,6 +12,7 @@ import com.example.clinexusapp.model.PatientQueueDTO
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.SessionManager
 import com.example.clinexusapp.util.NotificationHelper
+import com.example.clinexusapp.util.DateUtils
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -182,7 +183,7 @@ class DashboardViewModel @Inject constructor(
         if (result is Resource.Success) {
             val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
             val now = Date()
-            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+            val todayStr = java.time.LocalDate.now(BookingRules.clinicZone).toString()
             val activeAppts = result.data.filter {
                 when (mapAppointmentStatus(it.appointmentStatus)) {
                     AppointmentStatus.PENDING,
@@ -194,7 +195,7 @@ class DashboardViewModel @Inject constructor(
                 }
             }.filter {
                 try {
-                    val cleanDate = it.appointmentDate.substringBefore("T")
+                    val cleanDate = DateUtils.appointmentDateOnly(it.appointmentDate)
                     val apptDate = sdf.parse("$cleanDate ${it.startTime}")
                     apptDate?.after(now) == true || cleanDate == todayStr
                 } catch (_: Exception) {
@@ -211,7 +212,7 @@ class DashboardViewModel @Inject constructor(
                 }
             }.thenBy {
                 try {
-                    val cleanDate = it.appointmentDate.substringBefore("T")
+                    val cleanDate = DateUtils.appointmentDateOnly(it.appointmentDate)
                     sdf.parse("$cleanDate ${it.startTime}")?.time ?: Long.MAX_VALUE
                 } catch (_: Exception) {
                     Long.MAX_VALUE

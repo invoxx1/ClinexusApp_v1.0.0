@@ -650,8 +650,8 @@ private fun AppointmentCard(
                 }
             }
             if (status == AppointmentStatus.CONFIRMED || status == AppointmentStatus.IN_PROGRESS) {
-                val isToday = appointment.appointmentDate.substringBefore('T') ==
-                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                val isToday = DateUtils.appointmentDateOnly(appointment.appointmentDate) ==
+                    java.time.LocalDate.now(BookingRules.clinicZone).toString()
                 if (isToday) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (status == AppointmentStatus.CONFIRMED) {
@@ -817,7 +817,7 @@ private fun AnimatedWaitMetric(minutes: Int?, modifier: Modifier = Modifier) {
 
 private fun addAppointmentToCalendar(context: android.content.Context, appointment: AppointmentDTO) {
     val parser = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-    val date = appointment.appointmentDate.substringBefore('T')
+    val date = DateUtils.appointmentDateOnly(appointment.appointmentDate)
     val start = parser.parse("$date ${appointment.startTime}")?.time ?: return
     val end = parser.parse("$date ${appointment.endTime}")?.time ?: (start + 60 * 60 * 1000)
     val intent = Intent(Intent.ACTION_INSERT).setData(CalendarContract.Events.CONTENT_URI)
@@ -1082,7 +1082,8 @@ internal fun AppointmentDetailsDialog(
 ) {
     val style = statusStyle(mapAppointmentStatus(appointment.appointmentStatus), appointment.needsPatientScheduleChoice)
     val status = mapAppointmentStatus(appointment.appointmentStatus)
-    val isToday = appointment.appointmentDate.substringBefore('T') == SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    val isToday = DateUtils.appointmentDateOnly(appointment.appointmentDate) ==
+        java.time.LocalDate.now(BookingRules.clinicZone).toString()
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(),

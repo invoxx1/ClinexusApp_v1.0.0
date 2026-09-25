@@ -3,6 +3,7 @@ package com.example.clinexusapp.viewmodel
 import com.example.clinexusapp.model.AvailableSlotDTO
 import com.example.clinexusapp.model.AppointmentDTO
 import com.example.clinexusapp.util.Resource
+import com.example.clinexusapp.util.DateUtils
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -58,7 +59,7 @@ object BookingRules {
     ): List<AvailableSlotDTO> {
         val blocked = appointments.filter { appointment ->
             appointment.dentistId == dentistId &&
-                appointment.appointmentDate.substringBefore('T') == date &&
+                DateUtils.appointmentDateOnly(appointment.appointmentDate) == date &&
                 appointment.appointmentStatus.trim().lowercase() !in setOf(
                     "cancelled", "canceled", "completed", "done", "rejected", "declined", "denied", "no_show"
                 )

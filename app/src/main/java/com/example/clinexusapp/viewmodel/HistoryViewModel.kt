@@ -10,6 +10,7 @@ import com.example.clinexusapp.model.RescheduleAppointmentRequest
 import com.example.clinexusapp.model.PatientQueueDTO
 import com.example.clinexusapp.util.Resource
 import com.example.clinexusapp.util.AppointmentReminderScheduler
+import com.example.clinexusapp.util.DateUtils
 import com.example.clinexusapp.util.NotificationHelper
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -337,7 +338,7 @@ class HistoryViewModel @Inject constructor(
     }
 
     private fun appointmentDateTime(appointment: AppointmentDTO): Date? = runCatching {
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).parse("${appointment.appointmentDate.substringBefore('T')} ${appointment.startTime}")
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).parse("${DateUtils.appointmentDateOnly(appointment.appointmentDate)} ${appointment.startTime}")
     }.getOrNull()
 }
 
@@ -345,12 +346,12 @@ fun filterAppointmentsForTab(tab: AppointmentTab, source: List<AppointmentDTO>):
     source.filter { mapAppointmentStatus(it.appointmentStatus).toTab() == tab }
         .sortedByDescending {
             runCatching {
-                SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).parse("${it.appointmentDate.substringBefore('T')} ${it.startTime}")
+                SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).parse("${DateUtils.appointmentDateOnly(it.appointmentDate)} ${it.startTime}")
             }.getOrNull()
         }
 
 fun isUnchangedReschedule(appointment: AppointmentDTO, date: String, slot: AvailableSlotDTO): Boolean =
-    date == appointment.appointmentDate.substringBefore("T") && slot.startTime == appointment.startTime
+    date == DateUtils.appointmentDateOnly(appointment.appointmentDate) && slot.startTime == appointment.startTime
 
 private fun AppointmentDTO.durationMinutes(): Int {
     fun toMinutes(value: String): Int? {

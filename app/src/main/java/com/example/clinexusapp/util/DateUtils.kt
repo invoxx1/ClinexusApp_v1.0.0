@@ -1,9 +1,30 @@
 package com.example.clinexusapp.util
 
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
 import java.util.*
 
 object DateUtils {
+    private val clinicZone = ZoneId.of("Asia/Manila")
+
+    /**
+     * Appointment dates are calendar dates in the clinic timezone, not UTC instants.
+     * Older API responses may still contain a UTC timestamp produced from a MySQL DATE.
+     */
+    fun appointmentDateOnly(dateString: String?): String {
+        val value = dateString?.trim().orEmpty()
+        if (value.isEmpty()) return ""
+
+        if (value.endsWith("Z", ignoreCase = true)) {
+            runCatching {
+                return Instant.parse(value).atZone(clinicZone).toLocalDate().toString()
+            }
+        }
+
+        return value.substringBefore('T').take(10)
+    }
+
     /**
      * Formats a date string for the chat conversation list (iMessage style)
      * e.g., "9:51 AM", "Yesterday", "Tuesday", or "Aug 31"
@@ -139,11 +160,7 @@ object DateUtils {
     fun formatDisplayDate(dateString: String?): String {
         if (dateString == null) return ""
         return try {
-            val cleanString = if (dateString.contains("T")) {
-                dateString.substringBefore("T")
-            } else {
-                dateString
-            }
+            val cleanString = appointmentDateOnly(dateString)
             
             val inputSdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val date = inputSdf.parse(cleanString) ?: return cleanString

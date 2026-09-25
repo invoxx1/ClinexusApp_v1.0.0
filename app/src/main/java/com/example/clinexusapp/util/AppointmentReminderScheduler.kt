@@ -44,7 +44,7 @@ object AppointmentReminderScheduler {
         val ticket = AppointmentTicket(
             reference = appointment.appointmentId.toString(), status = appointment.appointmentStatus,
             dentist = appointment.doctor, service = appointment.serviceName ?: appointment.treatment,
-            price = "", date = appointment.appointmentDate.substringBefore('T'),
+            price = "", date = DateUtils.appointmentDateOnly(appointment.appointmentDate),
             time = "${appointment.startTime} – ${appointment.endTime}", clinic = appointment.clinicName.orEmpty(), patient = "",
         )
         cancel(context, appointment.appointmentId)
